@@ -215,9 +215,10 @@ class LayoutManager:
         if self.settings:
             preferred_layout = self.settings.get("current_layout", "google")
 
-        # Validate preference
-        if preferred_layout not in self._layouts:
-            print(f"[LayoutManager] Invalid saved layout '{preferred_layout}', using 'google'")
+        # Validate preference — force "google" if saved pref is "current"
+        # (current is an internal/power-user layout, not the default UX)
+        if preferred_layout == "current" or preferred_layout not in self._layouts:
+            print(f"[LayoutManager] Overriding saved layout '{preferred_layout}' → 'google'")
             preferred_layout = "google"
 
         # Initialize layout
