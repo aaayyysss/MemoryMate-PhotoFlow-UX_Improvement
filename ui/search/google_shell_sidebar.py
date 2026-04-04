@@ -96,14 +96,34 @@ class GoogleShellSidebar(QWidget):
         self.people.add_widget(self._nav("Show Unnamed Clusters", "people_unnamed"))
         self.people.add_widget(self._nav("Show All People", "people_show_all"))
 
-        # ── Browse ────────────────────────────────────────────────
+        # ── Browse (Phase 4 — full parity) ───────────────────────
         self.browse = _ShellSection("Browse", expanded=True)
         self.browse.add_widget(self._hint("Library, sources, collections"))
+        # Library
         self.browse.add_widget(self._nav("All Photos", "all"))
+        self.browse.add_widget(self._nav("Years", "years"))
+        self.browse.add_widget(self._nav("Months", "months"))
+        self.browse.add_widget(self._nav("Days", "days"))
+        # Sources
         self.browse.add_widget(self._nav("Folders", "folders"))
-        self.browse.add_widget(self._nav("Dates", "dates"))
+        self.browse.add_widget(self._nav("Devices", "devices"))
+        # Collections
+        self.browse.add_widget(self._nav("Favorites", "favorites"))
         self.browse.add_widget(self._nav("Videos", "videos"))
+        self.browse.add_widget(self._nav("Documents", "documents"))
+        self.browse.add_widget(self._nav("Screenshots", "screenshots"))
+        self.browse.add_widget(self._nav("Duplicates", "duplicates"))
+        # Places
         self.browse.add_widget(self._nav("Locations", "locations"))
+        # Quick Access
+        self.browse.add_widget(self._nav("Today", "today"))
+        self.browse.add_widget(self._nav("Yesterday", "yesterday"))
+        self.browse.add_widget(self._nav("Last 7 days", "last_7_days"))
+        self.browse.add_widget(self._nav("Last 30 days", "last_30_days"))
+        self.browse.add_widget(self._nav("This month", "this_month"))
+        self.browse.add_widget(self._nav("Last month", "last_month"))
+        self.browse.add_widget(self._nav("This year", "this_year"))
+        self.browse.add_widget(self._nav("Last year", "last_year"))
 
         # ── Filters ───────────────────────────────────────────────
         self.filters = _ShellSection("Filters", expanded=False)
