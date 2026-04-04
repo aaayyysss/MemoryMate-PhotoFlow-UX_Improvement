@@ -1,0 +1,347 @@
+Yes, Phase 2B is good enough to move on, and the next step is correctly **Phase 3, shell quality checkpoint**.
+
+## Audit verdict
+
+### Phase 2B passed
+
+The log shows the passive shell insertion did **not** destabilize Google layout:
+
+* startup now goes directly to `google`, not `current`, via the override path. 
+* `google` still suppresses initial load when no project exists. 
+* switching `google → google_legacy → google` works cleanly. 
+* `google` project creation is still clean: `set_project(None -> 1)`, then one debounced reload, then one generation-1 load. 
+* `google_legacy` remains untouched as fallback and still works. 
+
+So, in plan terms:
+
+* **Phase 1** is complete
+* **Phase 2A** is complete enough on `google`
+* **Phase 2B** is complete enough
+* the next correct step is **Phase 3**
+
+## Why it is safe to move to Phase 3
+
+Because Phase 3 is still **not behavior ownership**. It is only the shell quality checkpoint:
+
+* width
+* default expansion state
+* calmer visual hierarchy
+* collapsed legacy block
+* intentional onboarding presentation
+
+That is exactly the right next step now.
+
+---
+
+# Phase 3 implementation pack, shell quality checkpoint
+
+## Scope lock
+
+Only in `google`, not `google_legacy`:
+
+* `layouts/google_layout.py`
+* `ui/search/search_sidebar.py`
+
+No routing changes.
+No Browse migration.
+No People migration.
+No action ownership changes.
+
+---
+
+# File 1, `layouts/google_layout.py`
+
+## 1. Tighten shell width
+
+### Find in `_build_passive_shell()` or wherever left shell sizing is set
+
+### Replace with:
+
+```python
+self.left_shell_container.setMinimumWidth(280)
+self.left_shell_container.setMaximumWidth(300)
+self.left_shell_container.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+```
+
+---
+
+## 2. Keep legacy block collapsed by default
+
+### In `_build_passive_shell()`, ensure this stays:
+
+```python
+self.legacy_container = QGroupBox("Legacy Tools")
+self.legacy_container.setCheckable(True)
+self.legacy_container.setChecked(False)
+```
+
+---
+
+## 3. Make legacy block visually lighter
+
+### Replace legacy container styling block with:
+
+```python
+self.left_shell_container.setStyleSheet("""
+    QWidget#GoogleLeftShell {
+        background: #f8f9fb;
+        border-right: 1px solid #e6e8eb;
+    }
+    QGroupBox {
+        font-weight: 600;
+        border: 1px solid #e6e8eb;
+        border-radius: 10px;
+        margin-top: 6px;
+        padding-top: 10px;
+        background: #ffffff;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 4px;
+        color: #5f6368;
+    }
+""")
+```
+
+---
+
+## 4. Reduce legacy accordion visible height
+
+### Keep or replace with:
+
+```python
+self.accordion_sidebar.setMaximumHeight(160)
+```
+
+---
+
+## 5. Reduce vertical heaviness of the left shell layout
+
+### Replace:
+
+```python
+self.left_shell_layout.setContentsMargins(8, 8, 8, 8)
+self.left_shell_layout.setSpacing(8)
+```
+
+### With:
+
+```python
+self.left_shell_layout.setContentsMargins(6, 6, 6, 6)
+self.left_shell_layout.setSpacing(6)
+```
+
+---
+
+# File 2, `ui/search/search_sidebar.py`
+
+## 1. Replace the section expansion defaults
+
+### Find the wrapper creation block
+
+### Replace with:
+
+```python
+self.search_hub = _SectionCard("Search Hub", expanded=True)
+self.discover = _SectionCard("Discover", expanded=True)
+self.people = _SectionCard("People", expanded=False)
+self.browse = _SectionCard("Browse", expanded=True)
+self.filters = _SectionCard("Filters", expanded=False)
+self.activity = _SectionCard("Activity", expanded=False)
+```
+
+This matches the Phase 3 checkpoint exactly.
+
+---
+
+## 2. Tighten the outer shell spacing
+
+### Replace:
+
+```python
+root.setContentsMargins(8, 8, 8, 8)
+root.setSpacing(8)
+```
+
+### With:
+
+```python
+root.setContentsMargins(6, 6, 6, 6)
+root.setSpacing(6)
+```
+
+---
+
+## 3. Replace the stylesheet with a calmer hierarchy
+
+```python
+self.setStyleSheet("""
+    QWidget#SearchSidebar {
+        background: transparent;
+    }
+
+    QFrame#SectionCard {
+        background: #ffffff;
+        border: 1px solid #e6e8eb;
+        border-radius: 10px;
+    }
+
+    QPushButton#SectionHeader {
+        text-align: left;
+        font-weight: 600;
+        color: #202124;
+        border: none;
+        background: transparent;
+        padding: 8px 10px;
+    }
+
+    QPushButton#SectionHeader:hover {
+        background: #f5f7fa;
+        border-radius: 10px;
+    }
+
+    QLabel {
+        color: #5f6368;
+        padding: 0 2px;
+    }
+
+    QPushButton {
+        text-align: left;
+        border: none;
+        background: transparent;
+        padding: 5px 8px;
+        border-radius: 8px;
+        color: #202124;
+    }
+
+    QPushButton:hover {
+        background: #eef3ff;
+    }
+""")
+```
+
+---
+
+## 4. Reduce white space in Search Hub
+
+### Replace the Search Hub body block:
+
+```python
+self.search_hub.addWidget(self._muted_label("Search, recent searches, scopes"))
+self.search_hub.addWidget(self._placeholder_button("Open Search", "find"))
+```
+
+### With:
+
+```python
+self.search_hub.addWidget(self._muted_label("Search, recent searches, scopes"))
+self.search_hub.addWidget(self._placeholder_button("Open Search", "find"))
+```
+
+Keep it exactly this small.
+Do not add any more placeholder rows in Phase 3.
+
+---
+
+## 5. Keep Discover visually compact but present
+
+### Keep only these:
+
+```python
+self.discover.addWidget(self._muted_label("Smart Find, scenes, presets"))
+self.discover.addWidget(self._placeholder_button("Beach", "discover_beach"))
+self.discover.addWidget(self._placeholder_button("Mountains", "discover_mountains"))
+self.discover.addWidget(self._placeholder_button("City", "discover_city"))
+```
+
+Do not add more cards yet in Phase 3.
+
+---
+
+## 6. Keep People collapsed and compact
+
+### Keep:
+
+```python
+self.people.addWidget(self._muted_label("Top people and review tools"))
+self.people.addWidget(self._placeholder_button("Review Possible Merges", "people_merge_review"))
+self.people.addWidget(self._placeholder_button("Show Unnamed Clusters", "people_unnamed"))
+self.people.addWidget(self._placeholder_button("Show All People", "people_show_all"))
+```
+
+Do not add legacy actions here yet. That belongs later.
+
+---
+
+## 7. Keep Browse expanded, but short
+
+### Keep only:
+
+```python
+self.browse.addWidget(self._muted_label("Library, sources, collections"))
+self.browse.addWidget(self._placeholder_button("All Photos", "all"))
+self.browse.addWidget(self._placeholder_button("Folders", "folders"))
+self.browse.addWidget(self._placeholder_button("Dates", "dates"))
+self.browse.addWidget(self._placeholder_button("Videos", "videos"))
+self.browse.addWidget(self._placeholder_button("Locations", "locations"))
+```
+
+Do not add full parity yet. That is Phase 4.
+
+---
+
+## 8. Keep Filters and Activity collapsed and minimal
+
+### Keep:
+
+```python
+self.filters.addWidget(self._muted_label("People, dates, types, favorites"))
+```
+
+and:
+
+```python
+self.activity.addWidget(self._muted_label("Jobs, indexing, AI processing"))
+open_activity = QPushButton("Open Activity Center")
+open_activity.clicked.connect(self.openActivityCenterRequested.emit)
+self.activity.addWidget(open_activity)
+```
+
+---
+
+# Phase 3 acceptance checklist
+
+Do not proceed to Phase 4 unless all of these are true in `google`:
+
+* shell width is visually about 280 to 300 px
+* Search Hub expanded
+* Discover expanded
+* People collapsed
+* Browse expanded
+* Filters collapsed
+* Activity collapsed
+* Legacy Tools collapsed
+* no giant blank panels in onboarding
+* onboarding visually looks intentional
+* `google_legacy` remains unchanged
+
+---
+
+# What this phase is not
+
+Still not:
+
+* Browse migration
+* People migration
+* branch routing ownership
+* legacy retirement
+
+Those remain later phases.
+
+---
+
+# Decision
+
+So yes, based on the current log, **proceed with Phase 3 now**.
+Phase 2B is stable enough, and moving to the shell quality checkpoint is the correct planned next step. 
