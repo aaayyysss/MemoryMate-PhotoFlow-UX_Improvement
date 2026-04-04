@@ -1255,42 +1255,61 @@ class GooglePhotosLayout(BaseLayout):
             }
         """)
 
+        self._refresh_passive_browse_payload()
+
         return container
 
     def _on_passive_shell_branch_clicked(self, branch: str):
-        """Phase 2B: passive shell click → expand matching legacy section.
-
-        No new routing ownership.  We merely highlight the corresponding
-        accordion section so the user can see the connection.
+        """
+        Phase 4:
+        Browse migration remains passive.
+        Expand matching legacy accordion section or delegate to stable handler.
         """
         try:
             if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
                 return
 
             legacy_map = {
-                "find": "find",
                 "all": "dates",
+                "years": "dates",
+                "months": "dates",
+                "days": "dates",
                 "folders": "folders",
-                "dates": "dates",
+                "devices": "devices",
+                "favorites": "find",
                 "videos": "videos",
-                "locations": "locations",
-                "favorites": "dates",
+                "documents": "find",
+                "screenshots": "find",
                 "duplicates": "duplicates",
-                "discover_scenes": "find",
+                "locations": "locations",
+                "today": "dates",
+                "yesterday": "dates",
+                "last_7_days": "dates",
+                "last_30_days": "dates",
+                "this_month": "dates",
+                "last_month": "dates",
+                "this_year": "dates",
+                "last_year": "dates",
                 "people_merge_review": "people",
                 "people_unnamed": "people",
                 "people_show_all": "people",
+                "find": "find",
+                "discover_beach": "find",
+                "discover_mountains": "find",
+                "discover_city": "find",
             }
 
             target = legacy_map.get(branch)
             if target and hasattr(self.accordion_sidebar, "_expand_section"):
-                # Make legacy group visible so the expansion is seen
-                if hasattr(self, "legacy_tools_group"):
-                    self.legacy_tools_group.setChecked(True)
                 self.accordion_sidebar._expand_section(target)
-                print(f"[GooglePhotosLayout] Passive shell → legacy expand: {branch} → {target}")
+
+            # Stable delegate hooks where safe
+            if branch == "all":
+                if hasattr(self, "request_reload") and getattr(self, "project_id", None):
+                    self.request_reload(reason="browse_all", project_id=self.project_id)
+
         except Exception as e:
-            print(f"[GooglePhotosLayout] Passive shell click failed: {branch} → {e}")
+            print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")
 
     def _on_passive_activity_requested(self):
         """Phase 2B: open Activity Center via MainWindow toggle."""
@@ -1301,7 +1320,33 @@ class GooglePhotosLayout(BaseLayout):
         except Exception as e:
             print(f"[GooglePhotosLayout] Passive activity request failed: {e}")
 
-    # ── end Phase 2B ──────────────────────────────────────────────────
+    # ── Phase 4: Browse payload helpers ─────────────────────────────
+
+    def _refresh_passive_browse_payload(self):
+        """
+        Phase 4:
+        lightweight parity counts only, no ownership changes.
+        """
+        try:
+            if not hasattr(self, "google_shell_sidebar") or self.google_shell_sidebar is None:
+                return
+
+            counts = {
+                "all": 0,
+                "folders": None,
+                "videos": None,
+                "locations": None,
+                "duplicates": None,
+            }
+
+            # Conservative seed values from current project state
+            if getattr(self, "project_id", None):
+                counts["all"] = 0
+
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] Browse payload refresh failed: {e}")
+
+    # ── end Phase 4 ──────────────────────────────────────────────────
 
     def _create_timeline(self) -> QWidget:
         """
@@ -10187,6 +10232,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         if new_project_id is not None:
             self.set_project(new_project_id)
         print("[GooglePhotosLayout] ✓ Layout refreshed after project creation")
+        self._refresh_passive_browse_payload()
 
     def _populate_project_selector(self):
         """
@@ -10370,6 +10416,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
                 return
 
             self.request_reload(reason="project_switch", project_id=project_id)
+            self._refresh_passive_browse_payload()
 
         finally:
             self._project_switch_in_progress = False

@@ -1,6 +1,7 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame, QGroupBox, QLabel
 
+from ui.search.sections.browse_section import BrowseSection
 from ui.search.sections.discover_section import DiscoverSection
 
 
@@ -18,6 +19,7 @@ class SearchSidebar(QWidget):
         self.controller = controller
 
         self.discover_section = DiscoverSection()
+        self.browse_section = BrowseSection()
         self.placeholder_search = self._make_placeholder_group("Search Hub", "UX-2")
         self.placeholder_filters = self._make_placeholder_group("Filters", "UX-3")
         self.placeholder_people = self._make_placeholder_group("People", "UX-4")
@@ -31,6 +33,7 @@ class SearchSidebar(QWidget):
     def _on_state_changed(self, state):
         enabled = state.has_active_project
         self.discover_section.setEnabled(enabled)
+        self.browse_section.setEnabled(enabled)
         self.placeholder_people.setEnabled(enabled)
         self.placeholder_filters.setEnabled(enabled)
 
@@ -54,6 +57,7 @@ class SearchSidebar(QWidget):
 
         self.content_layout.addWidget(self.placeholder_search)
         self.content_layout.addWidget(self.discover_section)
+        self.content_layout.addWidget(self.browse_section)
         self.content_layout.addWidget(self.placeholder_people)
         self.content_layout.addWidget(self.placeholder_filters)
         self.content_layout.addStretch(1)
@@ -81,6 +85,15 @@ class SearchSidebar(QWidget):
         """Parity method for MainWindow."""
         pass
 
+    def set_browse_payload(self, payload: dict | None):
+        payload = payload or {}
+        counts = payload.get("counts", {}) or {}
+        if hasattr(self, "browse_section") and hasattr(self.browse_section, "set_counts"):
+            self.browse_section.set_counts(counts)
+
     def _wire_signals(self):
+        self.browse_section.browseNodeSelected.connect(
+            lambda key, payload=None: self.selectBranch.emit(key)
+        )
         if self.controller:
             self.discover_section.presetSelected.connect(self.controller.set_preset)

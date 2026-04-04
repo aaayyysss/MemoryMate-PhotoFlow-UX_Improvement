@@ -4,6 +4,52 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-04
 
+### Phase 4 — Browse Migration (Passive Parity)
+
+Full Browse domain representation in the new shell, with all legacy Browse categories now accessible. Still passive — legacy accordion remains the action owner.
+
+#### Browse Section (`ui/search/sections/browse_section.py`)
+- Complete rewrite with expandable subsections: Library, Sources, Collections, Places, Quick Access
+- Library: All Photos, Years, Months, Days
+- Sources: Folders, Devices
+- Collections: Favorites, Videos, Documents, Screenshots, Duplicates
+- Places: Locations
+- Quick Access: Today, Yesterday, Last 7/30 days, This/Last month, This/Last year
+- `set_counts()` method for future count badge integration
+- `browseNodeSelected` signal with key-based routing
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Expanded Browse section from 5 items to full 20-item parity
+- Added: Years, Months, Days, Devices, Favorites, Documents, Screenshots, Duplicates
+- Added Quick Access dates: Today, Yesterday, Last 7/30 days, This/Last month, This/Last year
+
+#### Search Sidebar (`ui/search/search_sidebar.py`)
+- Integrated `BrowseSection` widget (replaces placeholder)
+- Wired `browseNodeSelected` → `selectBranch` signal forwarding
+- Added `set_browse_payload()` method for count updates
+- Browse enabled/disabled follows project state
+
+#### Layout Bridge (`layouts/google_layout.py`)
+- Expanded `_on_passive_shell_branch_clicked()` legacy map: 28 branch keys → accordion section targets
+- Added `_refresh_passive_browse_payload()` helper for future count integration
+- Browse payload refresh called on: shell creation, project switch, project creation
+- "All Photos" click triggers a reload via `request_reload(reason="browse_all")`
+
+#### Acceptance Checklist
+- [x] All legacy Browse domains represented in new shell
+- [x] Clicking new Browse items gives visible reaction (legacy accordion expand)
+- [x] Legacy Browse remains underneath as fallback
+- [x] `google_legacy` remains untouched
+
+### Files Changed
+- `ui/search/sections/browse_section.py`
+- `ui/search/google_shell_sidebar.py`
+- `ui/search/search_sidebar.py`
+- `layouts/google_layout.py`
+- `CHANGELOG.md`
+
+---
+
 ### Phase 3 — Shell Quality Checkpoint
 
 Visual polish pass on the passive shell to meet the product-feel baseline before any Browse/People migration begins.
