@@ -1,0 +1,18 @@
+# Test Requirements for MemoryMate PhotoFlow
+# Install with: pip install -r tests/requirements-test.txt
+
+# Core testing framework
+pytest>=7.4.0
+pytest-qt>=4.2.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.1
+
+# Qt testing support
+PySide6>=6.5.0
+
+# Additional testing utilities
+pytest-mock>=3.11.1
+pytest-timeout>=2.1.0
+
+# Code coverage
+coverage>=7.3.0
