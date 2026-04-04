@@ -4,6 +4,41 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-04
 
+### Phase 3 — Shell Quality Checkpoint
+
+Visual polish pass on the passive shell to meet the product-feel baseline before any Browse/People migration begins.
+
+#### Shell Layout (`layouts/google_layout.py`)
+- Tightened shell max width from 340px → 300px (target: 280–300px)
+- Added `setMaximumHeight(160)` on legacy accordion to keep it visually subordinate
+- Refined legacy group box styling: softer border color (#e6e8eb), title color (#5f6368), 10px border-radius
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Tightened outer margins from 8px → 6px and section spacing from 6px → 6px (consistent)
+- Tightened body spacing from 3px → 2px for more compact sections
+- Added "Library, sources, collections" hint to Browse section
+- Removed duplicate "Duplicates" from Browse (already in Discover)
+- Replaced Discover items with plan-specified presets: Beach, Mountains, City
+- Refined stylesheet: calmer hover (#f5f7fa for headers, #eef3ff for nav), nav text color aligned to #202124, border-radius 8px on nav buttons
+
+#### Section Expansion Defaults (verified)
+| Section | Default |
+|---------|---------|
+| Search Hub | expanded |
+| Discover | expanded |
+| People | collapsed |
+| Browse | expanded |
+| Filters | collapsed |
+| Activity | collapsed |
+| Legacy Tools | collapsed |
+
+### Files Changed
+- `layouts/google_layout.py`
+- `ui/search/google_shell_sidebar.py`
+- `CHANGELOG.md`
+
+---
+
 ### Phase 2B — Passive Shell Insertion
 
 Added a new visual navigation shell above the legacy accordion in `GooglePhotosLayout`. The shell is passive — the legacy accordion remains the sole action owner.
