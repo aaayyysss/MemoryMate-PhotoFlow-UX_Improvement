@@ -2,6 +2,42 @@
 
 All notable changes to the MemoryMate PhotoFlow search pipeline are documented here.
 
+## [Unreleased] - 2026-04-04
+
+### Phase 0 — Baseline Bug Fixes
+
+- **AssetRepository.list_duplicate_assets()**: Added missing `limit` and `offset` parameters to support pagination from the service layer. Previously caused `TypeError` at runtime when the duplicate loading worker attempted paginated queries.
+- **AssetRepository.delete_asset()**: Added new method for project-scoped asset deletion. Previously `AssetService` called a non-existent `delete()` method with a dict argument, which would crash at runtime when deleting assets with no remaining instances.
+
+### Phase 1 — Layout Split: GoogleLayout + GoogleLayoutLegacy
+
+Separated the Google Photos layout into a frozen stable reference and an active improvement track, following the revised UX master strategy.
+
+#### Layout Separation
+- **Created `layouts/google_layout_legacy.py`**: Exact copy of the stable Google Photos layout, frozen as the known-good fallback. Class renamed to `GooglePhotosLayoutLegacy`, layout ID `google_legacy`, display name `Google Photos Legacy`.
+- **Preserved `layouts/google_layout.py`**: Unchanged, remains as `GooglePhotosLayout` with layout ID `google` — the active future improvement surface.
+
+#### Registration & Startup
+- **`layout_manager.py`**: Registered `GooglePhotosLayoutLegacy` alongside all existing layouts. Changed default startup layout from `current` to `google`.
+- **`layouts/__init__.py`**: Added `GooglePhotosLayoutLegacy` to module exports.
+- **`main_window_qt.py`**: Updated layout menu fallback from `current` to `google` for consistency.
+
+#### Naming Convention
+| Asset | Class | ID | Display Name |
+|-------|-------|----|-------------|
+| Legacy (frozen) | `GooglePhotosLayoutLegacy` | `google_legacy` | Google Photos Legacy |
+| Active (improvement) | `GooglePhotosLayout` | `google` | Google Photos Style |
+
+### Files Changed
+- `repository/asset_repository.py`
+- `services/asset_service.py`
+- `layouts/google_layout_legacy.py` (new)
+- `layouts/layout_manager.py`
+- `layouts/__init__.py`
+- `main_window_qt.py`
+
+---
+
 ## [Unreleased] - 2026-03-22
 
 ### Industrial-Grade Face Pipeline & Bootstrap Policy
