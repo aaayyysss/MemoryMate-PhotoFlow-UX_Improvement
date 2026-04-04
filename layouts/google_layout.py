@@ -28,6 +28,7 @@ from .video_editor_mixin import VideoEditorMixin
 
 # Import extracted components from google_components module
 from ui.search.empty_state_view import EmptyStateView
+from ui.search.google_shell_sidebar import GoogleShellSidebar
 
 from google_components import (
     # Phase 3A: UI Widgets
@@ -298,9 +299,12 @@ class GooglePhotosLayout(BaseLayout):
         self.splitter = QSplitter(Qt.Horizontal)
         self.splitter.setHandleWidth(3)
 
-        # Create sidebar
+        # Create sidebar (legacy accordion)
         self.sidebar = self._create_sidebar()
-        self.splitter.addWidget(self.sidebar)
+
+        # Phase 2B: Build passive shell container above the legacy accordion
+        self.left_panel = self._build_left_panel_with_shell(self.sidebar)
+        self.splitter.addWidget(self.left_panel)
 
         # Search Components (Integrated from SearchState)
         self.empty_state = EmptyStateView()
@@ -1185,6 +1189,118 @@ class GooglePhotosLayout(BaseLayout):
         self.accordion_sidebar = sidebar
 
         return sidebar
+
+    # ── Phase 2B: Passive shell ───────────────────────────────────────
+
+    def _build_left_panel_with_shell(self, accordion_widget: QWidget) -> QWidget:
+        """Build the left panel: new shell on top, legacy accordion below.
+
+        Phase 2B — the shell is visual only; the accordion remains the
+        action owner.  The accordion is placed inside a collapsible
+        group box so it can be collapsed once the shell is functional.
+        """
+        from PySide6.QtWidgets import QGroupBox
+
+        container = QWidget()
+        container.setObjectName("GoogleLeftShell")
+        container.setMinimumWidth(280)
+        container.setMaximumWidth(340)
+        container.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+
+        lay = QVBoxLayout(container)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        # New shell (Phase 2B passive)
+        self.google_shell_sidebar = GoogleShellSidebar(container)
+        self.google_shell_sidebar.selectBranch.connect(
+            self._on_passive_shell_branch_clicked)
+        self.google_shell_sidebar.openActivityCenterRequested.connect(
+            self._on_passive_activity_requested)
+
+        # Legacy accordion in collapsible group
+        self.legacy_tools_group = QGroupBox("Legacy Tools")
+        self.legacy_tools_group.setObjectName("LegacyToolsGroup")
+        self.legacy_tools_group.setCheckable(True)
+        self.legacy_tools_group.setChecked(False)
+
+        grp_lay = QVBoxLayout(self.legacy_tools_group)
+        grp_lay.setContentsMargins(0, 0, 0, 0)
+        grp_lay.setSpacing(0)
+        grp_lay.addWidget(accordion_widget)
+
+        lay.addWidget(self.google_shell_sidebar, 1)
+        lay.addWidget(self.legacy_tools_group, 0)
+
+        container.setStyleSheet("""
+            QWidget#GoogleLeftShell {
+                background: #f8f9fb;
+                border-right: 1px solid #e0e3e7;
+            }
+            QGroupBox#LegacyToolsGroup {
+                font-weight: 600;
+                font-size: 11px;
+                color: #5f6368;
+                border: 1px solid #e0e3e7;
+                border-radius: 8px;
+                margin: 4px 6px 6px 6px;
+                padding-top: 14px;
+                background: #ffffff;
+            }
+            QGroupBox#LegacyToolsGroup::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+            }
+        """)
+
+        return container
+
+    def _on_passive_shell_branch_clicked(self, branch: str):
+        """Phase 2B: passive shell click → expand matching legacy section.
+
+        No new routing ownership.  We merely highlight the corresponding
+        accordion section so the user can see the connection.
+        """
+        try:
+            if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
+                return
+
+            legacy_map = {
+                "find": "find",
+                "all": "dates",
+                "folders": "folders",
+                "dates": "dates",
+                "videos": "videos",
+                "locations": "locations",
+                "favorites": "dates",
+                "duplicates": "duplicates",
+                "discover_scenes": "find",
+                "people_merge_review": "people",
+                "people_unnamed": "people",
+                "people_show_all": "people",
+            }
+
+            target = legacy_map.get(branch)
+            if target and hasattr(self.accordion_sidebar, "_expand_section"):
+                # Make legacy group visible so the expansion is seen
+                if hasattr(self, "legacy_tools_group"):
+                    self.legacy_tools_group.setChecked(True)
+                self.accordion_sidebar._expand_section(target)
+                print(f"[GooglePhotosLayout] Passive shell → legacy expand: {branch} → {target}")
+        except Exception as e:
+            print(f"[GooglePhotosLayout] Passive shell click failed: {branch} → {e}")
+
+    def _on_passive_activity_requested(self):
+        """Phase 2B: open Activity Center via MainWindow toggle."""
+        try:
+            if hasattr(self, "main_window") and self.main_window:
+                if hasattr(self.main_window, "_toggle_activity_center"):
+                    self.main_window._toggle_activity_center()
+        except Exception as e:
+            print(f"[GooglePhotosLayout] Passive activity request failed: {e}")
+
+    # ── end Phase 2B ──────────────────────────────────────────────────
 
     def _create_timeline(self) -> QWidget:
         """
