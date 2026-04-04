@@ -1,0 +1,348 @@
+Audit verdict:
+
+**Do not proceed to Phase 4 yet. Phase 3 is only partially complete, and per the plan we should correct Phase 3 first, then move to Browse migration.**
+
+## What passed
+
+* Startup goes directly to `google` through the override path. 
+* Initial no-project load is suppressed on both `google` and `google_legacy`. 
+* Switching `google ↔ google_legacy` remains stable. 
+* Project creation on `google` is still clean, with one debounced reload after `set_project()`. 
+
+## What failed in Phase 3
+
+### 1. Shell width is still too wide
+
+Your code still sets the passive shell to:
+
+* minimum width `300`
+* maximum width `380`
+
+But the Phase 3 checkpoint required approximately **280 to 300 px**.
+
+### 2. Legacy block is not collapsed by default
+
+The code still adds the accordion directly under the shell:
+
+```python
+self.left_shell_layout.addWidget(self.search_sidebar, 1)
+self.left_shell_layout.addWidget(self.accordion_sidebar, 0)
+```
+
+and still sets:
+
+```python
+self.accordion_sidebar.setMaximumHeight(260)
+```
+
+That is not the required “legacy block collapsed by default”.
+
+### 3. People is still expanded by default
+
+In `search_sidebar.py`, the wrapper block still shows:
+
+```python
+self.people_wrap = ExpandableSection("People", self.people_section, expanded=True)
+```
+
+instead of collapsed.
+
+The Phase 3 checkpoint explicitly required:
+
+* Search Hub expanded
+* Discover expanded
+* **People collapsed**
+* Browse expanded
+* Filters collapsed
+* Activity collapsed
+
+### 4. Browse is already moving toward parity, but Phase 4 should not start until the shell checkpoint is truly passed
+
+The log shows passive shell items are already expanding legacy sections:
+
+* folders,
+* duplicates,
+* people-related actions,
+* find/discover handoff.
+
+That is good, but by the plan it should come **after** the shell quality checkpoint is complete, not before.
+
+---
+
+# Correct next step
+
+Stay on plan:
+
+**Phase 3 correction pack first, then Phase 4.**
+
+Below is the exact correction pack.
+
+---
+
+# `layouts/google_layout.py`
+
+## 1. Tighten shell width
+
+### Replace:
+
+```python
+self.left_shell_container.setMinimumWidth(300)
+self.left_shell_container.setMaximumWidth(380)
+```
+
+### With:
+
+```python
+self.left_shell_container.setMinimumWidth(280)
+self.left_shell_container.setMaximumWidth(300)
+```
+
+---
+
+## 2. Reduce shell spacing
+
+### Replace:
+
+```python
+self.left_shell_layout.setContentsMargins(8, 8, 8, 8)
+self.left_shell_layout.setSpacing(8)
+```
+
+### With:
+
+```python
+self.left_shell_layout.setContentsMargins(6, 6, 6, 6)
+self.left_shell_layout.setSpacing(6)
+```
+
+---
+
+## 3. Collapse legacy block by default
+
+### Replace:
+
+```python
+self.accordion_sidebar.setMaximumHeight(260)
+self.accordion_sidebar.setStyleSheet("""
+    background: #fafafa;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 8px;
+""")
+```
+
+### With:
+
+```python
+self.accordion_sidebar.setMaximumHeight(160)
+self.accordion_sidebar.setStyleSheet("""
+    background: #fafafa;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 8px;
+""")
+
+self.legacy_container = QGroupBox("Legacy Tools")
+self.legacy_container.setCheckable(True)
+self.legacy_container.setChecked(False)
+
+legacy_layout = QVBoxLayout(self.legacy_container)
+legacy_layout.setContentsMargins(0, 0, 0, 0)
+legacy_layout.setSpacing(0)
+legacy_layout.addWidget(self.accordion_sidebar)
+```
+
+---
+
+## 4. Replace direct accordion insertion
+
+### Replace:
+
+```python
+self.left_shell_layout.addWidget(self.search_sidebar, 1)
+self.left_shell_layout.addWidget(self.accordion_sidebar, 0)
+```
+
+### With:
+
+```python
+self.left_shell_layout.addWidget(self.search_sidebar, 1)
+self.left_shell_layout.addWidget(self.legacy_container, 0)
+```
+
+---
+
+## 5. Lighten shell container styling
+
+### Replace:
+
+```python
+self.left_shell_container.setStyleSheet("""
+    QWidget#google_left_shell_container {
+        background: #ffffff;
+        border-right: 1px solid #e0e0e0;
+    }
+""")
+```
+
+### With:
+
+```python
+self.left_shell_container.setStyleSheet("""
+    QWidget#google_left_shell_container {
+        background: #f8f9fb;
+        border-right: 1px solid #e6e8eb;
+    }
+    QGroupBox {
+        font-weight: 600;
+        border: 1px solid #e6e8eb;
+        border-radius: 10px;
+        margin-top: 6px;
+        padding-top: 10px;
+        background: #ffffff;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 4px;
+        color: #5f6368;
+    }
+""")
+```
+
+---
+
+# `ui/search/search_sidebar.py`
+
+## 1. Fix expansion defaults
+
+### Replace:
+
+```python
+self.search_hub_wrap = ExpandableSection("Search Hub", self.search_hub, expanded=True)
+self.discover_wrap = ExpandableSection("Discover", self.discover_section, expanded=True)
+self.people_wrap = ExpandableSection("People", self.people_section, expanded=True)
+self.browse_wrap = ExpandableSection("Browse", self.browse_section, expanded=True)
+self.filters_wrap = ExpandableSection("Filters", self.filter_section, expanded=False)
+self.activity_wrap = ExpandableSection("Activity", self.activity_section, expanded=False)
+```
+
+### With:
+
+```python
+self.search_hub_wrap = ExpandableSection("Search Hub", self.search_hub, expanded=True)
+self.discover_wrap = ExpandableSection("Discover", self.discover_section, expanded=True)
+self.people_wrap = ExpandableSection("People", self.people_section, expanded=False)
+self.browse_wrap = ExpandableSection("Browse", self.browse_section, expanded=True)
+self.filters_wrap = ExpandableSection("Filters", self.filter_section, expanded=False)
+self.activity_wrap = ExpandableSection("Activity", self.activity_section, expanded=False)
+```
+
+---
+
+## 2. Tighten outer spacing
+
+### Replace:
+
+```python
+outer.setContentsMargins(0, 0, 0, 0)
+```
+
+### With:
+
+```python
+outer.setContentsMargins(0, 0, 0, 0)
+outer.setSpacing(4)
+```
+
+---
+
+## 3. Tighten scroll content spacing
+
+### In the content layout block, ensure:
+
+```python
+self.content_layout.setContentsMargins(6, 6, 6, 6)
+self.content_layout.setSpacing(6)
+```
+
+If larger values are present, replace them with the values above.
+
+---
+
+## 4. Calm section card styling
+
+### Replace the stylesheet block with:
+
+```python
+self.setStyleSheet("""
+    QWidget#SearchSidebar {
+        background: transparent;
+    }
+
+    QFrame#SectionCard {
+        background: #ffffff;
+        border: 1px solid #e6e8eb;
+        border-radius: 10px;
+    }
+
+    QPushButton#SectionHeader {
+        text-align: left;
+        font-weight: 600;
+        color: #202124;
+        border: none;
+        background: transparent;
+        padding: 8px 10px;
+    }
+
+    QPushButton#SectionHeader:hover {
+        background: #f5f7fa;
+        border-radius: 10px;
+    }
+
+    QLabel {
+        color: #5f6368;
+        padding: 0 2px;
+    }
+
+    QPushButton {
+        text-align: left;
+        border: none;
+        background: transparent;
+        padding: 5px 8px;
+        border-radius: 8px;
+        color: #202124;
+    }
+
+    QPushButton:hover {
+        background: #eef3ff;
+    }
+""")
+```
+
+---
+
+# Phase 3 acceptance gate
+
+Only when all of these are true should we move to Phase 4:
+
+* shell width visually about 280 to 300 px
+* Search Hub expanded
+* Discover expanded
+* People collapsed
+* Browse expanded
+* Filters collapsed
+* Activity collapsed
+* Legacy Tools collapsed
+* no giant blank areas in onboarding
+* `google_legacy` unchanged
+
+---
+
+# Decision
+
+So the correct answer is:
+
+**No, not Phase 4 yet.
+Apply this small Phase 3 correction pack first.
+Then we proceed to Phase 4 Browse migration.**
+
+That keeps us exactly on the plan and avoids unnecessary confusion. The latest log and code confirm this sequencing.
