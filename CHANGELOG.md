@@ -8,6 +8,11 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 Full People domain representation in the new shell, with all legacy People actions accessible via bridge delegation. Still passive — legacy People section remains the action owner.
 
+#### Phase 5 Correction
+- Fixed `_handle_people_branch()`: routes through layout's own handler methods (`_on_people_tools_requested`, `_on_people_merge_history_requested`, `_on_people_undo_requested`, `_on_people_redo_requested`, `_on_accordion_person_clicked`) instead of broken `section_logic` path
+- Added `_handle_search_sidebar_branch_request()`: general-purpose router for `SearchSidebar.selectBranch` — delegates `people_*` branches to `_handle_people_branch`, others to sidebar fallback
+- Fixed `_refresh_people_quick_section()`: payload now targets `self.sidebar` (SearchSidebar) and `layout.search_sidebar` instead of non-existent `google_shell_sidebar.set_people_quick_payload`
+
 #### People Section (`ui/search/sections/people_quick_section.py`)
 - Complete rewrite with top-people list (QListWidget, max 10 items), merge review/unnamed cluster buttons with counts, Show All/Tools buttons, and Legacy Actions (History/Undo/Redo/Expand)
 - Signals: `mergeReviewRequested`, `unnamedRequested`, `showAllPeopleRequested`, `peopleToolsRequested`, `mergeHistoryRequested`, `undoMergeRequested`, `redoMergeRequested`, `expandPeopleRequested`, `personRequested(str)`
