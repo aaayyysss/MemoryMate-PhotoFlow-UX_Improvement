@@ -546,7 +546,7 @@ class AssetService:
 
             if not remaining_instances:
                 # No instances left - delete the asset
-                self.asset_repo.delete({"asset_id": asset_id, "project_id": project_id})
+                self.asset_repo.delete_asset(project_id, asset_id)
                 self.logger.info(f"Deleted asset {asset_id} (no remaining instances)")
             elif asset_id in representative_updates:
                 # Representative was deleted, choose a new one
