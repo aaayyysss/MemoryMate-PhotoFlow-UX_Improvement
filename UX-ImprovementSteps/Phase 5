@@ -1,0 +1,426 @@
+Audit verdict:
+
+**Phase 4 is good enough to proceed to Phase 5.**
+
+What is already working:
+
+* startup still goes directly to `google` and suppresses initial no-project loads. 
+* `google ↔ google_legacy` switching remains stable. 
+* project creation on `google` is still clean, with one debounced reload after `set_project()`. 
+* the passive shell is already expanding legacy Browse sections correctly for multiple domains, including folders, dates, videos, duplicates, and devices. Earlier and recent logs both show the passive bridge behavior working as intended.
+* the codebase already has the People-side legacy handlers and payload functions needed for a bridge-first migration, including merge review payloads, unnamed cluster payloads, assign/keep separate/ignore handlers, and People-section signals.
+
+So yes, move to **Phase 5, migrate People second**.
+
+---
+
+# Phase 5 implementation pack
+
+## Scope lock
+
+Only:
+
+* `ui/search/sections/people_quick_section.py`
+* `ui/search/search_sidebar.py`
+* `main_window_qt.py`
+
+No backend rebuild.
+No shell ownership change.
+Legacy People section remains fallback.
+
+---
+
+# `ui/search/sections/people_quick_section.py`
+
+## Create or replace file with:
+
+```python
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QListWidgetItem, QFrame
+
+
+class PeopleQuickSection(QWidget):
+    mergeReviewRequested = Signal()
+    unnamedRequested = Signal()
+    showAllPeopleRequested = Signal()
+    peopleToolsRequested = Signal()
+
+    mergeHistoryRequested = Signal()
+    undoMergeRequested = Signal()
+    redoMergeRequested = Signal()
+    expandPeopleRequested = Signal()
+
+    personRequested = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._rows = []
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(4)
+
+        intro = QLabel("Top people and review tools")
+        intro.setWordWrap(True)
+        root.addWidget(intro)
+
+        self.top_people_list = QListWidget()
+        self.top_people_list.setMaximumHeight(120)
+        self.top_people_list.itemClicked.connect(self._on_item_clicked)
+        root.addWidget(self.top_people_list)
+
+        self.btn_merge_review = QPushButton("Review Possible Merges (0)")
+        self.btn_unnamed = QPushButton("Show Unnamed Clusters (0)")
+        self.btn_show_all = QPushButton("Show All People")
+        self.btn_tools = QPushButton("People Tools")
+
+        self.btn_merge_review.clicked.connect(self.mergeReviewRequested.emit)
+        self.btn_unnamed.clicked.connect(self.unnamedRequested.emit)
+        self.btn_show_all.clicked.connect(self.showAllPeopleRequested.emit)
+        self.btn_tools.clicked.connect(self.peopleToolsRequested.emit)
+
+        root.addWidget(self.btn_merge_review)
+        root.addWidget(self.btn_unnamed)
+        root.addWidget(self.btn_show_all)
+        root.addWidget(self.btn_tools)
+
+        legacy_label = QLabel("Legacy Actions")
+        root.addWidget(legacy_label)
+
+        self.btn_history = QPushButton("History")
+        self.btn_undo = QPushButton("Undo")
+        self.btn_redo = QPushButton("Redo")
+        self.btn_expand = QPushButton("Expand")
+
+        self.btn_history.clicked.connect(self.mergeHistoryRequested.emit)
+        self.btn_undo.clicked.connect(self.undoMergeRequested.emit)
+        self.btn_redo.clicked.connect(self.redoMergeRequested.emit)
+        self.btn_expand.clicked.connect(self.expandPeopleRequested.emit)
+
+        root.addWidget(self.btn_history)
+        root.addWidget(self.btn_undo)
+        root.addWidget(self.btn_redo)
+        root.addWidget(self.btn_expand)
+
+    def _on_item_clicked(self, item: QListWidgetItem):
+        person_id = item.data(Qt.UserRole)
+        if person_id:
+            self.personRequested.emit(str(person_id))
+
+    def set_people_rows(self, rows):
+        self._rows = list(rows or [])
+        self.top_people_list.clear()
+
+        for row in self._rows[:10]:
+            label = row.get("label") or row.get("display_name") or row.get("id") or "Unknown"
+            count = int(row.get("count", 0) or 0)
+            text = f"{label} ({count})" if count else str(label)
+
+            item = QListWidgetItem(text)
+            item.setData(Qt.UserRole, row.get("id") or row.get("branch_key") or row.get("person_id"))
+            self.top_people_list.addItem(item)
+
+    def set_counts(self, merge_count: int = 0, unnamed_count: int = 0):
+        self.btn_merge_review.setText(f"Review Possible Merges ({int(merge_count or 0)})")
+        self.btn_unnamed.setText(f"Show Unnamed Clusters ({int(unnamed_count or 0)})")
+
+    def set_legacy_actions_enabled(self, enabled: bool):
+        self.btn_history.setEnabled(enabled)
+        self.btn_undo.setEnabled(enabled)
+        self.btn_redo.setEnabled(enabled)
+        self.btn_expand.setEnabled(enabled)
+```
+
+---
+
+# `ui/search/search_sidebar.py`
+
+## 1. Add import
+
+```python
+from ui.search.sections.people_quick_section import PeopleQuickSection
+```
+
+---
+
+## 2. Replace placeholder People section creation
+
+### Find any placeholder-style block like:
+
+```python
+self.people_section = QWidget()
+```
+
+### Replace with:
+
+```python
+self.people_section = PeopleQuickSection()
+```
+
+---
+
+## 3. Remove old placeholder People body rows
+
+If you still have placeholder code like:
+
+```python
+self.people.addWidget(self._muted_label("Top people and review tools"))
+self.people.addWidget(self._placeholder_button("Review Possible Merges", "people_merge_review"))
+self.people.addWidget(self._placeholder_button("Show Unnamed Clusters", "people_unnamed"))
+self.people.addWidget(self._placeholder_button("Show All People", "people_show_all"))
+```
+
+remove those lines completely, because `PeopleQuickSection()` now owns the People body.
+
+---
+
+## 4. Keep wrapper creation
+
+```python
+self.people_wrap = ExpandableSection("People", self.people_section, expanded=False)
+```
+
+---
+
+## 5. Add People signal wiring
+
+Insert in the signal wiring block:
+
+```python
+self.people_section.mergeReviewRequested.connect(
+    lambda: self.selectBranch.emit("people_merge_review")
+)
+self.people_section.unnamedRequested.connect(
+    lambda: self.selectBranch.emit("people_unnamed")
+)
+self.people_section.showAllPeopleRequested.connect(
+    lambda: self.selectBranch.emit("people_show_all")
+)
+self.people_section.peopleToolsRequested.connect(
+    lambda: self.selectBranch.emit("people_tools")
+)
+
+self.people_section.mergeHistoryRequested.connect(
+    lambda: self.selectBranch.emit("people_merge_history")
+)
+self.people_section.undoMergeRequested.connect(
+    lambda: self.selectBranch.emit("people_undo_merge")
+)
+self.people_section.redoMergeRequested.connect(
+    lambda: self.selectBranch.emit("people_redo_merge")
+)
+self.people_section.expandPeopleRequested.connect(
+    lambda: self.selectBranch.emit("people_expand")
+)
+
+self.people_section.personRequested.connect(
+    lambda person_id: self.selectBranch.emit(f"people_person:{person_id}")
+)
+```
+
+---
+
+## 6. Add payload setter
+
+Insert this method:
+
+```python
+def set_people_quick_payload(self, payload: dict | None):
+    payload = payload or {}
+
+    rows = payload.get("top_people", []) or []
+    merge_count = payload.get("merge_candidates", 0) or 0
+    unnamed_count = payload.get("unnamed_count", 0) or 0
+
+    if hasattr(self, "people_section"):
+        self.people_section.set_people_rows(rows)
+        self.people_section.set_counts(merge_count, unnamed_count)
+        self.people_section.set_legacy_actions_enabled(True)
+```
+
+---
+
+# `main_window_qt.py`
+
+## 1. Add or replace `_refresh_people_quick_section()`
+
+Use this version:
+
+```python
+def _refresh_people_quick_section(self):
+    """
+    Populate the passive People shell from legacy People section data.
+    """
+    try:
+        payload = {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+
+        people_section = None
+
+        if hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+
+        if not people_section and hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+
+        if people_section:
+            if hasattr(people_section, "get_people_quick_payload"):
+                raw = people_section.get_people_quick_payload() or {}
+                payload["top_people"] = raw.get("top_people", []) or []
+                payload["merge_candidates"] = raw.get("merge_candidates", 0) or 0
+                payload["unnamed_count"] = raw.get("unnamed_count", 0) or 0
+
+            if not payload["top_people"] and hasattr(people_section, "get_merge_suggestions"):
+                try:
+                    suggestions = people_section.get_merge_suggestions() or []
+                    payload["merge_candidates"] = len(suggestions)
+                except Exception:
+                    pass
+
+            if hasattr(people_section, "get_unnamed_clusters"):
+                try:
+                    unnamed = people_section.get_unnamed_clusters() or []
+                    payload["unnamed_count"] = len(unnamed)
+                except Exception:
+                    pass
+
+        layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+        if layout and hasattr(layout, "search_sidebar") and layout.search_sidebar:
+            if hasattr(layout.search_sidebar, "set_people_quick_payload"):
+                layout.search_sidebar.set_people_quick_payload(payload)
+
+    except Exception as e:
+        print(f"[MainWindow] _refresh_people_quick_section failed: {e}")
+```
+
+---
+
+## 2. Add or replace People branch handling in `_handle_search_sidebar_branch_request()`
+
+If this method already exists, extend it with these cases:
+
+```python
+if branch == "people_merge_review":
+    self._open_people_merge_review()
+    return
+
+if branch == "people_unnamed":
+    self._open_unnamed_cluster_review()
+    return
+
+if branch == "people_show_all":
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "accordion_sidebar"):
+        ps = layout.accordion_sidebar.section_logic.get("people")
+        if ps and hasattr(ps, "_on_expand_clicked"):
+            ps._on_expand_clicked()
+            return
+
+if branch == "people_tools":
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "accordion_sidebar"):
+        ps = layout.accordion_sidebar.section_logic.get("people")
+        if ps and hasattr(ps, "peopleToolsRequested"):
+            ps.peopleToolsRequested.emit()
+            return
+
+if branch == "people_merge_history":
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "accordion_sidebar"):
+        ps = layout.accordion_sidebar.section_logic.get("people")
+        if ps and hasattr(ps, "mergeHistoryRequested"):
+            ps.mergeHistoryRequested.emit()
+            return
+
+if branch == "people_undo_merge":
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "accordion_sidebar"):
+        ps = layout.accordion_sidebar.section_logic.get("people")
+        if ps and hasattr(ps, "undoLastMergeRequested"):
+            ps.undoLastMergeRequested.emit()
+            return
+
+if branch == "people_redo_merge":
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "accordion_sidebar"):
+        ps = layout.accordion_sidebar.section_logic.get("people")
+        if ps and hasattr(ps, "redoLastUndoRequested"):
+            ps.redoLastUndoRequested.emit()
+            return
+
+if branch == "people_expand":
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "accordion_sidebar"):
+        ps = layout.accordion_sidebar.section_logic.get("people")
+        if ps and hasattr(ps, "_on_expand_clicked"):
+            ps._on_expand_clicked()
+            return
+
+if branch.startswith("people_person:"):
+    person_id = branch.split(":", 1)[1]
+    layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+    if layout and hasattr(layout, "_on_accordion_person_clicked"):
+        layout._on_accordion_person_clicked(person_id)
+        return
+```
+
+---
+
+## 3. Refresh People shell at safe points
+
+### After `_on_project_changed_by_id(...)` completes, ensure:
+
+```python
+if hasattr(self, "_refresh_people_quick_section"):
+    self._refresh_people_quick_section()
+```
+
+### After project creation dialog completion path, ensure:
+
+```python
+if hasattr(self, "_refresh_people_quick_section"):
+    self._refresh_people_quick_section()
+```
+
+### After assign / keep separate / ignore unnamed handlers, keep:
+
+```python
+self._refresh_people_quick_section()
+```
+
+These already exist in parts of your code and should remain. 
+
+---
+
+# Phase 5 acceptance criteria
+
+Do not move to Phase 6 unless all of these are true:
+
+* People panel is populated, even if counts are zero
+* `Review Possible Merges` opens the merge review path
+* `Show Unnamed Clusters` opens the unnamed-cluster review path
+* `Show All People` expands or opens the legacy People manager
+* `People Tools` delegates to legacy People tools
+* `History`, `Undo`, `Redo`, `Expand` delegate to legacy handlers
+* legacy People section remains underneath as fallback
+* no regressions in merge/undo/review workflows
+* `google_legacy` remains untouched
+
+---
+
+# Why this is safe
+
+This phase still does **not** move People ownership into the new shell.
+It only bridges the new People shell to the existing stable People logic already present in:
+
+* legacy People section handlers,
+* merge review dialog flow,
+* unnamed cluster review flow,
+* review persistence methods.
+
+The existing logs already show passive People expansion into the legacy section working, which means this is the correct next bridge step.
