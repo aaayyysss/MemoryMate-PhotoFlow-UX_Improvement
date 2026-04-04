@@ -1,0 +1,285 @@
+Audit result, **Phase 1 is mostly successful, but not fully complete yet**.
+
+What passed:
+
+* `google_legacy` is registered and selectable. 
+* switching `google → google_legacy` works. 
+* `GooglePhotosLayoutLegacy` behaves like the stable baseline, including onboarding, accordion creation, project creation, and loading. 
+* switching back from `google_legacy → google` also works. 
+
+What did **not** pass:
+
+* startup still initializes as `current`, not `google`. The log explicitly says `Initializing default layout: current` and `Already using layout: current`, then much later switches to `google`. 
+
+So Phase 1 status is:
+
+* **legacy split: passed**
+* **default startup to google: failed**
+* **safe fallback preserved: passed**
+
+That means we should proceed exactly according to plan, but with a **small Phase 1 correction included first**, then Phase 2A immediately after.
+
+Also, the log confirms the exact Phase 2A problem we planned to fix:
+
+* `GooglePhotosLayout` loads once with no project selected,
+* then loads again during `_on_project_changed_by_id(1)`,
+* then again in `set_project(None -> 1)`,
+* then again after project creation refresh.
+
+And the same churn exists in `GooglePhotosLayoutLegacy`, which proves this is baseline behavior, not something introduced by the split. 
+
+## Proceeding with Phase 2A, with the required Phase 1 correction first
+
+---
+
+# Phase 1 correction, `layouts/layout_manager.py`
+
+## Replace the default-layout block inside `initialize_default_layout()`
+
+Replace the current startup-default logic with this:
+
+```python
+def initialize_default_layout(self):
+    """
+    Initialize the default layout from settings or fallback.
+    """
+    preferred_layout = "google"
+
+    if self.settings:
+        preferred_layout = self.settings.get("current_layout", "google")
+
+    if preferred_layout not in self._layouts:
+        preferred_layout = "google"
+
+    print(f"[LayoutManager] Initializing default layout: {preferred_layout}")
+    return self.switch_layout(preferred_layout)
+```
+
+If there is any fallback using `"current"`, replace it with `"google"`.
+
+---
+
+# Phase 2A, `main_window_qt.py`
+
+## Goal
+
+Do not trigger any Google load before `set_project(project_id)`.
+
+## In `_on_project_changed_by_id(...)`, keep only this sequence for layout delegation
+
+Replace the Google-layout handling block with:
+
+```python
+layout = self.layout_manager.get_current_layout()
+
+if hasattr(layout, "set_project"):
+    layout.set_project(project_id)
+
+print(f"[MainWindow] Delegated to {layout.__class__.__name__}.set_project({project_id})")
+```
+
+## Remove any lines before this block that call:
+
+```python
+layout._load_photos(...)
+layout.request_reload(...)
+layout.refresh_search_shell()
+```
+
+## After the block above, keep only these shell refresh helpers
+
+```python
+if hasattr(self, "_refresh_people_quick_section"):
+    self._refresh_people_quick_section()
+
+if hasattr(self, "_refresh_browse_quick_section"):
+    self._refresh_browse_quick_section()
+```
+
+Do not call any grid reload here.
+
+---
+
+# Phase 2A, `layouts/google_layout.py`
+
+## Goal
+
+`set_project()` becomes the only owner of project-bound loading.
+
+## 1. Add load gate members in `__init__` or `create_layout()`
+
+```python
+self._project_switch_in_progress = False
+self._pending_project_reload = False
+self._reload_debounce_timer = QTimer()
+self._reload_debounce_timer.setSingleShot(True)
+self._reload_debounce_timer.setInterval(120)
+self._reload_debounce_timer.timeout.connect(self._execute_debounced_reload)
+
+self._pending_reload_kwargs = {}
+self._pending_reload_reason = None
+self._last_reload_signature = None
+self._reload_in_progress = False
+```
+
+---
+
+## 2. Add reload helpers
+
+```python
+def request_reload(self, reason: str = "unknown", **kwargs):
+    self._pending_reload_kwargs = kwargs
+    self._pending_reload_reason = (reason, tuple(sorted(kwargs.items())))
+    self._reload_debounce_timer.stop()
+    self._reload_debounce_timer.start()
+
+
+def _execute_debounced_reload(self):
+    if self._reload_in_progress:
+        return
+
+    signature = getattr(self, "_pending_reload_reason", None)
+    if signature == self._last_reload_signature:
+        print(f"[GoogleLayout] Skipping duplicate reload: {signature}")
+        return
+
+    if not getattr(self, "project_id", None):
+        print("[GoogleLayout] Suppressing reload because no active project exists")
+        return
+
+    self._reload_in_progress = True
+    try:
+        self._last_reload_signature = signature
+        self._load_photos(**getattr(self, "_pending_reload_kwargs", {}))
+    finally:
+        self._reload_in_progress = False
+```
+
+---
+
+## 3. Replace `set_project(...)`
+
+```python
+def set_project(self, project_id):
+    print(f"[{self.__class__.__name__}] set_project() called: {self.project_id} -> {project_id}")
+
+    if self._project_switch_in_progress:
+        self._pending_project_reload = True
+        return
+
+    self._project_switch_in_progress = True
+    try:
+        self.project_id = project_id
+
+        if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+            try:
+                if hasattr(self.accordion_sidebar, "set_project_id"):
+                    self.accordion_sidebar.set_project_id(project_id)
+                elif hasattr(self.accordion_sidebar, "switch_project"):
+                    self.accordion_sidebar.switch_project(project_id)
+            except Exception as e:
+                print(f"[{self.__class__.__name__}] Accordion project sync failed: {e}")
+
+        if project_id is None:
+            print(f"[{self.__class__.__name__}] ⚠️ No project selected — skip loading")
+            return
+
+        self.request_reload(reason="project_switch", project_id=project_id)
+
+    finally:
+        self._project_switch_in_progress = False
+
+    if self._pending_project_reload:
+        self._pending_project_reload = False
+        self.request_reload(reason="project_switch_followup", project_id=self.project_id)
+```
+
+---
+
+## 4. Replace direct loads during activation/startup
+
+Wherever you currently have startup or activation code like:
+
+```python
+self._load_photos()
+```
+
+replace it with:
+
+```python
+if getattr(self, "project_id", None):
+    self.request_reload(reason="layout_activation", project_id=self.project_id)
+else:
+    logger.info("[Startup] Suppressing initial project-bound layout load because no active project exists")
+```
+
+This is required because the log still shows:
+
+* `Loading photos...`
+* `Starting async photo load`
+* `No project selected`
+  during onboarding and again during project creation.
+
+---
+
+## 5. Replace post-project-creation direct reload
+
+Wherever you currently have logic like:
+
+```python
+self._load_photos()
+print("[GooglePhotosLayout] ✓ Layout refreshed after project creation")
+```
+
+replace it with:
+
+```python
+if getattr(self, "project_id", None):
+    self.request_reload(reason="post_project_create", project_id=self.project_id)
+print(f"[{self.__class__.__name__}] ✓ Layout refreshed after project creation")
+```
+
+---
+
+## 6. Do the same in `layouts/google_layout_legacy.py`
+
+For Phase 2A, apply the same load-ownership stabilization to `GooglePhotosLayoutLegacy` too.
+
+Reason:
+
+* the log proves the same pre-project and duplicate project-creation loads happen there as well. 
+
+This does **not** violate the plan, because this is not UX work. It is baseline load stabilization, and it keeps the legacy layout valid as a comparison target.
+
+Apply the exact same Phase 2A changes to:
+
+* `google_layout.py`
+* `google_layout_legacy.py`
+
+and nothing else.
+
+---
+
+# Phase 2A acceptance criteria
+
+Do not move to Phase 3 unless all of these are true:
+
+* startup goes directly to `google`
+* no `Initializing default layout: current` in the log
+* no `_load_photos()` starts while `project_id is None`
+* during project creation, there is one clean project-bound load after `set_project(project_id)`
+* no generation storm like 1 → 2 → 3 → 4 around a single project creation
+* `google_legacy` still works
+* `google` still works
+
+---
+
+# Summary
+
+So the correct next move, while staying fully inside the plan, is:
+
+1. **fix the remaining Phase 1 default-startup issue in `layout_manager.py`**
+2. **execute Phase 2A in both `google_layout.py` and `google_layout_legacy.py`**
+3. **keep all shell/sidebar redesign work deferred until Phase 3**
+
+Your current log is enough to justify this sequence exactly.
