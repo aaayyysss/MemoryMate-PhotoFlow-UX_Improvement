@@ -108,7 +108,7 @@ class UIRefreshMediator(QObject):
         layout_id = lm._current_layout_id
         layout = lm._current_layout
 
-        if layout_id == "google" and layout:
+        if layout_id in ("google", "google_legacy") and layout:
             self._refresh_google(layout, sections, project_id)
         else:
             self._refresh_current(sections, project_id)

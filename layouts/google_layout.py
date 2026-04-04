@@ -352,6 +352,18 @@ class GooglePhotosLayout(BaseLayout):
         self.date_scroll_indicator = self._create_date_scroll_indicator(main_widget)
         self.date_scroll_indicator.hide()
 
+        # ── Phase 2A: Load-ownership gate ─────────────────────────────────
+        self._project_switch_in_progress = False
+        self._pending_project_reload = False
+        self._reload_debounce_timer = QTimer()
+        self._reload_debounce_timer.setSingleShot(True)
+        self._reload_debounce_timer.setInterval(120)
+        self._reload_debounce_timer.timeout.connect(self._execute_debounced_reload)
+        self._pending_reload_kwargs = {}
+        self._pending_reload_reason = None
+        self._last_reload_signature = None
+        self._reload_in_progress = False
+
         # Defer initial photo load until MainWindow signals first paint is done.
         # Previously _load_photos() fired here during __init__(), before show(),
         # so the DB query + grouping + widget creation competed with first paint.
@@ -359,7 +371,10 @@ class GooglePhotosLayout(BaseLayout):
         if getattr(self.main_window, '_deferred_init_started', False):
             # Post-startup layout switch: first paint already done, load now.
             self._startup_load_pending = False
-            self._load_photos()
+            if getattr(self, 'project_id', None):
+                self.request_reload(reason="layout_switch_post_startup")
+            else:
+                logger.info("[GooglePhotosLayout] Suppressing initial load — no active project")
         else:
             # Initial startup: defer until first paint completes.
             self._startup_load_pending = True
@@ -442,6 +457,9 @@ class GooglePhotosLayout(BaseLayout):
         if not getattr(self, '_startup_load_pending', False):
             return
         self._startup_load_pending = False
+        if not getattr(self, 'project_id', None):
+            logger.info("[GooglePhotosLayout] Startup ready but no project — suppressing load")
+            return
         print("[GooglePhotosLayout] First paint done — starting initial photo load")
         self._load_photos()
 
@@ -9800,6 +9818,8 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         _load_photos() call (widget not yet visible), re-trigger the load
         so grids are laid out correctly.
         """
+        if not getattr(self, 'project_id', None):
+            return
         thumb_size = getattr(self, 'current_thumb_size', 200)
         old_cols = getattr(self, '_last_column_count', None)
         new_cols = self._calculate_responsive_columns(thumb_size)
@@ -10036,16 +10056,15 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
 
         # CRITICAL: Update project_id after creation
         from app_services import get_default_project_id
-        self.project_id = get_default_project_id()
-        print(f"[GooglePhotosLayout] Updated project_id: {self.project_id}")
+        new_project_id = get_default_project_id()
+        print(f"[GooglePhotosLayout] Updated project_id: {new_project_id}")
 
-        # Update accordion sidebar immediately (prevents empty sidebar glitch)
-        if hasattr(self, 'accordion_sidebar') and self.project_id is not None:
-            self.accordion_sidebar.set_project(self.project_id)
-
-        # Refresh project selector and layout
+        # Refresh project selector first
         self._populate_project_selector()
-        self._load_photos()
+
+        # Delegate to set_project (single owner of project-bound loading)
+        if new_project_id is not None:
+            self.set_project(new_project_id)
         print("[GooglePhotosLayout] ✓ Layout refreshed after project creation")
 
     def _populate_project_selector(self):
@@ -10100,6 +10119,39 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         except Exception as e:
             print(f"[GooglePhotosLayout] ⚠️ Error populating project selector: {e}")
 
+    # ── Phase 2A: Reload gate helpers ────────────────────────────────────
+
+    def request_reload(self, reason: str = "unknown", **kwargs):
+        """Schedule a debounced photo reload, coalescing rapid requests."""
+        self._pending_reload_kwargs = kwargs
+        self._pending_reload_reason = (reason, tuple(sorted(kwargs.items())))
+        self._reload_debounce_timer.stop()
+        self._reload_debounce_timer.start()
+
+    def _execute_debounced_reload(self):
+        """Fire the debounced reload if conditions are met."""
+        if self._reload_in_progress:
+            return
+
+        signature = getattr(self, '_pending_reload_reason', None)
+        if signature == self._last_reload_signature:
+            print(f"[GooglePhotosLayout] Skipping duplicate reload: {signature}")
+            return
+
+        if not getattr(self, 'project_id', None):
+            print("[GooglePhotosLayout] Suppressing reload — no active project")
+            return
+
+        self._reload_in_progress = True
+        try:
+            self._last_reload_signature = signature
+            print(f"[GooglePhotosLayout] Executing debounced reload: {signature[0] if signature else 'unknown'}")
+            self._load_photos(**self._pending_reload_kwargs)
+        finally:
+            self._reload_in_progress = False
+
+    # ── Project lifecycle ─────────────────────────────────────────────────
+
     def _on_project_changed(self, index: int):
         """
         Handle project selection change in combobox.
@@ -10132,51 +10184,61 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
             self._on_create_project_clicked()
             return
 
-        # Normal project change handling
+        # Normal project change: delegate to set_project
         if new_project_id is None or new_project_id == self.project_id:
             return
+        self.set_project(new_project_id)
 
-        print(f"[GooglePhotosLayout] Project changed: {self.project_id} -> {new_project_id}")
-        self.project_id = new_project_id
-        self._last_load_signature = None  # invalidate on project change
-
-        # Update accordion sidebar with new project
-        if hasattr(self, 'accordion_sidebar'):
-            self.accordion_sidebar.set_project(new_project_id)
-
-        # Reload photos for the new project
-        self._load_photos()
-
-    def set_project(self, project_id: int):
+    def set_project(self, project_id):
         """
-        PHASE 1 Task 1.3: Public API for external project switching.
-        Called by ProjectController when user changes project from main window.
-
-        Args:
-            project_id: ID of project to switch to
+        Public API for external project switching.
+        Called by ProjectController or combobox when user changes project.
+        Phase 2A: This is the sole owner of project-bound loading.
         """
-        if project_id is None or project_id == self.project_id:
+        print(f"[GooglePhotosLayout] set_project() called: {self.project_id} -> {project_id}")
+
+        if self._project_switch_in_progress:
+            self._pending_project_reload = True
             return
 
-        print(f"[GooglePhotosLayout] set_project() called: {self.project_id} -> {project_id}")
-        self.project_id = project_id
-        self._last_load_signature = None  # invalidate on project change
+        self._project_switch_in_progress = True
+        try:
+            self.project_id = project_id
+            self._last_load_signature = None  # invalidate on project change
 
-        # Update accordion sidebar with new project
-        if hasattr(self, 'accordion_sidebar'):
-            self.accordion_sidebar.set_project(project_id)
+            # Update accordion sidebar with new project
+            if hasattr(self, 'accordion_sidebar') and self.accordion_sidebar is not None:
+                try:
+                    if hasattr(self.accordion_sidebar, 'set_project'):
+                        self.accordion_sidebar.set_project(project_id)
+                    elif hasattr(self.accordion_sidebar, 'set_project_id'):
+                        self.accordion_sidebar.set_project_id(project_id)
+                    elif hasattr(self.accordion_sidebar, 'switch_project'):
+                        self.accordion_sidebar.switch_project(project_id)
+                except Exception as e:
+                    print(f"[GooglePhotosLayout] Accordion project sync failed: {e}")
 
-        # Reload photos for the new project
-        self._load_photos()
+            # Update project combo box to match (if it exists)
+            if hasattr(self, 'project_combo'):
+                self.project_combo.blockSignals(True)
+                for i in range(self.project_combo.count()):
+                    if self.project_combo.itemData(i) == project_id:
+                        self.project_combo.setCurrentIndex(i)
+                        break
+                self.project_combo.blockSignals(False)
 
-        # Update project combo box to match (if it exists)
-        if hasattr(self, 'project_combo'):
-            self.project_combo.blockSignals(True)
-            for i in range(self.project_combo.count()):
-                if self.project_combo.itemData(i) == project_id:
-                    self.project_combo.setCurrentIndex(i)
-                    break
-            self.project_combo.blockSignals(False)
+            if project_id is None:
+                print("[GooglePhotosLayout] ⚠️ No project selected — skip loading")
+                return
+
+            self.request_reload(reason="project_switch", project_id=project_id)
+
+        finally:
+            self._project_switch_in_progress = False
+
+        if self._pending_project_reload:
+            self._pending_project_reload = False
+            self.request_reload(reason="project_switch_followup", project_id=self.project_id)
 
     # ========== PHASE 3 Task 3.1: BaseLayout Interface Implementation ==========
 
@@ -10214,8 +10276,13 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
                 if sidebar and hasattr(sidebar, 'set_project'):
                     sidebar.set_project(self.project_id)
 
+        if not getattr(self, 'project_id', None):
+            print("[GooglePhotosLayout] refresh_after_scan: no project — suppressing load")
+            return
+
         # Invalidate signature so scan refresh always executes
         self._last_load_signature = None
+        self._last_reload_signature = None
         # Reload photos with ALL current filters (including filter_paths)
         self._load_photos(
             thumb_size=self.current_thumb_size,

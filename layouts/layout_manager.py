@@ -96,7 +96,7 @@ class LayoutManager:
             print(f"[LayoutManager] ❌ Unknown layout: {layout_id}")
             return False
 
-        if layout_id == self._current_layout_id:
+        if layout_id == self._current_layout_id and self._current_layout is not None:
             print(f"[LayoutManager] Already using layout: {layout_id}")
             return True
 
@@ -208,7 +208,7 @@ class LayoutManager:
         Initialize the default layout (on app startup).
 
         Reads the saved layout preference and activates it.
-        Falls back to "current" layout if no preference is saved.
+        Falls back to "google" layout if no preference is saved.
         """
         # Get saved preference
         preferred_layout = "google"
