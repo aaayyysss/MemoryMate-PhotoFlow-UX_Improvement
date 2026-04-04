@@ -1204,7 +1204,7 @@ class GooglePhotosLayout(BaseLayout):
         container = QWidget()
         container.setObjectName("GoogleLeftShell")
         container.setMinimumWidth(280)
-        container.setMaximumWidth(340)
+        container.setMaximumWidth(300)
         container.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
 
         lay = QVBoxLayout(container)
@@ -1227,6 +1227,7 @@ class GooglePhotosLayout(BaseLayout):
         grp_lay = QVBoxLayout(self.legacy_tools_group)
         grp_lay.setContentsMargins(0, 0, 0, 0)
         grp_lay.setSpacing(0)
+        accordion_widget.setMaximumHeight(160)
         grp_lay.addWidget(accordion_widget)
 
         lay.addWidget(self.google_shell_sidebar, 1)
@@ -1235,22 +1236,22 @@ class GooglePhotosLayout(BaseLayout):
         container.setStyleSheet("""
             QWidget#GoogleLeftShell {
                 background: #f8f9fb;
-                border-right: 1px solid #e0e3e7;
+                border-right: 1px solid #e6e8eb;
             }
             QGroupBox#LegacyToolsGroup {
                 font-weight: 600;
                 font-size: 11px;
-                color: #5f6368;
-                border: 1px solid #e0e3e7;
-                border-radius: 8px;
-                margin: 4px 6px 6px 6px;
-                padding-top: 14px;
+                border: 1px solid #e6e8eb;
+                border-radius: 10px;
+                margin: 6px 6px 6px 6px;
+                padding-top: 10px;
                 background: #ffffff;
             }
             QGroupBox#LegacyToolsGroup::title {
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 4px;
+                color: #5f6368;
             }
         """)
 
