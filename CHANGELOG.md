@@ -28,13 +28,39 @@ Separated the Google Photos layout into a frozen stable reference and an active 
 | Legacy (frozen) | `GooglePhotosLayoutLegacy` | `google_legacy` | Google Photos Legacy |
 | Active (improvement) | `GooglePhotosLayout` | `google` | Google Photos Style |
 
+### Phase 1 Correction — Startup Default Fix
+
+- **`layout_manager.py`**: Fixed `switch_layout()` short-circuit that prevented initial startup from switching to `google` when `_current_layout_id` was already `"current"` but no layout instance existed yet. Added `self._current_layout is not None` guard to the early-return check.
+
+### Phase 2A — Project-Load Ownership Stabilization
+
+Eliminated unnecessary loads during onboarding and project creation. `set_project()` is now the sole owner of project-bound loading in both layouts.
+
+#### Load Gate & Debounce (both `google_layout.py` and `google_layout_legacy.py`)
+- **`request_reload()` + `_execute_debounced_reload()`**: New 120ms debounce gate that suppresses duplicate reloads, coalesces rapid project-switch requests, and blocks loads when `project_id is None`.
+- **`set_project()`**: Rewritten as the single owner of project-bound loading. Includes re-entrancy guard (`_project_switch_in_progress`) and deferred follow-up reload.
+- **`_on_project_changed()`**: Now delegates to `set_project()` instead of duplicating load logic.
+- **`_on_create_project_clicked()`**: No longer calls `_load_photos()` directly; delegates to `set_project()`.
+
+#### Startup & Activation Guards
+- **`create_layout()`**: Post-startup layout switch now uses `request_reload()` gated on `project_id`.
+- **`_on_startup_ready()`**: Suppresses load when no project is set.
+- **`_recheck_column_count()`**: Early-returns when no project is set.
+- **`refresh_after_scan()`**: Early-returns when no project is set; also resets debounce signature.
+
+#### Cross-Layout Awareness
+- **`main_window_qt.py`**: Grid branch reset and layout-specific refresh checks now recognize `google_legacy` alongside `google`.
+- **`services/ui_refresh_mediator.py`**: Google-style refresh path now applies to `google_legacy` layout as well.
+
 ### Files Changed
 - `repository/asset_repository.py`
 - `services/asset_service.py`
+- `layouts/google_layout.py`
 - `layouts/google_layout_legacy.py` (new)
 - `layouts/layout_manager.py`
 - `layouts/__init__.py`
 - `main_window_qt.py`
+- `services/ui_refresh_mediator.py`
 
 ---
 

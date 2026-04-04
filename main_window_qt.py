@@ -3109,7 +3109,7 @@ class MainWindow(QMainWindow):
             layout_id = ""
             if hasattr(self, 'layout_manager') and self.layout_manager:
                 layout_id = self.layout_manager.get_current_layout_id() or ""
-            if layout_id != "google":
+            if layout_id not in ("google", "google_legacy"):
                 if hasattr(self, "grid") and self.grid:
                     self.grid.set_branch("all")
 
@@ -4411,7 +4411,7 @@ class MainWindow(QMainWindow):
             return
         try:
             lm = getattr(self, 'layout_manager', None)
-            if lm and getattr(lm, '_current_layout_id', None) == "google":
+            if lm and getattr(lm, '_current_layout_id', None) in ("google", "google_legacy"):
                 return  # Google layout handles its own refresh
 
             # Sidebar
