@@ -1,0 +1,119 @@
+Next should be **UX-9, intelligence and trust**, not another shell section.
+
+You already have enough shell to support real workflows:
+
+* `MainWindow` owns the search chrome and wraps the legacy sidebar under the centralized shell.
+* The runtime is stable enough to build on, because onboarding suppression, project switch, scan, post-scan pipelines, and layout switching all complete without crashing.
+
+So the bottleneck is no longer architecture. It is **decision quality**:
+
+* are people grouped correctly,
+* can the user fix bad grouping,
+* do facets feel trustworthy,
+* does browse coexist cleanly with semantic search.
+
+## What is next, in the right order
+
+### UX-9A, merge intelligence backend
+
+This is the highest-value next step.
+
+You already created review entry points:
+
+* People quick section,
+* merge review action,
+* unnamed clusters action.
+  And you already have heuristic payloads and lightweight suggestion stubs in the people layer. 
+
+What is missing is a real merge-suggestion engine:
+
+* score candidate cluster pairs using embeddings plus metadata,
+* exclude obvious bad pairs,
+* rank only the best few suggestions,
+* persist accepted / rejected decisions.
+
+This is the biggest value jump because your People UX is now visible, but still heuristic-driven.
+
+### UX-9B, side-by-side person review UI
+
+Once merge candidates are better, make them reviewable:
+
+* left cluster vs right cluster,
+* representative faces,
+* counts,
+* dates / co-occurrence hints,
+* Accept merge,
+* Reject,
+* Not now.
+
+You already have a merge suggestions dialog scaffold concept, so this is the natural next UI layer. 
+
+### UX-9C, unnamed-cluster workflow
+
+After merge review, build a focused workflow for:
+
+* unnamed clusters,
+* assign to existing identity,
+* mark as distinct new person,
+* ignore low-quality cluster.
+
+This matters because your current payload logic already counts unnamed clusters, so the product is asking for that workflow next. 
+
+### UX-9D, facet quality engine
+
+Only after people intelligence improves, tighten facets:
+
+* stronger people facet quality,
+* family-aware facet exposure,
+* result-set-based counts only,
+* fewer noisy facets,
+* better browse/search coexistence rules.
+
+This is the right follow-up because facets depend on good metadata and cluster trust.
+
+## Why this is the right next phase
+
+Because your original plan got you the shell:
+
+* Search hub,
+* Discover,
+* People quick access,
+* Browse,
+* Filters,
+* Activity,
+* Empty-state handling.
+  That shell is already represented in the centralized `MainWindow` structure and state-driven sidebar design.
+
+What now creates product value is not “more sections”, but:
+
+* **correctability**
+* **trust**
+* **review workflows**
+
+The user can already search and browse. The next thing they need is to fix the system when it is wrong.
+
+## One important caution
+
+Some uploaded file snapshots still show earlier placeholder versions of `SearchSidebar`, not the richer later one, so I would treat the structural shell as “good enough to continue”, but I would not assume every local file is perfectly in sync with the latest branch without a fresh targeted code pass.
+
+That does not change the roadmap, but it means the next implementation should be **focused and auditable**, not broad.
+
+# Recommended next roadmap
+
+1. **UX-9A, Merge intelligence backend**
+2. **UX-9B, Side-by-side merge review UI**
+3. **UX-9C, Unnamed-cluster workflow**
+4. **UX-9D, Facet quality engine**
+5. **UX-10, Result-pane visual polish** only after the people workflows feel trustworthy
+
+# Bottom line
+
+The next thing is **UX-9A, merge intelligence backend**, not another shell build-out.
+
+That is the point where product value rises sharply, because it turns People from:
+
+* “interesting and visible”
+  into
+* “correctable and trustworthy”.
+
+If you want, I’ll draft the **exact UX-9A patch pack** next.

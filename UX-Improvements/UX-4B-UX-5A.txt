@@ -1,0 +1,555 @@
+The latest run is stable enough to proceed.
+
+## Audit verdict
+
+I do not see a blocker in the new log for moving forward. The app now:
+
+* starts in explicit onboarding mode,
+* suppresses the initial heavy project-bound load with no active project,
+* switches to `project_id=1` cleanly,
+* scans 25 photos successfully,
+* builds date branches, duplicates, embeddings, and similar-shot stacks without crashing,
+* reloads `GooglePhotosLayout` with 25 assets and then switches back to Current layout cleanly. 
+
+That means the shell is stable enough for the next UX step.
+
+One honest caveat remains: the current bridge still routes Smart Find presets through the legacy preset-click path, which is acceptable for now but means UX-4B and UX-5 should be implemented as **UI and state integration**, not a backend rewrite yet.
+
+So the right next move is:
+
+## Proceed with
+
+* **UX-4B, PeopleQuickSection**
+* **UX-5A, result pane integration**
+
+I am intentionally calling the second part **UX-5A**, because the app is ready for result-pane state integration now, but not for a full result-pane redesign.
+
+---
+
+# UX-4B exact implementation pack, PeopleQuickSection
+
+This pack adds:
+
+* top face clusters
+* quick person chips
+* “Show all people”
+
+It keeps the current backend stable by using a lightweight summary adapter.
+
+## 1. Create `ui/search/sections/people_quick_section.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout
+
+
+class PeopleQuickSection(QGroupBox):
+    personSelected = Signal(str)
+    showAllPeopleRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__("People", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(8)
+
+        self.lbl_empty = QLabel("People will appear after face clustering.")
+        self.layout.addWidget(self.lbl_empty)
+
+        self.people_host = QWidget()
+        self.people_layout = QVBoxLayout(self.people_host)
+        self.people_layout.setContentsMargins(0, 0, 0, 0)
+        self.people_layout.setSpacing(6)
+        self.layout.addWidget(self.people_host)
+
+        self.btn_show_all = QPushButton("Show All People")
+        self.btn_show_all.clicked.connect(self.showAllPeopleRequested.emit)
+        self.layout.addWidget(self.btn_show_all)
+
+        self.setVisible(False)
+
+    def _clear_people(self):
+        while self.people_layout.count():
+            item = self.people_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def set_people(self, people_items):
+        self._clear_people()
+
+        people_items = list(people_items or [])
+        has_any = bool(people_items)
+
+        self.lbl_empty.setVisible(not has_any)
+        self.people_host.setVisible(has_any)
+        self.btn_show_all.setVisible(has_any)
+        self.setVisible(has_any)
+
+        for item in people_items[:8]:
+            person_id = item.get("id")
+            label = item.get("label", str(person_id))
+            count = item.get("count", 0)
+
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            btn = QPushButton(f"{label} ({count})")
+            btn.clicked.connect(lambda checked=False, pid=person_id: self.personSelected.emit(str(pid)))
+            row_layout.addWidget(btn)
+
+            self.people_layout.addWidget(row)
+```
+
+---
+
+## 2. Patch `ui/search/search_state_store.py`
+
+Add these fields to `SearchState`:
+
+```python
+    people_quick_items: List[Dict[str, Any]] = field(default_factory=list)
+    people_quick_loading: bool = False
+```
+
+And in `clear_search()` add:
+
+```python
+        self._state.people_quick_loading = False
+```
+
+Do **not** clear `people_quick_items` on every query clear. Those are project-level quick summaries, not query-specific results.
+
+---
+
+## 3. Patch `ui/search/search_controller.py`
+
+Add these methods:
+
+```python
+    def apply_people_filter(self, person_id: str):
+        state = self.store.get_state()
+
+        active_people = [p for p in state.active_people if p != person_id]
+        if person_id not in state.active_people:
+            active_people.append(person_id)
+
+        chips = [chip for chip in state.active_chips if not (chip.get("kind") == "person" and chip.get("value") == person_id)]
+
+        if person_id in active_people:
+            chips.append({
+                "kind": "person",
+                "label": person_id,
+                "value": person_id,
+            })
+
+        self.store.update(
+            active_people=active_people,
+            active_chips=chips,
+            intent_summary=self._build_intent_summary(),
+        )
+        self.run_search()
+
+    def set_people_quick_items(self, items):
+        self.store.update(people_quick_items=list(items or []))
+
+    def set_people_quick_loading(self, loading: bool):
+        self.store.update(people_quick_loading=bool(loading))
+```
+
+And extend `remove_chip()` so person chips are removable, if not already handled:
+
+```python
+        elif kind == "person":
+            state.active_people = [p for p in state.active_people if p != value]
+```
+
+That branch should remain present.
+
+---
+
+## 4. Replace `ui/search/search_sidebar.py`
+
+Replace the current placeholder-people version with this:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame
+
+from ui.search.sections.search_hub_section import SearchHubSection
+from ui.search.sections.discover_section import DiscoverSection
+from ui.search.sections.filter_section import FilterSection
+from ui.search.sections.people_quick_section import PeopleQuickSection
+
+
+class SearchSidebar(QWidget):
+    folderSelected = Signal(int)
+    selectBranch = Signal(str)
+    selectDate = Signal(str)
+    selectVideos = Signal(str)
+    selectGroup = Signal(int)
+
+    def __init__(self, store, controller=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.controller = controller
+
+        self.search_hub_section = SearchHubSection()
+        self.discover_section = DiscoverSection()
+        self.people_quick_section = PeopleQuickSection()
+        self.filter_section = FilterSection()
+
+        self._build_ui()
+        self._wire_signals()
+
+        self.store.stateChanged.connect(self._on_state_changed)
+
+    def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        content = QFrame()
+        self.content_layout = QVBoxLayout(content)
+        self.content_layout.setContentsMargins(6, 6, 6, 6)
+        self.content_layout.setSpacing(10)
+
+        self.content_layout.addWidget(self.search_hub_section)
+        self.content_layout.addWidget(self.discover_section)
+        self.content_layout.addWidget(self.people_quick_section)
+        self.content_layout.addWidget(self.filter_section)
+        self.content_layout.addStretch(1)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+    def _wire_signals(self):
+        if self.controller:
+            self.discover_section.presetSelected.connect(self.controller.set_preset)
+            self.search_hub_section.recentSearchClicked.connect(self.controller.submit_query)
+            self.search_hub_section.suggestionClicked.connect(self.controller.submit_query)
+            self.search_hub_section.clearRecentRequested.connect(self.controller.clear_recent_queries)
+
+            self.filter_section.filterChanged.connect(self.controller.apply_filter)
+            self.filter_section.clearAllFiltersRequested.connect(self.controller.clear_filters)
+
+            self.people_quick_section.personSelected.connect(self.controller.apply_people_filter)
+            self.people_quick_section.showAllPeopleRequested.connect(self._emit_show_all_people)
+
+    def _emit_show_all_people(self):
+        self.selectBranch.emit("people")
+
+    def _on_state_changed(self, state):
+        enabled = state.has_active_project
+        self.search_hub_section.set_enabled_for_project(enabled)
+        self.discover_section.setEnabled(enabled)
+        self.people_quick_section.setEnabled(enabled)
+
+        self.search_hub_section.set_recent_queries(getattr(state, "recent_queries", []))
+        self.search_hub_section.set_suggestions(getattr(state, "suggestions", []))
+        self.discover_section.update_counts(getattr(state, "discover_counts", {}))
+        self.discover_section.set_active_preset(getattr(state, "preset_id", None))
+        self.discover_section.update_previews(getattr(state, "discover_previews", {}))
+
+        self.people_quick_section.set_people(getattr(state, "people_quick_items", []))
+
+        self.filter_section.set_facets(
+            getattr(state, "result_facets", {}) or {},
+            getattr(state, "active_filters", {}) or {},
+        )
+
+    def reload_date_tree(self):
+        pass
+
+    def set_project(self, project_id: int):
+        pass
+
+    def toggle_fold(self, folded: bool):
+        self.setVisible(not folded)
+
+    def _effective_display_mode(self):
+        return "list"
+
+    def switch_display_mode(self, mode: str):
+        pass
+```
+
+---
+
+## 5. Patch `main_window_qt.py`
+
+Add a lightweight people-summary adapter that does not rewrite the people backend.
+
+### Add this method inside `MainWindow`:
+
+```python
+def _refresh_people_quick_section(self):
+    """
+    UX-4B bridge: populate PeopleQuickSection from existing people backend if available.
+    Keeps the new shell decoupled from the legacy people implementation.
+    """
+    try:
+        items = []
+
+        # Current Layout / SidebarQt path
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section and hasattr(people_section, "get_top_people_summary"):
+                items = list(people_section.get_top_people_summary() or [])
+
+        # Google/other layouts fallback if needed
+        if not items and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section and hasattr(people_section, "get_top_people_summary"):
+                    items = list(people_section.get_top_people_summary() or [])
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.set_people_quick_items(items)
+
+    except Exception as e:
+        print(f"[UX-4B] Error refreshing people quick section: {e}")
+```
+
+### Call it in `_on_project_changed_by_id(...)` after project switch is complete:
+
+```python
+if hasattr(self, "_refresh_people_quick_section"):
+    self._refresh_people_quick_section()
+```
+
+### Also call it after face clustering completes, wherever your existing pipeline already triggers people refresh. If that hook is not cleanly available yet, calling it after project switch is enough for the first pass.
+
+---
+
+## 6. Patch `ui/accordion_sidebar/people_section.py`
+
+To support the bridge above, add one adapter method to the existing People section.
+
+Add this method inside the People section class:
+
+```python
+def get_top_people_summary(self):
+    """
+    UX-4B adapter for the centralized search shell.
+    Returns a lightweight summary of top face clusters.
+    """
+    try:
+        items = []
+
+        # If you already maintain a cluster/people list model, adapt this one block only.
+        # Expected output shape:
+        # [{"id": "face_004", "label": "Face_004", "count": 23}, ...]
+
+        source = getattr(self, "people_data", None) or getattr(self, "clusters", None) or []
+
+        for item in list(source)[:8]:
+            if isinstance(item, dict):
+                pid = item.get("id") or item.get("person_id") or item.get("label")
+                label = item.get("label") or item.get("name") or str(pid)
+                count = int(item.get("count", 0))
+                if pid is not None:
+                    items.append({
+                        "id": str(pid),
+                        "label": str(label),
+                        "count": count,
+                    })
+
+        return items
+
+    except Exception:
+        return []
+```
+
+### Important
+
+If your People section uses a different internal source than `people_data` / `clusters`, adapt only the `source = ...` line. The output contract above should remain fixed.
+
+---
+
+# UX-5A exact implementation pack, result pane integration
+
+This is the right scope now, not a full result-pane redesign.
+
+Goals:
+
+* accept `SearchState`
+* render empty state when appropriate
+* stop treating search as a side-channel
+* keep header and chips owned by `MainWindow`
+
+So we **do not** render `SearchResultsHeader` or `ActiveChipsBar` inside `google_layout.py`. `MainWindow` already owns those.
+
+---
+
+## 7. Patch `layouts/google_layout.py`
+
+Add search-store binding and empty-state behavior.
+
+### 7.1 Add method to attach store
+
+Add this method inside `GooglePhotosLayout`:
+
+```python
+def attach_search_store(self, store):
+    self.search_state_store = store
+    if self.search_state_store:
+        self.search_state_store.stateChanged.connect(self._on_search_state_changed)
+```
+
+### 7.2 Add state-change handler
+
+Add this method:
+
+```python
+def _on_search_state_changed(self, state):
+    try:
+        if not hasattr(self, "empty_state"):
+            return
+
+        # Onboarding / no project
+        if getattr(state, "onboarding_mode", False):
+            self._show_empty_state("no_project", getattr(state, "warnings", []))
+            return
+
+        # Explicit loading/indexing states
+        if getattr(state, "search_in_progress", False):
+            self._show_empty_state("loading", getattr(state, "warnings", []))
+            return
+
+        if getattr(state, "indexing_in_progress", False):
+            self._show_empty_state("indexing", getattr(state, "warnings", []))
+            return
+
+        # Missing embeddings warning path
+        if not getattr(state, "embeddings_ready", True):
+            reason = getattr(state, "empty_state_reason", None)
+            if reason == "embeddings_missing":
+                self._show_empty_state("embeddings_missing", getattr(state, "warnings", []))
+                return
+
+        result_paths = list(getattr(state, "result_paths", []) or [])
+        if not result_paths:
+            self._show_empty_state(getattr(state, "empty_state_reason", None) or "no_results",
+                                   getattr(state, "warnings", []))
+            return
+
+        self._show_results_surface()
+
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _on_search_state_changed error: {e}")
+```
+
+### 7.3 Add result/empty-state switching helpers
+
+Add:
+
+```python
+def _show_empty_state(self, reason: str, warnings=None):
+    try:
+        if hasattr(self, "empty_state"):
+            self.empty_state.set_state(reason, warnings or [])
+        if hasattr(self, "results_stack") and hasattr(self, "empty_state"):
+            self.results_stack.setCurrentWidget(self.empty_state)
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _show_empty_state error: {e}")
+
+def _show_results_surface(self):
+    try:
+        if hasattr(self, "results_stack") and hasattr(self, "timeline"):
+            self.results_stack.setCurrentWidget(self.timeline)
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _show_results_surface error: {e}")
+```
+
+### 7.4 Ensure `EmptyStateView` is the new richer one
+
+You already replaced it earlier. Keep it.
+`GooglePhotosLayout` should use that richer `EmptyStateView` and no longer invent its own onboarding/no-results text.
+
+---
+
+## 8. Patch `main_window_qt.py` for store attachment to layout
+
+Where layouts are initialized or switched, after the current layout is available, attach the search store if the layout supports it.
+
+Add a helper method inside `MainWindow`:
+
+```python
+def _attach_search_store_to_current_layout(self):
+    try:
+        layout = self.layout_manager.get_current_layout()
+        if layout and hasattr(layout, "attach_search_store"):
+            layout.attach_search_store(self.search_state_store)
+    except Exception as e:
+        print(f"[MainWindow] Error attaching search store to layout: {e}")
+```
+
+Call it:
+
+* after initial layout setup,
+* after every layout switch.
+
+If you already have a layout-switch callback, insert it there.
+
+---
+
+# 9. Optional state polish for embeddings warning
+
+If you already know when embeddings are missing for a project, update the shell state by calling:
+
+```python
+self.search_state_store.update(embeddings_ready=False, empty_state_reason="embeddings_missing")
+```
+
+Otherwise leave it until that signal path is cleaner.
+
+---
+
+# 10. Audit-based conclusion
+
+The current log is strong enough to move forward because:
+
+* shell startup is stable,
+* project switch and scan are stable,
+* post-scan indexing/embeddings/duplicates are stable,
+* and the app survives layout switches and Google-layout reloads without crashing. 
+
+So now the correct next steps are:
+
+1. **UX-4B, PeopleQuickSection**
+2. **UX-5A, result-pane integration**
+
+That is the right sequence.
+
+---
+
+# 11. What comes after this
+
+After these patches land, the next natural step should be:
+
+## UX-6, BrowseSection + ActivityMiniSection
+
+because at that point the shell will have:
+
+* Search
+* Discover
+* People
+* Filters
+* Empty state / result-pane awareness
+
+and then it becomes worth adding:
+
+* Browse
+* background activity strip
+
+---
+
+If you want, after you apply this pack and run a test, the next step should be the **exact UX-6 implementation pack**.

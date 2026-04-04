@@ -1,0 +1,820 @@
+Here is the design phase first, then the exact PySide6 component architecture, then the file-by-file patch plan.
+
+# 1. Solid design phase
+
+Do not start coding the sidebar overhaul directly. First lock these design decisions.
+
+## A. Product goals
+
+The new sidebar/search UX must achieve four things:
+
+1. make search feel like navigation, not a tool
+2. make intent visible, not hidden in logs
+3. make refinement easy after results appear
+4. keep background AI work visible and non-blocking
+
+If a change does not improve one of those four, it is probably decoration.
+
+## B. UX principles
+
+Use these as hard rules:
+
+### Rule 1, one control area, one result area
+
+Left side controls intent and refinement.
+Center shows results.
+Top shows current query state.
+
+### Rule 2, search is stateful
+
+A search is not just text. It is:
+
+* query text
+* active preset
+* active family
+* active filters
+* active sort
+* result count
+
+This state must be visible in UI.
+
+### Rule 3, refine after search
+
+Do not show every filter all the time.
+Show contextual refinements only after:
+
+* a preset was selected,
+* a query was typed,
+* or a result family is active.
+
+### Rule 4, discoverability beats raw power
+
+Google Photos wins because users can discover features without understanding the system.
+Lightroom wins because experts can still control it.
+You need both.
+
+### Rule 5, one canonical search state store
+
+Do not let:
+
+* sidebar,
+* top bar,
+* results header,
+* smart find cards,
+* people section
+
+each maintain their own local search truth.
+There must be one shared state object.
+
+## C. UX information architecture
+
+The left sidebar should have exactly these sections:
+
+### Search
+
+* search input
+* recent searches
+* suggestions
+* active query chips
+
+### Discover
+
+* smart presets as visual cards
+* Documents
+* Screenshots
+* People
+* Places
+* Scenic categories
+
+### People
+
+* top person clusters
+* merge-review candidates
+* unnamed clusters
+
+### Browse
+
+* All Photos
+* Albums
+* Folders
+* Dates
+* Favorites
+* Videos
+* With Location
+
+### Filters
+
+Hidden until a search/preset is active. Then show:
+
+* People
+* Location
+* Time
+* Type
+* Rating / Favorite
+* Camera / Lens, later
+
+### Activity
+
+Compact background-task strip:
+
+* scanning
+* embeddings
+* face detection
+* clustering
+* OCR later
+
+## D. User flows to design before coding
+
+You need mock flows for these seven actions:
+
+1. user opens app with no project
+2. user opens app with active project
+3. user clicks Beach preset
+4. user searches “kids beach 2024”
+5. user clicks Face_007 in People
+6. user applies filters after results
+7. user sees background indexing / face clustering progress
+
+If any of these flows is awkward on paper, code will not fix it.
+
+## E. Design deliverables before implementation
+
+Create these artifacts first:
+
+### 1. Sidebar wireframe
+
+One annotated screenshot or sketch with:
+
+* exact section order
+* collapse behavior
+* default expanded sections
+* card sizes
+* chip behavior
+
+### 2. Search state schema
+
+Document the single canonical search state object.
+
+Example:
+
+```python
+{
+    "query_text": "",
+    "preset_id": None,
+    "family": None,
+    "people_ids": [],
+    "location_filter": None,
+    "date_filter": None,
+    "type_filter": None,
+    "favorites_only": False,
+    "media_type": None,
+    "sort_mode": "relevance",
+    "result_count": 0,
+    "search_in_progress": False,
+}
+```
+
+### 3. Event map
+
+List every event source and subscriber.
+
+Example:
+
+* SearchBar emits query changed
+* SmartFindCard emits preset selected
+* FilterChips emits filter changed
+* SearchController updates SearchState
+* ResultsView subscribes to SearchState
+* ResultsHeader subscribes to SearchState
+* Sidebar sections subscribe to SearchState
+
+### 4. Empty/loading/error states
+
+Define how each section behaves when:
+
+* no project
+* no results
+* indexing in progress
+* embeddings missing
+* face clustering incomplete
+
+This matters more than people think.
+
+---
+
+# 2. Exact PySide6 component architecture
+
+This is the recommended component tree.
+
+## Main window shell
+
+```text
+MainWindow
+├── TopSearchBar
+├── MainSplitter
+│   ├── SearchSidebar
+│   │   ├── SearchHubSection
+│   │   ├── DiscoverSection
+│   │   ├── PeopleQuickSection
+│   │   ├── BrowseSection
+│   │   ├── FilterSection
+│   │   └── ActivityMiniSection
+│   └── ResultsPane
+│       ├── SearchResultsHeader
+│       ├── ActiveChipsBar
+│       ├── ResultGridView
+│       └── EmptyStateView
+└── ActivityCenterDock
+```
+
+## Controllers / state
+
+```text
+SearchStateStore
+SearchController
+SidebarController
+PeopleController
+ActivityController
+```
+
+## Data services used by the UI
+
+```text
+SearchOrchestrator
+SearchFeatureRepository
+ReferenceDB / repositories
+JobManager / ActivityCenter
+```
+
+## Component responsibilities
+
+### `TopSearchBar`
+
+Purpose:
+
+* free-text query entry
+* suggestion dropdown
+* recent searches
+* quick clear
+* current project-aware placeholder
+
+Owns:
+
+* text input only
+
+Does not own:
+
+* filters
+* results
+* search execution logic
+
+### `SearchSidebar`
+
+Purpose:
+
+* visual navigation / discovery
+* contextual refinement
+* light activity visibility
+
+Owns:
+
+* section layout
+* collapse / expand state
+
+Does not own:
+
+* canonical search state
+
+### `SearchHubSection`
+
+Purpose:
+
+* recent queries
+* suggestion list
+* current query summary
+
+### `DiscoverSection`
+
+Purpose:
+
+* Smart Find visual cards
+* family shortcuts
+* counts and previews
+
+### `PeopleQuickSection`
+
+Purpose:
+
+* top people clusters
+* pending merge suggestions
+* quick jump into person search
+
+### `BrowseSection`
+
+Purpose:
+
+* non-semantic navigation
+* folders / albums / dates / videos / favorites
+
+### `FilterSection`
+
+Purpose:
+
+* show refinements only when relevant
+* dynamic filter chips / facet groups
+
+### `ActivityMiniSection`
+
+Purpose:
+
+* compact current-task strip
+* one-line progress, non-modal
+
+### `SearchResultsHeader`
+
+Purpose:
+
+* “Showing Beach + Kids + 2024”
+* result count
+* sort selector
+* source family badge
+* current model/status warnings
+
+### `ActiveChipsBar`
+
+Purpose:
+
+* active preset chip
+* active people chips
+* location/date/type chips
+* remove one-click
+
+### `ResultGridView`
+
+Purpose:
+
+* actual thumbnails
+* lazy load
+* progressive updates
+* selection
+
+### `EmptyStateView`
+
+Purpose:
+
+* no project
+* no results
+* indexing incomplete
+* embeddings missing
+* suggest next action
+
+---
+
+# 3. State architecture, exact recommendation
+
+Use one central store.
+
+## `SearchStateStore`
+
+Suggested dataclass:
+
+```python
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict, Any
+
+@dataclass
+class SearchState:
+    query_text: str = ""
+    preset_id: Optional[str] = None
+    family: Optional[str] = None
+    active_filters: Dict[str, Any] = field(default_factory=dict)
+    active_people: List[str] = field(default_factory=list)
+    active_chips: List[Dict[str, Any]] = field(default_factory=list)
+    sort_mode: str = "relevance"
+    result_count: int = 0
+    search_in_progress: bool = False
+    has_active_project: bool = False
+    active_project_id: Optional[int] = None
+    warnings: List[str] = field(default_factory=list)
+```
+
+Use Qt signals in a QObject wrapper:
+
+```python
+class SearchStateStore(QObject):
+    stateChanged = Signal(object)
+
+    def __init__(self):
+        super().__init__()
+        self._state = SearchState()
+
+    def get_state(self) -> SearchState:
+        return self._state
+
+    def update(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self._state, k, v)
+        self.stateChanged.emit(self._state)
+```
+
+## `SearchController`
+
+Responsibilities:
+
+* receives UI events
+* translates them into orchestrator requests
+* updates store
+* coordinates search execution
+* handles stale-result cancellation
+
+This is where all search actions should go.
+
+---
+
+# 4. File-by-file patch plan
+
+This is the implementation plan in the right order.
+
+## Phase UX-1, foundational state and shell
+
+### 1. `main_window_qt.py`
+
+Patch goals:
+
+* create `SearchStateStore`
+* create `SearchController`
+* replace ad hoc sidebar/search wiring with controller wiring
+* insert `TopSearchBar`, `SearchSidebar`, `ResultsPane`
+* prevent startup no-project mode from rendering fake result loads
+
+Main changes:
+
+* add `self.search_state_store`
+* add `self.search_controller`
+* initialize new sidebar shell
+* connect project changes into search state
+* gate startup if no active project
+
+### 2. new file `ui/search/search_state_store.py`
+
+Contains:
+
+* `SearchState`
+* `SearchStateStore`
+
+### 3. new file `ui/search/search_controller.py`
+
+Contains:
+
+* search execution orchestration
+* methods:
+
+  * `set_query_text`
+  * `set_preset`
+  * `toggle_filter`
+  * `clear_search`
+  * `apply_people_filter`
+  * `apply_sort`
+  * `refresh_results`
+
+---
+
+## Phase UX-2, top search and results header
+
+### 4. new file `ui/search/top_search_bar.py`
+
+Contains:
+
+* `TopSearchBar(QWidget)`
+* search input
+* clear button
+* suggestion popup
+* recent query dropdown
+
+Signals:
+
+* `querySubmitted(str)`
+* `queryChanged(str)`
+* `searchCleared()`
+
+### 5. new file `ui/search/search_results_header.py`
+
+Contains:
+
+* result summary label
+* count label
+* sort dropdown
+* warning/status badge
+* model-quality warning badge
+
+Reads from store.
+
+### 6. new file `ui/search/active_chips_bar.py`
+
+Contains:
+
+* removable chips for active preset/query/filters/people
+* signal `chipRemoved(key, value)`
+
+---
+
+## Phase UX-3, sidebar structure
+
+### 7. new file `ui/search/search_sidebar.py`
+
+Contains:
+
+* main vertical container
+* embeds all section widgets
+* collapse/expand memory
+* scroll area
+
+### 8. new file `ui/search/sections/search_hub_section.py`
+
+Contains:
+
+* recent searches list
+* suggestions list
+* quick-clear actions
+
+### 9. new file `ui/search/sections/discover_section.py`
+
+Contains:
+
+* visual Smart Find cards
+* category cards with icon + count + optional preview
+* click → preset search
+
+### 10. new file `ui/search/sections/people_quick_section.py`
+
+Contains:
+
+* top face clusters
+* quick person chips
+* “Show all people”
+
+### 11. new file `ui/search/sections/browse_section.py`
+
+Contains:
+
+* All Photos
+* Favorites
+* Videos
+* With Location
+* Albums / Folders / Dates entries
+
+### 12. new file `ui/search/sections/filter_section.py`
+
+Contains:
+
+* contextual facets
+* only visible when `query_text` or `preset_id` or filters exist
+
+### 13. new file `ui/search/sections/activity_mini_section.py`
+
+Contains:
+
+* compact task strip
+* latest job only or top 2 jobs
+* progress bar / text
+
+---
+
+## Phase UX-4, Smart Find UX
+
+### 14. replace / refactor current Smart Find UI host
+
+Likely current file area:
+
+* `ui/accordion_sidebar/find_section.py`
+* related current Smart Find code
+
+Patch goals:
+
+* stop rendering Smart Find as plain list/buttons
+* render as cards
+* show counts
+* optional preview thumbs
+* map preset to family color/icon
+
+If you want minimal disruption, do not delete existing backend integration.
+Wrap it with a new widget.
+
+Create:
+
+### new file `ui/search/widgets/smart_find_card.py`
+
+Contains:
+
+* icon
+* title
+* count
+* preview strip
+* active state
+
+---
+
+## Phase UX-5, result pane integration
+
+### 15. current results grid file, likely `layouts/google_layout.py`
+
+Patch goals:
+
+* accept `SearchState`
+* render `SearchResultsHeader`
+* render `ActiveChipsBar`
+* render empty state when appropriate
+* stop treating search as a side-channel
+
+This is one of the most important integrations.
+
+### 16. new file `ui/search/empty_state_view.py`
+
+Contains tailored empty states:
+
+* no active project
+* no results
+* indexing in progress
+* embeddings missing
+* OCR/search features unavailable
+
+---
+
+## Phase UX-6, People quick access and merge review
+
+### 17. `ui/accordion_sidebar/people_section.py`
+
+Patch goals:
+
+* split “People quick section” from full People management section
+* expose:
+
+  * top identities
+  * suspicious clusters / merge review entry
+  * recent unnamed clusters
+
+Do not overload sidebar with full people-management complexity.
+
+### 18. later optional file `ui/search/people_merge_suggestions_panel.py`
+
+Not required in first pass, but recommended after clustering improves.
+
+---
+
+## Phase UX-7, activity visibility
+
+### 19. `services/ui_refresh_mediator.py`
+
+Patch goals:
+
+* publish search-state-safe refreshes
+* update `ActivityMiniSection`
+* route background progress into sidebar strip
+
+### 20. `ui/activity_center.py`
+
+No major redesign yet, but ensure mini activity and full dock are connected.
+
+---
+
+# 5. Solid design-phase deliverables before coding
+
+Do these before implementation starts.
+
+## Deliverable 1, one-page IA diagram
+
+Create a simple diagram with:
+
+* top bar
+* sidebar sections
+* results pane
+* activity strip
+* data flow arrows
+
+## Deliverable 2, search-state schema
+
+Write the exact fields and allowed values for `SearchState`.
+
+## Deliverable 3, event map
+
+Document:
+
+* who emits
+* who listens
+* which component owns nothing but display
+* which controller mutates state
+
+## Deliverable 4, UX scenarios
+
+Write expected behavior for:
+
+* no project
+* one project
+* multiple projects
+* typing query
+* selecting preset
+* opening people
+* search while indexing
+* missing embeddings
+
+## Deliverable 5, component boundaries
+
+For each widget, write:
+
+* inputs
+* outputs
+* whether it talks to controller directly
+* whether it is display-only
+
+This prevents spaghetti.
+
+---
+
+# 6. Recommended implementation sequence
+
+Do not try to build all at once.
+
+## Step 1
+
+Introduce `SearchStateStore` and `SearchController`.
+
+## Step 2
+
+Add `TopSearchBar` and `SearchResultsHeader`.
+
+## Step 3
+
+Add new `SearchSidebar` skeleton with placeholders for all sections.
+
+## Step 4
+
+Migrate Smart Find into `DiscoverSection`.
+
+## Step 5
+
+Migrate current People shortcuts into `PeopleQuickSection`.
+
+## Step 6
+
+Add contextual `FilterSection`.
+
+## Step 7
+
+Hook background tasks into `ActivityMiniSection`.
+
+## Step 8
+
+Then tune visual polish.
+
+---
+
+# 7. Critical design warnings
+
+## Warning 1
+
+Do not let each section query DB independently whenever possible.
+Use controller/state-driven refresh, or you will recreate the same inconsistency problems you just spent days fixing.
+
+## Warning 2
+
+Do not embed business logic in widgets.
+Widgets render and emit signals.
+Controllers decide.
+
+## Warning 3
+
+Do not expose all filters all the time.
+That becomes “enterprise software ugly” fast.
+
+## Warning 4
+
+Do not make the left sidebar purely static.
+It must reflect current search intent.
+
+---
+
+# 8. What good looks like
+
+After this redesign, the experience should feel like:
+
+* type search in one place
+* see why results are shown
+* refine with chips and contextual facets
+* jump between People / Discover / Browse without losing search state
+* always know what the app is doing in background
+
+That is much closer to Google Photos / Apple Photos / Lightroom / Excire-grade UX than your current likely mixed sidebar.
+
+---
+
+# 9. My recommendation for next step
+
+Before implementation, create these three concrete artifacts:
+
+1. the sidebar wireframe
+2. the `SearchState` schema
+3. the event map
+
+Once those are done, implementation becomes much safer.
+
+If you want, I can now turn this into a **phase-by-phase implementation backlog with exact file creation order and component APIs**, or draft the first wireframe/state schema directly.

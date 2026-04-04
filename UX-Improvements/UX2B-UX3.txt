@@ -1,0 +1,861 @@
+Audit first, then the exact UX-3 pack.
+
+## Audit verdict
+
+UX-2B is **not fully landed**, but the app is now stable enough to start UX-3 **if we fold the missing UX-2B pieces into the first part of the pack**.
+
+What is clearly working:
+
+* onboarding is explicit,
+* no-project startup stays lightweight,
+* initial heavy layout load is suppressed. 
+
+What is still incomplete:
+
+* `search_sidebar.py` still contains a **placeholder** for “Search Hub” instead of a real `SearchHubSection`.
+* `search_results_header.py` still only has:
+
+  * summary,
+  * count,
+  * sort dropdown,
+    and is still missing the richer status badge and model-warning badge from the UX-2A/2B target.
+* `main_window_qt.py` already has the shell wiring and bridge, so the architecture is good enough to proceed.
+
+So the honest answer is:
+
+## Proceed, but do it as a combined pack
+
+We should implement:
+
+1. the **missing UX-2B completion**,
+2. then the **UX-3 FilterSection + orchestrator facets**.
+
+That is the safest path.
+
+---
+
+# UX-3 exact implementation pack
+
+This pack includes:
+
+* real `SearchHubSection`
+* real `FilterSection`
+* richer `SearchSidebar`
+* richer `SearchResultsHeader`
+* state/controller facet plumbing
+* a proper `EmptyStateView`
+* `MainWindow` bridge support for facets
+
+It does **not** yet add:
+
+* `PeopleQuickSection`
+* `BrowseSection`
+* `ActivityMiniSection`
+
+Those should come after this.
+
+---
+
+# 1. Create `ui/search/sections/search_hub_section.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QListWidget, QListWidgetItem, QPushButton, QLabel
+
+
+class SearchHubSection(QGroupBox):
+    recentSearchClicked = Signal(str)
+    suggestionClicked = Signal(str)
+    clearRecentRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__("Search", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(6)
+
+        self.lbl_recent = QLabel("Recent Searches")
+        self.list_recent = QListWidget()
+        self.list_recent.setMaximumHeight(120)
+
+        self.lbl_suggestions = QLabel("Suggestions")
+        self.list_suggestions = QListWidget()
+        self.list_suggestions.setMaximumHeight(150)
+
+        self.btn_clear_recent = QPushButton("Clear Recent")
+        self.btn_clear_recent.setObjectName("SearchHubClearButton")
+
+        self.layout.addWidget(self.lbl_recent)
+        self.layout.addWidget(self.list_recent)
+        self.layout.addWidget(self.btn_clear_recent)
+        self.layout.addWidget(self.lbl_suggestions)
+        self.layout.addWidget(self.list_suggestions)
+        self.layout.addStretch(1)
+
+        self.list_recent.itemClicked.connect(self._on_recent_clicked)
+        self.list_suggestions.itemClicked.connect(self._on_suggestion_clicked)
+        self.btn_clear_recent.clicked.connect(self.clearRecentRequested.emit)
+
+    def _on_recent_clicked(self, item: QListWidgetItem):
+        self.recentSearchClicked.emit(item.text().strip())
+
+    def _on_suggestion_clicked(self, item: QListWidgetItem):
+        self.suggestionClicked.emit(item.text().strip())
+
+    def set_recent_queries(self, queries):
+        self.list_recent.clear()
+        for q in list(queries or [])[:10]:
+            self.list_recent.addItem(QListWidgetItem(str(q)))
+
+        visible = self.list_recent.count() > 0
+        self.lbl_recent.setVisible(visible)
+        self.list_recent.setVisible(visible)
+        self.btn_clear_recent.setVisible(visible)
+
+    def set_suggestions(self, suggestions):
+        self.list_suggestions.clear()
+        for s in list(suggestions or [])[:12]:
+            self.list_suggestions.addItem(QListWidgetItem(str(s)))
+
+        visible = self.list_suggestions.count() > 0
+        self.lbl_suggestions.setVisible(visible)
+        self.list_suggestions.setVisible(visible)
+
+    def set_enabled_for_project(self, enabled: bool):
+        self.setEnabled(enabled)
+```
+
+---
+
+# 2. Create `ui/search/sections/filter_section.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QLabel, QPushButton, QWidget, QHBoxLayout
+
+
+class FilterSection(QGroupBox):
+    filterChanged = Signal(str, object)
+    filterRemoved = Signal(str, object)
+    clearAllFiltersRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__("Filters", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(8)
+
+        self.lbl_empty = QLabel("Filters appear after search or preset selection.")
+        self.layout.addWidget(self.lbl_empty)
+
+        self.filter_rows_host = QWidget()
+        self.filter_rows_layout = QVBoxLayout(self.filter_rows_host)
+        self.filter_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.filter_rows_layout.setSpacing(6)
+        self.layout.addWidget(self.filter_rows_host)
+
+        self.btn_clear_all = QPushButton("Clear All Filters")
+        self.btn_clear_all.clicked.connect(self.clearAllFiltersRequested.emit)
+        self.layout.addWidget(self.btn_clear_all)
+
+        self.setVisible(False)
+
+    def _clear_rows(self):
+        while self.filter_rows_layout.count():
+            item = self.filter_rows_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def set_facets(self, facets: dict, active_filters: dict):
+        self._clear_rows()
+
+        has_any = False
+        active_filters = active_filters or {}
+        facets = facets or {}
+
+        # people
+        has_any |= self._add_facet_row("people", "People", facets.get("people", []), active_filters)
+
+        # locations
+        has_any |= self._add_facet_row("location", "Location", facets.get("locations", []), active_filters)
+
+        # years
+        has_any |= self._add_facet_row("year", "Year", facets.get("years", []), active_filters)
+
+        # types
+        has_any |= self._add_facet_row("type", "Type", facets.get("types", []), active_filters)
+
+        self.lbl_empty.setVisible(not has_any)
+        self.filter_rows_host.setVisible(has_any)
+        self.btn_clear_all.setVisible(has_any)
+        self.setVisible(has_any or bool(active_filters))
+
+    def _add_facet_row(self, key: str, label: str, items, active_filters: dict):
+        if not items:
+            return False
+
+        row = QWidget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+
+        row_layout.addWidget(QLabel(f"{label}:"))
+
+        active_value = active_filters.get(key)
+
+        for item in items[:10]:
+            if isinstance(item, dict):
+                value = item.get("id", item.get("name", item.get("value")))
+                text = item.get("label") or item.get("name") or str(item.get("value") or item.get("id"))
+                count = item.get("count")
+            else:
+                value = item
+                text = str(item)
+                count = None
+
+            caption = f"{text} ({count})" if count is not None else text
+            btn = QPushButton(caption)
+            if active_value == value:
+                btn.setObjectName("ActiveFacetButton")
+            btn.clicked.connect(lambda checked=False, k=key, v=value: self.filterChanged.emit(k, v))
+            row_layout.addWidget(btn)
+
+        row_layout.addStretch(1)
+        self.filter_rows_layout.addWidget(row)
+        return True
+```
+
+---
+
+# 3. Replace `ui/search/search_sidebar.py`
+
+Your current sidebar still uses placeholders. Replace the full file with this:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame, QGroupBox, QLabel
+
+from ui.search.sections.search_hub_section import SearchHubSection
+from ui.search.sections.discover_section import DiscoverSection
+from ui.search.sections.filter_section import FilterSection
+
+
+class SearchSidebar(QWidget):
+    folderSelected = Signal(int)
+    selectBranch = Signal(str)
+    selectDate = Signal(str)
+    selectVideos = Signal(str)
+    selectGroup = Signal(int)
+
+    def __init__(self, store, controller=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.controller = controller
+
+        self.search_hub_section = SearchHubSection()
+        self.discover_section = DiscoverSection()
+        self.filter_section = FilterSection()
+        self.placeholder_people = self._make_placeholder_group("People", "UX-4")
+
+        self._build_ui()
+        self._wire_signals()
+
+        self.store.stateChanged.connect(self._on_state_changed)
+
+    def _make_placeholder_group(self, title: str, subtitle: str):
+        grp = QGroupBox(title)
+        lay = QVBoxLayout(grp)
+        lay.addWidget(QLabel(f"Coming in {subtitle}"))
+        return grp
+
+    def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        content = QFrame()
+        self.content_layout = QVBoxLayout(content)
+        self.content_layout.setContentsMargins(6, 6, 6, 6)
+        self.content_layout.setSpacing(10)
+
+        self.content_layout.addWidget(self.search_hub_section)
+        self.content_layout.addWidget(self.discover_section)
+        self.content_layout.addWidget(self.placeholder_people)
+        self.content_layout.addWidget(self.filter_section)
+        self.content_layout.addStretch(1)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+    def _wire_signals(self):
+        if self.controller:
+            self.discover_section.presetSelected.connect(self.controller.set_preset)
+            self.search_hub_section.recentSearchClicked.connect(self.controller.submit_query)
+            self.search_hub_section.suggestionClicked.connect(self.controller.submit_query)
+            self.search_hub_section.clearRecentRequested.connect(self.controller.clear_recent_queries)
+
+            self.filter_section.filterChanged.connect(self.controller.apply_filter)
+            self.filter_section.clearAllFiltersRequested.connect(self.controller.clear_filters)
+
+    def _on_state_changed(self, state):
+        enabled = state.has_active_project
+        self.search_hub_section.set_enabled_for_project(enabled)
+        self.discover_section.setEnabled(enabled)
+        self.placeholder_people.setEnabled(enabled)
+
+        self.search_hub_section.set_recent_queries(getattr(state, "recent_queries", []))
+        self.search_hub_section.set_suggestions(getattr(state, "suggestions", []))
+        self.discover_section.update_counts(getattr(state, "discover_counts", {}))
+        self.discover_section.set_active_preset(getattr(state, "preset_id", None))
+
+        self.filter_section.set_facets(
+            getattr(state, "result_facets", {}) or {},
+            getattr(state, "active_filters", {}) or {},
+        )
+
+    def reload_date_tree(self):
+        pass
+
+    def set_project(self, project_id: int):
+        pass
+
+    def toggle_fold(self, folded: bool):
+        self.setVisible(not folded)
+
+    def _effective_display_mode(self):
+        return "list"
+
+    def switch_display_mode(self, mode: str):
+        pass
+```
+
+---
+
+# 4. Patch `ui/search/search_state_store.py`
+
+Add these fields to `SearchState` if they are not already present:
+
+```python
+    recent_queries: List[str] = field(default_factory=list)
+    suggestions: List[str] = field(default_factory=list)
+    discover_counts: Dict[str, int] = field(default_factory=dict)
+    model_warning: str = ""
+```
+
+Then patch `clear_search()`:
+
+### Find the method body and ensure it includes:
+
+```python
+        self._state.suggestions.clear()
+        self._state.model_warning = ""
+```
+
+Do not clear `recent_queries`.
+
+---
+
+# 5. Patch `ui/search/search_controller.py`
+
+This is the main UX-3 logic patch.
+
+## 5.1 Patch `set_query_text`
+
+Replace with:
+
+```python
+    def set_query_text(self, text: str, debounce: bool = False):
+        state = self.store.get_state()
+        text = text or ""
+
+        suggestions = []
+        if text.strip():
+            seed = text.strip().lower()
+            base = [
+                "Beach", "Mountains", "City", "Forest",
+                "Documents", "Screenshots", "People", "Favorites",
+                "With Location", "Videos"
+            ]
+            suggestions = [x for x in base if seed in x.lower()][:8]
+
+        self.store.update(
+            query_text=text,
+            search_mode="hybrid",
+            suggestions=suggestions,
+        )
+```
+
+## 5.2 Patch `submit_query`
+
+Replace with:
+
+```python
+    def submit_query(self, text: str):
+        text = (text or "").strip()
+        self.set_query_text(text)
+
+        state = self.store.get_state()
+        if text:
+            recent = [q for q in state.recent_queries if str(q).lower() != text.lower()]
+            recent.insert(0, text)
+            recent = recent[:10]
+            self.store.update(recent_queries=recent)
+
+        self.run_search()
+```
+
+## 5.3 Add `clear_recent_queries`
+
+Add:
+
+```python
+    def clear_recent_queries(self):
+        self.store.update(recent_queries=[])
+```
+
+## 5.4 Add `apply_filter`
+
+Add:
+
+```python
+    def apply_filter(self, filter_key: str, value):
+        state = self.store.get_state()
+        new_filters = dict(state.active_filters or {})
+        new_filters[filter_key] = value
+
+        chips = [chip for chip in state.active_chips if not (chip.get("kind") == "filter" and chip.get("filter_key") == filter_key)]
+        chips.append({
+            "kind": "filter",
+            "filter_key": filter_key,
+            "label": f"{filter_key}: {value}",
+            "value": value,
+        })
+
+        self.store.update(
+            active_filters=new_filters,
+            active_chips=chips,
+        )
+        self.run_search()
+```
+
+## 5.5 Add `clear_filters`
+
+Add:
+
+```python
+    def clear_filters(self):
+        state = self.store.get_state()
+        chips = [chip for chip in state.active_chips if chip.get("kind") != "filter"]
+        self.store.update(
+            active_filters={},
+            active_chips=chips,
+        )
+        self.run_search()
+```
+
+## 5.6 Patch `remove_chip`
+
+Replace the method body with:
+
+```python
+    def remove_chip(self, kind: str, value):
+        state = self.store.get_state()
+
+        if kind == "preset":
+            state.preset_id = None
+        elif kind == "person":
+            state.active_people = [p for p in state.active_people if p != value]
+        elif kind == "filter":
+            remove_key = None
+            for chip in state.active_chips:
+                if chip.get("kind") == "filter" and chip.get("value") == value:
+                    remove_key = chip.get("filter_key")
+                    break
+            if remove_key:
+                state.active_filters.pop(remove_key, None)
+        elif kind == "query":
+            state.query_text = ""
+
+        state.active_chips = [
+            chip for chip in state.active_chips
+            if not (chip.get("kind") == kind and chip.get("value") == value)
+        ]
+        self.store.stateChanged.emit(state)
+        self.run_search()
+```
+
+## 5.7 Patch `apply_result_summary`
+
+Replace with:
+
+```python
+    def apply_result_summary(
+        self,
+        result_paths=None,
+        result_count: int = 0,
+        result_facets=None,
+        family: Optional[str] = None,
+        warnings=None,
+    ):
+        state = self.store.get_state()
+        warning_list = list(warnings or [])
+        model_warning = ""
+
+        joined = " ".join(str(w) for w in warning_list).lower()
+        if "clip-vit-large-patch14" in joined or "better model available" in joined:
+            model_warning = "Better model available"
+
+        discover_counts = dict(state.discover_counts or {})
+        if state.preset_id:
+            discover_counts[state.preset_id] = result_count
+
+        self.store.update(
+            result_paths=result_paths or [],
+            result_count=result_count,
+            result_facets=result_facets or {},
+            family=family,
+            warnings=warning_list,
+            model_warning=model_warning,
+            discover_counts=discover_counts,
+            search_in_progress=False,
+            empty_state_reason=None if result_count > 0 else "no_results",
+            intent_summary=self._build_intent_summary(),
+        )
+```
+
+---
+
+# 6. Patch `ui/search/sections/discover_section.py`
+
+Replace the full file with:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton
+
+
+class DiscoverSection(QGroupBox):
+    presetSelected = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__("Discover", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(6)
+        self.cards = {}
+        self._active_preset = None
+
+        self._build_default_cards()
+
+    def _build_default_cards(self):
+        presets = [
+            ("beach", "🌊 Beach"),
+            ("mountains", "🏔 Mountains"),
+            ("city", "🌆 City"),
+            ("forest", "🌲 Forest"),
+            ("documents", "📄 Documents"),
+            ("screenshots", "📱 Screenshots"),
+        ]
+
+        for preset_id, label in presets:
+            btn = QPushButton(label)
+            btn.clicked.connect(lambda checked=False, p=preset_id: self.presetSelected.emit(p))
+            self.layout.addWidget(btn)
+            self.cards[preset_id] = btn
+
+        self.layout.addStretch(1)
+
+    def update_counts(self, counts: dict):
+        for preset_id, btn in self.cards.items():
+            count = counts.get(preset_id)
+            base_text = btn.text().split(" (")[0]
+            if count is None:
+                btn.setText(base_text)
+            else:
+                btn.setText(f"{base_text} ({count})")
+
+    def set_active_preset(self, preset_id):
+        self._active_preset = preset_id
+        for pid, btn in self.cards.items():
+            if pid == preset_id:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: #d2e3fc;
+                        border: 1px solid #8ab4f8;
+                        border-radius: 6px;
+                        padding: 6px 10px;
+                        font-weight: 600;
+                    }
+                """)
+            else:
+                btn.setStyleSheet("")
+```
+
+---
+
+# 7. Replace `ui/search/empty_state_view.py`
+
+Use this full file:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
+
+
+class EmptyStateView(QWidget):
+    actionRequested = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lbl_title = QLabel("No results")
+        self.lbl_title.setObjectName("EmptyStateTitle")
+
+        self.lbl_message = QLabel("")
+        self.lbl_message.setWordWrap(True)
+        self.lbl_message.setObjectName("EmptyStateMessage")
+
+        self.btn_primary = QPushButton()
+        self.btn_primary.setVisible(False)
+        self.btn_primary.clicked.connect(self._emit_primary)
+
+        self._primary_action = ""
+
+        layout = QVBoxLayout(self)
+        layout.addStretch(1)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.lbl_message)
+        layout.addWidget(self.btn_primary)
+        layout.addStretch(1)
+
+        self.set_state("no_results")
+
+    def _emit_primary(self):
+        if self._primary_action:
+            self.actionRequested.emit(self._primary_action)
+
+    def set_state(self, reason: str, warnings=None):
+        warnings = list(warnings or [])
+
+        if reason == "no_project":
+            self.lbl_title.setText("No active project")
+            self.lbl_message.setText("Create or select a project to begin browsing and searching.")
+            self._primary_action = "create_or_select_project"
+            self.btn_primary.setText("Select Project")
+            self.btn_primary.setVisible(True)
+
+        elif reason == "embeddings_missing":
+            self.lbl_title.setText("Embeddings not ready")
+            self.lbl_message.setText("Smart search quality will improve after extracting embeddings.")
+            self._primary_action = "extract_embeddings"
+            self.btn_primary.setText("Extract Embeddings")
+            self.btn_primary.setVisible(True)
+
+        elif reason == "indexing":
+            self.lbl_title.setText("Indexing in progress")
+            self.lbl_message.setText("Background indexing is still running. Results may improve as processing completes.")
+            self._primary_action = ""
+            self.btn_primary.setVisible(False)
+
+        elif reason == "loading":
+            self.lbl_title.setText("Loading")
+            self.lbl_message.setText("Preparing results...")
+            self._primary_action = ""
+            self.btn_primary.setVisible(False)
+
+        else:
+            self.lbl_title.setText("No results")
+            extra = f"\n\n{warnings[0]}" if warnings else ""
+            self.lbl_message.setText("No matches were found. Try a broader query or remove some filters." + extra)
+            self._primary_action = ""
+            self.btn_primary.setVisible(False)
+```
+
+---
+
+# 8. Replace `ui/search/search_results_header.py`
+
+Your current header is still minimal. Replace the full file with:
+
+```python
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QComboBox
+from shiboken6 import isValid
+
+
+class SearchResultsHeader(QWidget):
+    def __init__(self, store, controller=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.controller = controller
+
+        self.lbl_summary = QLabel("All Photos")
+        self.lbl_count = QLabel("0 results")
+
+        self.lbl_status = QLabel("")
+        self.lbl_status.setObjectName("SearchStatusBadge")
+        self.lbl_status.setVisible(False)
+
+        self.lbl_warning = QLabel("")
+        self.lbl_warning.setObjectName("SearchWarningBadge")
+        self.lbl_warning.setVisible(False)
+
+        self.lbl_model = QLabel("")
+        self.lbl_model.setObjectName("SearchModelBadge")
+        self.lbl_model.setVisible(False)
+
+        self.cmb_sort = QComboBox()
+        self.cmb_sort.addItem("Relevance", "relevance")
+        self.cmb_sort.addItem("Newest", "newest")
+        self.cmb_sort.addItem("Oldest", "oldest")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+        layout.addWidget(self.lbl_summary, 1)
+        layout.addWidget(self.lbl_count)
+        layout.addWidget(self.lbl_status)
+        layout.addWidget(self.lbl_warning)
+        layout.addWidget(self.lbl_model)
+        layout.addWidget(self.cmb_sort)
+
+        self.store.stateChanged.connect(self._on_state_changed)
+        self.cmb_sort.currentIndexChanged.connect(self._on_sort_changed)
+
+    def _on_state_changed(self, state):
+        if not isValid(self):
+            return
+
+        if state.onboarding_mode:
+            self.lbl_summary.setText("No active project")
+            self.lbl_count.setText("")
+            self.lbl_status.setVisible(False)
+            self.lbl_warning.setVisible(False)
+            self.lbl_model.setVisible(False)
+            return
+
+        if state.search_in_progress:
+            self.lbl_summary.setText(state.intent_summary or "Searching...")
+            self.lbl_status.setText("Searching")
+            self.lbl_status.setVisible(True)
+        else:
+            self.lbl_summary.setText(state.intent_summary or "All Photos")
+            self.lbl_status.setVisible(False)
+
+        self.lbl_count.setText(f"{state.result_count} result(s)")
+
+        warnings = list(getattr(state, "warnings", []) or [])
+        if warnings:
+            self.lbl_warning.setText(str(warnings[0]))
+            self.lbl_warning.setVisible(True)
+        else:
+            self.lbl_warning.setVisible(False)
+
+        model_warning = getattr(state, "model_warning", "")
+        if model_warning:
+            self.lbl_model.setText(model_warning)
+            self.lbl_model.setVisible(True)
+        else:
+            self.lbl_model.setVisible(False)
+
+    def _on_sort_changed(self):
+        if not self.controller:
+            return
+
+        state = self.store.get_state()
+        state.sort_mode = self.cmb_sort.currentData()
+        self.store.stateChanged.emit(state)
+        self.controller.run_search()
+```
+
+---
+
+# 9. Patch `main_window_qt.py`
+
+## 9.1 Sync top-search widget from store
+
+Add this method inside `MainWindow`:
+
+```python
+def _sync_ux2_widgets(self, state):
+    if hasattr(self, "top_search_bar"):
+        self.top_search_bar.set_recent_queries(getattr(state, "recent_queries", []))
+        self.top_search_bar.set_suggestions(getattr(state, "suggestions", []))
+        self.top_search_bar.set_enabled_for_project(state.has_active_project)
+```
+
+Then connect it in `__init__()` after `search_state_store` exists:
+
+```python
+self.search_state_store.stateChanged.connect(self._sync_ux2_widgets)
+```
+
+## 9.2 Wire extra `TopSearchBar` signals
+
+After current search-bar signal wiring, add:
+
+```python
+self.top_search_bar.recentQueryClicked.connect(self.search_controller.submit_query)
+self.top_search_bar.suggestionClicked.connect(self.search_controller.submit_query)
+```
+
+## 9.3 Improve query-chip handling in `_on_ux1_search_requested`
+
+Inside `_on_ux1_search_requested`, after handling `query_text`, add:
+
+```python
+state = self.search_state_store.get_state()
+if query_text:
+    state.active_chips = [
+        chip for chip in state.active_chips
+        if chip.get("kind") != "query"
+    ]
+    state.active_chips.insert(0, {
+        "kind": "query",
+        "label": query_text,
+        "value": query_text,
+    })
+    self.search_state_store.stateChanged.emit(state)
+```
+
+---
+
+# 10. Optional `google_layout.py` patch
+
+Where the layout reacts to search state or empty state, make sure it can do:
+
+```python
+self.empty_state.set_state(state.empty_state_reason or "no_results", getattr(state, "warnings", []))
+```
+
+when there are no results or no active project.
+
+---
+
+# Audit conclusion
+
+The current runtime log is good enough to proceed with this pack because:
+
+* onboarding is stable,
+* the app remains usable,
+* the shell ownership is good enough,
+* and the missing UX-2B pieces are mostly widget/state polish, not core architecture blockers. 
+
+The two strongest signs from the current code audit are:
+
+* `search_sidebar.py` still has a **placeholder** Search Hub, so UX-2B is not actually complete yet,
+* `search_results_header.py` is still the **minimal** version, so the richer header polish also still needs to land.
+
+So this UX-3 pack is really the right combined next move:
+
+* finish the missing UX-2B pieces,
+* add `FilterSection`,
+* add facet plumbing.
+
+If you apply this, the next step after that should be **UX-4, PeopleQuickSection**.

@@ -1,0 +1,599 @@
+Below is the exact and detailed UX-10 patch pack.
+
+UX-10 goal
+
+Stabilize the result surface so it behaves like a product, not a race between async workers and layout switching.
+
+This phase addresses exactly these four issues:
+
+photo grid refresh immediately after async load completes
+project-id propagation before layout reload
+avoiding project_id=None reload races on layout switch
+making Google layout refresh from store events rather than side-channel timing
+
+This is a timing, ownership, and refresh-coordination phase.
+It is not a new UX section phase.
+
+Design rules for UX-10
+Rule 1, layout reloads must never guess project state
+
+A layout must not ask, “what is the current project right now?” at reload time if that state is still in flight.
+
+It must receive a resolved project id or refuse to reload.
+
+Rule 2, async loaders must signal completion once, centrally
+
+Do not let:
+
+grid worker
+sidebar
+layout
+search shell
+
+all guess when loading is “done”.
+
+There must be one completion signal, then one coordinated refresh path.
+
+Rule 3, search-state-driven layouts beat side-channel refreshes
+
+Google layout should react to:
+
+SearchStateStore
+resolved result paths
+explicit project id
+
+not ad hoc timer timing.
+
+Rule 4, project_id=None is onboarding only
+
+It must never be treated as a transient “maybe live project” reload state.
+
+If project is temporarily unknown during switching, layouts should wait, not reload.
+
+UX-10 implementation overview
+
+This patch has six parts:
+
+SearchStateStore stabilization fields
+SearchController project-resolution helpers
+MainWindow project-switch transaction guard
+LayoutManager stable layout-attach / reload rules
+GooglePhotosLayout refresh from store, not timers
+result-grid completion hook and centralized UI refresh mediator
+1. Patch ui/search/search_state_store.py
+
+Add these fields to SearchState:
+
+    active_project_id_resolved: bool = False
+    layout_reload_pending: bool = False
+    result_surface_busy: bool = False
+    async_load_generation: int = 0
+Patch reset_for_project()
+
+Replace with:
+
+    def reset_for_project(self, project_id: Optional[int]):
+        self._state = SearchState(
+            active_project_id=project_id,
+            has_active_project=project_id is not None,
+            onboarding_mode=project_id is None,
+            active_project_id_resolved=project_id is not None,
+            empty_state_reason="no_project" if project_id is None else None,
+        )
+        self.stateChanged.emit(self._state)
+Add method begin_project_transition()
+
+Add:
+
+    def begin_project_transition(self):
+        self._state.active_project_id_resolved = False
+        self._state.layout_reload_pending = True
+        self._state.result_surface_busy = True
+        self.stateChanged.emit(self._state)
+Add method complete_project_transition(project_id)
+
+Add:
+
+    def complete_project_transition(self, project_id: Optional[int]):
+        self._state.active_project_id = project_id
+        self._state.has_active_project = project_id is not None
+        self._state.onboarding_mode = project_id is None
+        self._state.active_project_id_resolved = project_id is not None
+        self._state.layout_reload_pending = False
+        self._state.result_surface_busy = False
+        self._state.empty_state_reason = "no_project" if project_id is None else self._state.empty_state_reason
+        self.stateChanged.emit(self._state)
+Add method begin_async_result_load()
+    def begin_async_result_load(self):
+        self._state.result_surface_busy = True
+        self._state.async_load_generation += 1
+        self.stateChanged.emit(self._state)
+        return self._state.async_load_generation
+Add method complete_async_result_load(generation)
+    def complete_async_result_load(self, generation: int):
+        if generation != self._state.async_load_generation:
+            return
+        self._state.result_surface_busy = False
+        self.stateChanged.emit(self._state)
+2. Patch ui/search/search_controller.py
+
+This makes project propagation explicit.
+
+2.1 Patch set_active_project()
+
+Replace with:
+
+    def set_active_project(self, project_id: Optional[int]):
+        self.store.begin_project_transition()
+        self.store.complete_project_transition(project_id)
+
+That is the minimal stable version.
+
+2.2 Add begin_layout_reload()
+    def begin_layout_reload(self):
+        self.store.update(layout_reload_pending=True, result_surface_busy=True)
+2.3 Add complete_layout_reload()
+    def complete_layout_reload(self):
+        self.store.update(layout_reload_pending=False, result_surface_busy=False)
+2.4 Patch run_search()
+
+At the beginning, after state fetch, add:
+
+        if not current_state.active_project_id_resolved:
+            self.store.update(
+                search_in_progress=False,
+                warnings=["Project switch still resolving"],
+            )
+            return
+
+This prevents search-triggered reloads while project state is unresolved.
+
+3. Patch main_window_qt.py
+
+This is the most important UX-10 patch area.
+
+3.1 Add a project-switch transaction guard
+
+In __init__(), add:
+
+        self._project_switch_in_progress = False
+        self._pending_layout_reload = False
+3.2 Patch _on_project_changed_by_id(...)
+
+At the very top, add:
+
+        self._project_switch_in_progress = True
+        if hasattr(self, "search_state_store"):
+            self.search_state_store.begin_project_transition()
+
+Then, only after:
+
+canonical project id is set,
+sidebar project is set,
+layout manager is pointed to the correct project,
+grid reload target project is known,
+
+add:
+
+        if hasattr(self, "search_state_store"):
+            self.search_state_store.complete_project_transition(project_id)
+        self._project_switch_in_progress = False
+Important
+
+Do not call any layout reload before complete_project_transition(project_id).
+
+3.3 Add a safe helper: _safe_reload_current_layout()
+
+Add this method:
+
+def _safe_reload_current_layout(self):
+    try:
+        if self._project_switch_in_progress:
+            self._pending_layout_reload = True
+            return
+
+        pid = getattr(self, "current_project_id", None)
+        if pid is None:
+            return
+
+        layout = self.layout_manager.get_current_layout()
+        if not layout:
+            return
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.begin_layout_reload()
+
+        if hasattr(layout, "reload_for_project"):
+            layout.reload_for_project(pid)
+        elif hasattr(layout, "load_project"):
+            layout.load_project(pid)
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.complete_layout_reload()
+
+    except Exception as e:
+        print(f"[UX-10] _safe_reload_current_layout failed: {e}")
+        if hasattr(self, "search_controller"):
+            self.search_controller.complete_layout_reload()
+3.4 Flush delayed reload after project switch settles
+
+At the end of _on_project_changed_by_id(...), add:
+
+        if self._pending_layout_reload and not self._project_switch_in_progress:
+            self._pending_layout_reload = False
+            self._safe_reload_current_layout()
+3.5 Patch layout switch handler
+
+Wherever you currently switch layouts, do not let the layout reload with project_id=None.
+
+At the beginning of the layout-switch method, add:
+
+        if self._project_switch_in_progress:
+            self._pending_layout_reload = True
+            return
+
+Then after the new layout is activated and attached, call:
+
+        self._attach_search_store_to_current_layout()
+        self._safe_reload_current_layout()
+
+Do not use a timer-only reload as primary behavior anymore.
+
+3.6 Add result-load completion bridge
+
+Add:
+
+def _on_result_surface_async_load_completed(self, generation: int | None = None):
+    try:
+        if hasattr(self, "search_state_store"):
+            if generation is None:
+                generation = self.search_state_store.get_state().async_load_generation
+            self.search_state_store.complete_async_result_load(generation)
+    except Exception as e:
+        print(f"[UX-10] async result completion hook failed: {e}")
+
+This will be connected by layouts / grid.
+
+4. Patch layout_manager.py
+
+The layout manager needs to stop causing side-channel reload races.
+
+4.1 Add a safe attach method
+
+Add:
+
+def attach_search_store_to_layout(self, store):
+    layout = self.get_current_layout()
+    if layout and hasattr(layout, "attach_search_store"):
+        layout.attach_search_store(store)
+4.2 Add a safe reload method
+
+Add:
+
+def reload_current_layout_for_project(self, project_id: int | None):
+    layout = self.get_current_layout()
+    if not layout or project_id is None:
+        return
+
+    if hasattr(layout, "reload_for_project"):
+        layout.reload_for_project(project_id)
+    elif hasattr(layout, "load_project"):
+        layout.load_project(project_id)
+4.3 Use these methods from MainWindow
+
+This prevents each layout switch path from inventing its own reload timing.
+
+5. Patch layouts/google_layout.py
+
+This is the core result-surface stabilization patch.
+
+5.1 Add stable project field
+
+In __init__(), add:
+
+        self._resolved_project_id = None
+        self._last_store_result_paths = []
+        self._last_generation_seen = 0
+5.2 Add reload_for_project(project_id)
+
+Add:
+
+def reload_for_project(self, project_id: int):
+    self._resolved_project_id = project_id
+
+    if project_id is None:
+        self._show_empty_state("no_project")
+        return
+
+    try:
+        if hasattr(self, "empty_state"):
+            self._show_results_surface()
+    except Exception as e:
+        print(f"[GooglePhotosLayout] reload_for_project failed: {e}")
+
+This is intentionally light.
+Google layout should be driven by store result paths, not by an internal project bootstrap path.
+
+5.3 Replace _on_search_state_changed() with generation-aware version
+
+Replace with:
+
+def _on_search_state_changed(self, state):
+    try:
+        if not hasattr(self, "empty_state"):
+            return
+
+        if getattr(state, "onboarding_mode", False):
+            self._show_empty_state("no_project", getattr(state, "warnings", []))
+            return
+
+        if not getattr(state, "active_project_id_resolved", False):
+            return
+
+        if getattr(state, "layout_reload_pending", False):
+            return
+
+        displayed_paths = list(getattr(state, "displayed_result_paths", []) or [])
+        result_paths = list(getattr(state, "result_paths", []) or [])
+        search_in_progress = bool(getattr(state, "search_in_progress", False))
+        result_surface_busy = bool(getattr(state, "result_surface_busy", False))
+
+        # Preserve visible results while searching / busy
+        if search_in_progress or result_surface_busy:
+            if displayed_paths:
+                self._last_store_result_paths = displayed_paths
+                self._show_results_surface()
+            else:
+                self._show_empty_state("loading", getattr(state, "warnings", []))
+            return
+
+        # Indexing state with no results
+        if getattr(state, "indexing_in_progress", False) and not result_paths:
+            self._show_empty_state("indexing", getattr(state, "warnings", []))
+            return
+
+        # Embeddings warning with no results
+        if not getattr(state, "embeddings_ready", True):
+            reason = getattr(state, "empty_state_reason", None)
+            if reason == "embeddings_missing" and not result_paths:
+                self._show_empty_state("embeddings_missing", getattr(state, "warnings", []))
+                return
+
+        if result_paths:
+            self._last_store_result_paths = result_paths
+            self._show_results_surface()
+            self._refresh_timeline_from_store_paths(result_paths)
+            return
+
+        self._show_empty_state(getattr(state, "empty_state_reason", None) or "no_results",
+                               getattr(state, "warnings", []))
+
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _on_search_state_changed error: {e}")
+5.4 Add _refresh_timeline_from_store_paths(paths)
+
+Add:
+
+def _refresh_timeline_from_store_paths(self, paths):
+    try:
+        if not hasattr(self, "timeline"):
+            return
+
+        if hasattr(self.timeline, "set_photo_paths"):
+            self.timeline.set_photo_paths(paths)
+        elif hasattr(self.timeline, "load_paths"):
+            self.timeline.load_paths(paths)
+        elif hasattr(self.timeline, "display_thumbnails"):
+            self.timeline.photo_paths = list(paths)
+            self.timeline.display_thumbnails()
+
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _refresh_timeline_from_store_paths failed: {e}")
+
+This is the critical step that stops Google layout from waiting on side-channel reload timing.
+
+5.5 Hook async load completion
+
+Wherever Google layout’s result widget finishes async load, call the main window hook if available.
+
+If the timeline/grid emits a finished signal, connect it to:
+
+if self.parent() and hasattr(self.parent(), "_on_result_surface_async_load_completed"):
+    self.parent()._on_result_surface_async_load_completed()
+
+If you do not have a clean signal yet, add it in the grid widget, see section 7 below.
+
+6. Patch current_layout.py
+
+This layout is still more legacy, so use a light patch.
+
+6.1 Add stable fields in __init__()
+        self._resolved_project_id = None
+6.2 Add reload_for_project(project_id)
+def reload_for_project(self, project_id: int):
+    self._resolved_project_id = project_id
+    if project_id is None:
+        return
+
+    try:
+        if hasattr(self, "grid") and hasattr(self.grid, "load_project"):
+            self.grid.load_project(project_id)
+    except Exception as e:
+        print(f"[CurrentLayout] reload_for_project failed: {e}")
+6.3 Patch _on_search_state_changed()
+
+Replace with:
+
+def _on_search_state_changed(self, state):
+    try:
+        if getattr(state, "onboarding_mode", False):
+            return
+
+        if not getattr(state, "active_project_id_resolved", False):
+            return
+
+        if getattr(state, "layout_reload_pending", False):
+            return
+
+        if getattr(state, "search_in_progress", False):
+            return
+
+        result_paths = list(getattr(state, "result_paths", []) or [])
+        if result_paths and hasattr(self, "grid"):
+            if hasattr(self.grid, "set_photo_paths"):
+                self.grid.set_photo_paths(result_paths)
+            elif hasattr(self.grid, "display_thumbnails"):
+                self.grid.photo_paths = list(result_paths)
+                self.grid.display_thumbnails()
+
+    except Exception as e:
+        print(f"[CurrentLayout] _on_search_state_changed error: {e}")
+
+This is enough for stabilization.
+
+7. Patch the photo grid / result widget
+
+You asked specifically for:
+
+“photo grid refresh immediately after async load completes”
+
+So you need a completion signal from the actual result widget.
+
+If your grid/timeline class has no signal yet, add one.
+
+In the grid widget file, add:
+from PySide6.QtCore import Signal
+
+Inside the widget class:
+
+    asyncLoadCompleted = Signal(int)
+
+Add a generation field:
+
+        self._async_generation = 0
+
+When beginning async load:
+
+        self._async_generation += 1
+        generation = self._async_generation
+
+When the async load truly finishes and the grid is visually ready:
+
+        self.asyncLoadCompleted.emit(generation)
+
+Then in layout init, connect:
+
+if hasattr(self.timeline, "asyncLoadCompleted"):
+    self.timeline.asyncLoadCompleted.connect(self._handle_async_load_completed)
+
+Add in layout:
+
+def _handle_async_load_completed(self, generation: int):
+    try:
+        mw = self.window()
+        if mw and hasattr(mw, "_on_result_surface_async_load_completed"):
+            mw._on_result_surface_async_load_completed(generation)
+    except Exception as e:
+        print(f"[Layout] async load completion dispatch failed: {e}")
+
+This is the central fix for async refresh timing.
+
+8. Patch services/ui_refresh_mediator.py
+
+This should become the safe coordination point, not another side-channel trigger mess.
+
+Add a method like:
+
+def refresh_search_surface_safe(self):
+    try:
+        if hasattr(self.main_window, "_safe_reload_current_layout"):
+            self.main_window._safe_reload_current_layout()
+
+        if hasattr(self.main_window, "_refresh_people_quick_section"):
+            self.main_window._refresh_people_quick_section()
+
+        if hasattr(self.main_window, "_refresh_activity_snapshot"):
+            self.main_window._refresh_activity_snapshot()
+
+    except Exception as e:
+        print(f"[UIRefreshMediator] refresh_search_surface_safe failed: {e}")
+
+Use it only at stable points:
+
+project switch settled
+scan/post-scan completion
+major job completion
+people refresh completion
+
+Do not trigger it on every micro change.
+
+9. Patch ui/search/empty_state_view.py
+
+You already improved it, but to support result-surface stabilization, keep the loading message explicit:
+
+elif reason == "loading":
+    self.lbl_title.setText("Searching")
+    self.lbl_message.setText("Preparing refined results. Previous results may remain visible until the new search completes.")
+
+This should remain as-is.
+
+10. What UX-10 should fix
+
+After this patch pack:
+
+Photo grid refresh immediately after async load completes
+
+Solved by:
+
+explicit asyncLoadCompleted signal
+central MainWindow._on_result_surface_async_load_completed()
+store generation completion
+Project-id propagation before layout reload
+
+Solved by:
+
+begin_project_transition()
+complete_project_transition(project_id)
+_safe_reload_current_layout()
+Avoiding project_id=None reload races on layout switch
+
+Solved by:
+
+_project_switch_in_progress
+_pending_layout_reload
+active_project_id_resolved
+layout_reload_pending
+Google layout refresh from store events rather than side-channel timing
+
+Solved by:
+
+attach_search_store()
+_on_search_state_changed()
+_refresh_timeline_from_store_paths()
+no dependency on toolbar timing or ad hoc internal guesses
+11. What comes after UX-10
+
+After this, the next real step is:
+
+UX-11, result confidence and explanation polish
+
+That should include:
+
+family-specific explanation text
+confidence tiers
+better “why shown” chips
+search result provenance
+stronger no-result recovery suggestions
+
+That is the right next layer after timing/state stabilization.
+
+Bottom line
+
+This UX-10 patch pack is the correct next move because it addresses the exact structural instability you called out:
+
+refresh timing
+project propagation
+layout switch races
+store-driven result refresh
+
+This is now a coordination problem, and the patch above solves it in a centralized, auditable way.

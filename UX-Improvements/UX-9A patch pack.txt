@@ -1,0 +1,735 @@
+Below is the exact UX-9A patch pack.
+
+UX-9A goal
+
+Build a real merge intelligence backend behind the People review UX.
+
+This phase adds:
+
+scored merge suggestions
+stronger candidate filtering
+accepted / rejected merge memory
+unnamed-cluster extraction
+project-level people-review payload generation
+
+This is still a safe bridge phase:
+
+no full DB migration required
+no backend rewrite required
+no destructive merge operation required yet
+
+It upgrades your current heuristic stubs into a structured suggestion engine.
+
+Scope
+
+This pack adds:
+
+services/people_merge_service.py
+review-memory support in reference_db.py
+stronger adapters in ui/accordion_sidebar/people_section.py
+MainWindow bridge updates
+SearchController / SearchStateStore support for richer people-review state
+
+This pack does not yet add:
+
+side-by-side image comparison UI
+actual irreversible cluster merge in DB
+full cluster split workflow
+confidence-learning model
+
+Those come in UX-9B and UX-9C.
+
+1. Create services/people_merge_service.py
+
+Create this file exactly:
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import List, Dict, Any, Tuple
+import math
+
+
+@dataclass
+class ClusterSummary:
+    cluster_id: str
+    label: str
+    count: int
+    avg_embedding: list[float] | None = None
+    first_seen_ts: str | None = None
+    last_seen_ts: str | None = None
+    unnamed: bool = False
+
+
+class PeopleMergeService:
+    """
+    UX-9A:
+    Lightweight merge-intelligence backend.
+    Produces ranked merge suggestions and unnamed-cluster payloads.
+    """
+
+    def __init__(self, review_store=None):
+        self.review_store = review_store
+
+    def build_people_quick_payload(self, clusters: List[Dict[str, Any]]) -> Dict[str, Any]:
+        normalized = self._normalize_clusters(clusters)
+
+        top_people = sorted(normalized, key=lambda x: x.count, reverse=True)[:8]
+        unnamed_count = sum(1 for c in normalized if c.unnamed)
+
+        suggestions = self.build_merge_suggestions(clusters)
+        merge_candidates = len(suggestions)
+
+        return {
+            "top_people": [
+                {
+                    "id": c.cluster_id,
+                    "label": c.label,
+                    "count": c.count,
+                }
+                for c in top_people
+            ],
+            "merge_candidates": merge_candidates,
+            "unnamed_count": unnamed_count,
+        }
+
+    def build_merge_suggestions(self, clusters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        normalized = self._normalize_clusters(clusters)
+        suggestions: List[Dict[str, Any]] = []
+
+        for i in range(len(normalized)):
+            for j in range(i + 1, len(normalized)):
+                left = normalized[i]
+                right = normalized[j]
+
+                if left.cluster_id == right.cluster_id:
+                    continue
+
+                if self._is_rejected(left.cluster_id, right.cluster_id):
+                    continue
+
+                score = self._score_pair(left, right)
+                if score < 0.58:
+                    continue
+
+                if not self._passes_guardrails(left, right, score):
+                    continue
+
+                suggestions.append({
+                    "left_id": left.cluster_id,
+                    "right_id": right.cluster_id,
+                    "left_label": left.label,
+                    "right_label": right.label,
+                    "score": score,
+                    "label": f"{left.label} ↔ {right.label} (score={score:.2f})",
+                    "left_count": left.count,
+                    "right_count": right.count,
+                    "left_unnamed": left.unnamed,
+                    "right_unnamed": right.unnamed,
+                })
+
+        suggestions.sort(key=lambda x: x["score"], reverse=True)
+        return suggestions[:20]
+
+    def build_unnamed_clusters(self, clusters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        normalized = self._normalize_clusters(clusters)
+        unnamed = [c for c in normalized if c.unnamed]
+        unnamed.sort(key=lambda x: x.count, reverse=True)
+
+        return [
+            {
+                "id": c.cluster_id,
+                "label": c.label,
+                "count": c.count,
+            }
+            for c in unnamed
+        ]
+
+    def accept_merge(self, left_id: str, right_id: str):
+        if self.review_store:
+            self.review_store.record_people_merge_decision(left_id, right_id, "accepted")
+
+    def reject_merge(self, left_id: str, right_id: str):
+        if self.review_store:
+            self.review_store.record_people_merge_decision(left_id, right_id, "rejected")
+
+    def _normalize_clusters(self, clusters: List[Dict[str, Any]]) -> List[ClusterSummary]:
+        normalized: List[ClusterSummary] = []
+
+        for item in list(clusters or []):
+            if not isinstance(item, dict):
+                continue
+
+            cluster_id = item.get("id") or item.get("person_id") or item.get("label")
+            if cluster_id is None:
+                continue
+
+            label = item.get("label") or item.get("name") or str(cluster_id)
+            count = int(item.get("count", 0) or 0)
+            avg_embedding = item.get("avg_embedding")
+            first_seen_ts = item.get("first_seen_ts")
+            last_seen_ts = item.get("last_seen_ts")
+
+            unnamed = False
+            lower_label = str(label).lower()
+            if lower_label.startswith("face_") or "unnamed" in lower_label or "unknown" in lower_label:
+                unnamed = True
+
+            normalized.append(
+                ClusterSummary(
+                    cluster_id=str(cluster_id),
+                    label=str(label),
+                    count=count,
+                    avg_embedding=avg_embedding,
+                    first_seen_ts=first_seen_ts,
+                    last_seen_ts=last_seen_ts,
+                    unnamed=unnamed,
+                )
+            )
+
+        return normalized
+
+    def _score_pair(self, left: ClusterSummary, right: ClusterSummary) -> float:
+        score = 0.0
+
+        emb_sim = self._embedding_similarity(left.avg_embedding, right.avg_embedding)
+        if emb_sim is not None:
+            score += 0.70 * emb_sim
+
+        size_balance = self._size_balance(left.count, right.count)
+        score += 0.10 * size_balance
+
+        if left.unnamed or right.unnamed:
+            score += 0.08
+
+        temporal = self._temporal_overlap_score(left.first_seen_ts, left.last_seen_ts, right.first_seen_ts, right.last_seen_ts)
+        score += 0.12 * temporal
+
+        return max(0.0, min(1.0, score))
+
+    def _passes_guardrails(self, left: ClusterSummary, right: ClusterSummary, score: float) -> bool:
+        # avoid suggesting merges between two large, likely distinct identities unless score is strong
+        if left.count >= 12 and right.count >= 12 and score < 0.75:
+            return False
+
+        # avoid merging two tiny clusters if no embedding signal exists
+        if left.avg_embedding is None and right.avg_embedding is None and left.count <= 2 and right.count <= 2:
+            return False
+
+        return True
+
+    def _embedding_similarity(self, a, b) -> float | None:
+        if not a or not b:
+            return None
+        try:
+            if len(a) != len(b):
+                return None
+            dot = sum(float(x) * float(y) for x, y in zip(a, b))
+            na = math.sqrt(sum(float(x) * float(x) for x in a))
+            nb = math.sqrt(sum(float(y) * float(y) for y in b))
+            if na == 0 or nb == 0:
+                return None
+            cos = dot / (na * nb)
+            # map cosine-ish similarity into 0..1
+            return max(0.0, min(1.0, (cos + 1.0) / 2.0))
+        except Exception:
+            return None
+
+    def _size_balance(self, a: int, b: int) -> float:
+        if a <= 0 or b <= 0:
+            return 0.0
+        bigger = max(a, b)
+        smaller = min(a, b)
+        return smaller / bigger
+
+    def _temporal_overlap_score(self, a_start, a_end, b_start, b_end) -> float:
+        # lightweight placeholder until better temporal reasoning exists
+        if not a_start or not a_end or not b_start or not b_end:
+            return 0.3
+        if a_start <= b_end and b_start <= a_end:
+            return 1.0
+        return 0.2
+
+    def _is_rejected(self, left_id: str, right_id: str) -> bool:
+        if not self.review_store:
+            return False
+        return self.review_store.has_people_merge_rejection(left_id, right_id)
+2. Patch reference_db.py
+
+Add lightweight review-memory methods.
+
+2.1 Create table on startup
+
+Where your schema / ensure-table logic exists, add this DDL:
+
+CREATE TABLE IF NOT EXISTS people_merge_review (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    left_cluster_id TEXT NOT NULL,
+    right_cluster_id TEXT NOT NULL,
+    decision TEXT NOT NULL,   -- accepted | rejected
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+2.2 Add helper methods
+
+Add these methods to the DB class:
+
+def _normalize_merge_pair(self, left_id: str, right_id: str):
+    a = str(left_id)
+    b = str(right_id)
+    return (a, b) if a <= b else (b, a)
+
+def record_people_merge_decision(self, left_id: str, right_id: str, decision: str):
+    left_id, right_id = self._normalize_merge_pair(left_id, right_id)
+
+    conn = self._get_connection() if hasattr(self, "_get_connection") else self.conn
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO people_merge_review (left_cluster_id, right_cluster_id, decision)
+        VALUES (?, ?, ?)
+        """,
+        (left_id, right_id, decision),
+    )
+    conn.commit()
+
+def has_people_merge_rejection(self, left_id: str, right_id: str) -> bool:
+    left_id, right_id = self._normalize_merge_pair(left_id, right_id)
+
+    conn = self._get_connection() if hasattr(self, "_get_connection") else self.conn
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT 1
+        FROM people_merge_review
+        WHERE left_cluster_id = ? AND right_cluster_id = ? AND decision = 'rejected'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (left_id, right_id),
+    )
+    return cur.fetchone() is not None
+3. Patch ui/accordion_sidebar/people_section.py
+
+This is the key adapter patch.
+
+3.1 Import the service
+
+Add near the imports:
+
+from services.people_merge_service import PeopleMergeService
+3.2 Add merge service accessor
+
+Inside the class, add:
+
+def _get_people_merge_service(self):
+    review_store = None
+    try:
+        if hasattr(self, "db") and self.db:
+            review_store = self.db
+        elif hasattr(self, "reference_db") and self.reference_db:
+            review_store = self.reference_db
+    except Exception:
+        review_store = None
+
+    return PeopleMergeService(review_store=review_store)
+3.3 Replace get_people_quick_payload
+
+Replace the whole method with:
+
+def get_people_quick_payload(self):
+    try:
+        service = self._get_people_merge_service()
+        clusters = self._collect_cluster_summaries_for_review()
+        return service.build_people_quick_payload(clusters)
+    except Exception:
+        return {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+3.4 Replace get_merge_suggestions
+
+Replace the whole method with:
+
+def get_merge_suggestions(self):
+    try:
+        service = self._get_people_merge_service()
+        clusters = self._collect_cluster_summaries_for_review()
+        return service.build_merge_suggestions(clusters)
+    except Exception:
+        return []
+3.5 Add unnamed cluster adapter
+
+Add:
+
+def get_unnamed_clusters(self):
+    try:
+        service = self._get_people_merge_service()
+        clusters = self._collect_cluster_summaries_for_review()
+        return service.build_unnamed_clusters(clusters)
+    except Exception:
+        return []
+3.6 Add cluster summary collector
+
+Add this method:
+
+def _collect_cluster_summaries_for_review(self):
+    """
+    Normalizes the current People-section data into a stable input for PeopleMergeService.
+    Adapt only the source extraction here if your internal structure changes.
+    """
+    source = getattr(self, "people_data", None) or getattr(self, "clusters", None) or []
+    out = []
+
+    for item in list(source):
+        if not isinstance(item, dict):
+            continue
+
+        cluster_id = item.get("id") or item.get("person_id") or item.get("label")
+        if cluster_id is None:
+            continue
+
+        out.append({
+            "id": str(cluster_id),
+            "label": item.get("label") or item.get("name") or str(cluster_id),
+            "count": int(item.get("count", 0) or 0),
+            "avg_embedding": item.get("avg_embedding"),
+            "first_seen_ts": item.get("first_seen_ts"),
+            "last_seen_ts": item.get("last_seen_ts"),
+        })
+
+    return out
+3.7 Replace merge accept/reject stubs
+
+Replace the previous print-based stubs with:
+
+def accept_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        service = self._get_people_merge_service()
+        service.accept_merge(left_id, right_id)
+    except Exception as e:
+        print(f"[PeopleSection] Failed to accept merge suggestion: {e}")
+
+def reject_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        service = self._get_people_merge_service()
+        service.reject_merge(left_id, right_id)
+    except Exception as e:
+        print(f"[PeopleSection] Failed to reject merge suggestion: {e}")
+4. Patch ui/search/search_state_store.py
+
+Add these fields to SearchState:
+
+    unnamed_clusters: List[Dict[str, Any]] = field(default_factory=list)
+
+Do not clear merge_suggestions or unnamed_clusters in clear_search().
+
+5. Patch ui/search/search_controller.py
+
+Add these methods:
+
+    def set_unnamed_clusters(self, items):
+        self.store.update(unnamed_clusters=list(items or []))
+
+Keep set_merge_suggestions().
+
+6. Patch main_window_qt.py
+6.1 Replace _refresh_people_quick_section
+
+Replace it with:
+
+def _refresh_people_quick_section(self):
+    """
+    UX-9A bridge: populate PeopleQuickSection + merge review + unnamed clusters
+    from the existing People backend.
+    """
+    try:
+        payload = {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+        suggestions = []
+        unnamed = []
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section:
+                if hasattr(people_section, "get_people_quick_payload"):
+                    payload = dict(people_section.get_people_quick_payload() or payload)
+                if hasattr(people_section, "get_merge_suggestions"):
+                    suggestions = list(people_section.get_merge_suggestions() or [])
+                if hasattr(people_section, "get_unnamed_clusters"):
+                    unnamed = list(people_section.get_unnamed_clusters() or [])
+
+        if not payload.get("top_people") and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section:
+                    if hasattr(people_section, "get_people_quick_payload"):
+                        payload = dict(people_section.get_people_quick_payload() or payload)
+                    if hasattr(people_section, "get_merge_suggestions"):
+                        suggestions = list(people_section.get_merge_suggestions() or [])
+                    if hasattr(people_section, "get_unnamed_clusters"):
+                        unnamed = list(people_section.get_unnamed_clusters() or [])
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.set_people_quick_payload(payload)
+            self.search_controller.set_merge_suggestions(suggestions)
+            self.search_controller.set_unnamed_clusters(unnamed)
+
+    except Exception as e:
+        print(f"[UX-9A] Error refreshing people quick section: {e}")
+6.2 Add unnamed-cluster dialog launcher
+
+Add this method:
+
+def _open_unnamed_clusters_review(self):
+    try:
+        state = self.search_state_store.get_state()
+        items = list(getattr(state, "unnamed_clusters", []) or [])
+
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QListWidgetItem, QDialogButtonBox, QLabel
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Unnamed Clusters")
+        dlg.resize(420, 360)
+
+        lbl = QLabel("Unnamed or provisional clusters")
+        list_widget = QListWidget()
+        for item in items:
+            label = item.get("label") or item.get("id")
+            count = item.get("count", 0)
+            list_widget.addItem(QListWidgetItem(f"{label} ({count})"))
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(dlg.reject)
+        buttons.accepted.connect(dlg.accept)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(dlg.close)
+
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(lbl)
+        layout.addWidget(list_widget)
+        layout.addWidget(buttons)
+
+        dlg.exec()
+
+    except Exception as e:
+        print(f"[UX-9A] Failed to open unnamed clusters review: {e}")
+6.3 Extend _handle_search_sidebar_branch_request
+
+Replace with:
+
+def _handle_search_sidebar_branch_request(self, branch: str):
+    if branch == "people_merge_review":
+        self._open_people_merge_review()
+        return
+
+    if branch == "people_unnamed":
+        self._open_unnamed_clusters_review()
+        return
+
+    if hasattr(self, "sidebar"):
+        try:
+            self.sidebar.selectBranch.emit(branch)
+        except Exception:
+            pass
+7. Replace ui/search/people_merge_suggestions_panel.py
+
+Replace the file with a richer side-by-side review scaffold:
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QPushButton, QHBoxLayout, QDialog, QDialogButtonBox, QGroupBox
+)
+
+
+class PeopleMergeSuggestionsPanel(QWidget):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lbl_title = QLabel("Possible People Merges")
+
+        self.list_widget = QListWidget()
+
+        self.left_preview = QLabel("Left cluster preview")
+        self.right_preview = QLabel("Right cluster preview")
+
+        left_box = QGroupBox("Left")
+        left_layout = QVBoxLayout(left_box)
+        left_layout.addWidget(self.left_preview)
+
+        right_box = QGroupBox("Right")
+        right_layout = QVBoxLayout(right_box)
+        right_layout.addWidget(self.right_preview)
+
+        preview_row = QHBoxLayout()
+        preview_row.addWidget(left_box)
+        preview_row.addWidget(right_box)
+
+        self.btn_accept = QPushButton("Merge Selected")
+        self.btn_reject = QPushButton("Reject Selected")
+
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.btn_accept)
+        btn_row.addWidget(self.btn_reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.list_widget)
+        layout.addLayout(preview_row)
+        layout.addLayout(btn_row)
+
+        self._items = []
+
+        self.btn_accept.clicked.connect(self._accept_selected)
+        self.btn_reject.clicked.connect(self._reject_selected)
+        self.list_widget.currentItemChanged.connect(self._on_current_changed)
+
+    def set_suggestions(self, suggestions):
+        self._items = list(suggestions or [])
+        self.list_widget.clear()
+
+        for item in self._items:
+            left_id = str(item.get("left_id", ""))
+            right_id = str(item.get("right_id", ""))
+            score = item.get("score")
+            score_txt = f"{score:.2f}" if isinstance(score, (float, int)) else "?"
+            title = item.get("label") or f"{left_id} ↔ {right_id}  (score={score_txt})"
+
+            list_item = QListWidgetItem(title)
+            list_item.setData(256, item)
+            self.list_widget.addItem(list_item)
+
+        if self.list_widget.count() > 0:
+            self.list_widget.setCurrentRow(0)
+
+    def _on_current_changed(self, current, previous):
+        if not current:
+            self.left_preview.setText("Left cluster preview")
+            self.right_preview.setText("Right cluster preview")
+            return
+
+        item = current.data(256) or {}
+        self.left_preview.setText(
+            f"ID: {item.get('left_id', '')}\n"
+            f"Label: {item.get('left_label', '')}\n"
+            f"Count: {item.get('left_count', 0)}"
+        )
+        self.right_preview.setText(
+            f"ID: {item.get('right_id', '')}\n"
+            f"Label: {item.get('right_label', '')}\n"
+            f"Count: {item.get('right_count', 0)}"
+        )
+
+    def _accept_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        payload = item.data(256) or {}
+        self.mergeAccepted.emit(str(payload.get("left_id", "")), str(payload.get("right_id", "")))
+
+    def _reject_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        payload = item.data(256) or {}
+        self.mergeRejected.emit(str(payload.get("left_id", "")), str(payload.get("right_id", "")))
+
+
+class PeopleMergeSuggestionsDialog(QDialog):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("People Merge Review")
+        self.resize(720, 520)
+
+        self.panel = PeopleMergeSuggestionsPanel(self)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(self.close)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.panel)
+        layout.addWidget(buttons)
+
+        self.panel.mergeAccepted.connect(self.mergeAccepted.emit)
+        self.panel.mergeRejected.connect(self.mergeRejected.emit)
+
+    def set_suggestions(self, suggestions):
+        self.panel.set_suggestions(suggestions)
+
+This is still text-based preview, but now structured side-by-side. Real face thumbnails can come in UX-9B.
+
+8. Patch services/ui_refresh_mediator.py
+
+At stable refresh points, keep or add:
+
+if hasattr(self.main_window, "_refresh_people_quick_section"):
+    self.main_window._refresh_people_quick_section()
+
+Do not over-broadcast.
+
+9. Optional patch ui/search/sections/people_quick_section.py
+
+To make the payload more explicit, keep as-is, because it already supports:
+
+top people
+merge count
+unnamed count
+
+No required change here for UX-9A.
+
+10. What this enables immediately
+
+After UX-9A:
+
+merge review is backed by a real scoring service
+rejected suggestions stop reappearing
+accepted / rejected actions are persisted
+unnamed clusters can be reviewed from the shell
+people-review workflow becomes more trustworthy
+
+That is the first real jump in People usability.
+
+11. What comes after UX-9A
+
+After this, the next phase should be:
+
+UX-9B, true visual review
+
+That should include:
+
+actual side-by-side face thumbnails
+representative images for each cluster
+confidence explanation
+cluster timeline hints
+assign unnamed cluster to existing identity
+
+Then after that:
+
+UX-9C, facet quality engine
+better people facets
+search-feature-derived counts
+result-set-aware counts
+family-aware exposure refinement
+Bottom line
+
+Proceed with this UX-9A patch pack next.
+
+It is the right next step because it upgrades People from:
+
+visible
+to
+reviewable
+to
+increasingly trustworthy

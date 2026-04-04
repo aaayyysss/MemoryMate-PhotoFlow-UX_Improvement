@@ -1,0 +1,813 @@
+Below is the **exact UX-8C patch pack**.
+
+## UX-8C goal
+
+Improve the intelligence and stability of the search shell by fixing four things:
+
+* **family-aware facet exposure**
+* **better facet counts**
+* **cleaner interaction between Browse and Search modes**
+* **stable active-chip semantics for filters vs browse vs presets**
+
+This phase is about making the shell feel coherent, not just feature-rich.
+
+---
+
+# Core design rules for UX-8C
+
+Before the code, lock these rules:
+
+## Rule 1, Browse mode and Search mode are different
+
+* **Browse** is navigational
+* **Search** is semantic / intent-driven
+
+They may coexist, but they must not silently fight each other.
+
+## Rule 2, facets must be family-aware
+
+Examples:
+
+* `documents` should emphasize `type`, `year`, maybe `location`
+* `people` should emphasize `people`, `year`
+* `scenic` should emphasize `location`, `year`, maybe `type`
+* `videos` should not show irrelevant people-first filters by default
+
+## Rule 3, chips must have clear ownership
+
+Use distinct chip kinds:
+
+* `query`
+* `preset`
+* `filter`
+* `browse`
+* `person`
+
+Do not blur them.
+
+## Rule 4, counts must reflect the current result set
+
+Facet counts should be computed against the currently active result set, not a global project total.
+
+---
+
+# 1. Patch `ui/search/search_state_store.py`
+
+Add these fields to `SearchState`:
+
+```python
+    visible_facet_keys: List[str] = field(default_factory=list)
+    facet_counts_mode: str = "result_set"   # result_set | project
+    browse_scope_label: str = ""
+```
+
+And in `clear_search()` add:
+
+```python
+        self._state.visible_facet_keys.clear()
+        self._state.browse_scope_label = ""
+```
+
+Do not clear `facet_counts_mode`.
+
+---
+
+# 2. Patch `ui/search/search_controller.py`
+
+This is the main UX-8C logic patch.
+
+## 2.1 Add family inference helper
+
+Add this method:
+
+```python
+    def _infer_family(self):
+        state = self.store.get_state()
+
+        if state.preset_id in {"documents", "screenshots"}:
+            return "type"
+
+        if state.active_people:
+            return "people"
+
+        if state.preset_id in {"beach", "mountains", "city", "forest"}:
+            return "scenic"
+
+        if state.browse_mode in {"videos"}:
+            return "utility"
+
+        return state.family or "hybrid"
+```
+
+---
+
+## 2.2 Add visible facet key helper
+
+Add this method:
+
+```python
+    def _compute_visible_facet_keys(self):
+        state = self.store.get_state()
+        family = self._infer_family()
+
+        if state.browse_mode == "favorites":
+            return ["year", "location", "type"]
+
+        if state.browse_mode == "videos":
+            return ["year", "location"]
+
+        if state.browse_mode == "with_location":
+            return ["location", "year", "type"]
+
+        if family == "people":
+            return ["people", "year", "location", "type"]
+
+        if family == "type":
+            return ["type", "year", "location"]
+
+        if family == "scenic":
+            return ["location", "year", "type"]
+
+        return ["people", "location", "year", "type"]
+```
+
+---
+
+## 2.3 Patch `set_preset`
+
+Replace with:
+
+```python
+    def set_preset(self, preset_id: str):
+        state = self.store.get_state()
+
+        # Preset selection exits explicit browse navigation mode
+        browse_mode = None
+
+        chips = [
+            chip for chip in state.active_chips
+            if chip.get("kind") not in {"preset", "browse"}
+        ]
+        chips.insert(0, {
+            "kind": "preset",
+            "label": preset_id.replace("_", " ").title(),
+            "value": preset_id,
+        })
+
+        self.store.update(
+            preset_id=preset_id,
+            browse_mode=browse_mode,
+            active_chips=chips,
+            search_mode="hybrid",
+            family=self._infer_family(),
+            visible_facet_keys=self._compute_visible_facet_keys(),
+            browse_scope_label="",
+            intent_summary=preset_id.replace("_", " ").title(),
+            search_in_progress=True,
+        )
+        self.run_search()
+```
+
+---
+
+## 2.4 Patch `apply_browse_mode`
+
+Replace with:
+
+```python
+    def apply_browse_mode(self, browse_key: str, value):
+        state = self.store.get_state()
+
+        new_filters = dict(state.active_filters or {})
+        chips = [chip for chip in state.active_chips if chip.get("kind") not in {"browse", "preset"}]
+
+        preset_id = None
+        browse_scope_label = browse_key.replace("_", " ").title()
+
+        # Reset browse-related filters first
+        new_filters.pop("favorites_only", None)
+        new_filters.pop("media_type", None)
+        new_filters.pop("with_location", None)
+
+        if browse_key == "all_photos":
+            browse_scope_label = "All Photos"
+
+        elif browse_key == "favorites":
+            new_filters["favorites_only"] = True
+            chips.append({
+                "kind": "browse",
+                "label": "Favorites",
+                "value": "favorites",
+            })
+
+        elif browse_key == "videos":
+            new_filters["media_type"] = "video"
+            chips.append({
+                "kind": "browse",
+                "label": "Videos",
+                "value": "videos",
+            })
+
+        elif browse_key == "with_location":
+            new_filters["with_location"] = True
+            chips.append({
+                "kind": "browse",
+                "label": "With Location",
+                "value": "with_location",
+            })
+
+        elif browse_key in {"albums", "folders", "dates"}:
+            chips.append({
+                "kind": "browse",
+                "label": browse_scope_label,
+                "value": browse_key,
+            })
+
+        self.store.update(
+            browse_mode=browse_key,
+            browse_scope_label=browse_scope_label,
+            preset_id=preset_id,
+            active_filters=new_filters,
+            active_chips=chips,
+            search_mode="browse",
+            family=self._infer_family(),
+            visible_facet_keys=self._compute_visible_facet_keys(),
+            intent_summary=browse_scope_label,
+        )
+        self.run_search()
+```
+
+---
+
+## 2.5 Patch `apply_filter`
+
+Replace with:
+
+```python
+    def apply_filter(self, filter_key: str, value):
+        state = self.store.get_state()
+        new_filters = dict(state.active_filters or {})
+        new_filters[filter_key] = value
+
+        chips = []
+        for chip in state.active_chips:
+            if chip.get("kind") == "filter" and chip.get("filter_key") == filter_key:
+                continue
+            chips.append(chip)
+
+        chips.append({
+            "kind": "filter",
+            "filter_key": filter_key,
+            "label": f"{filter_key}: {value}",
+            "value": value,
+        })
+
+        self.store.update(
+            active_filters=new_filters,
+            active_chips=chips,
+            family=self._infer_family(),
+            visible_facet_keys=self._compute_visible_facet_keys(),
+            intent_summary=self._build_intent_summary(),
+        )
+        self.run_search()
+```
+
+---
+
+## 2.6 Patch `clear_filters`
+
+Replace with:
+
+```python
+    def clear_filters(self):
+        state = self.store.get_state()
+        chips = [chip for chip in state.active_chips if chip.get("kind") != "filter"]
+
+        self.store.update(
+            active_filters={},
+            active_chips=chips,
+            family=self._infer_family(),
+            visible_facet_keys=self._compute_visible_facet_keys(),
+            intent_summary=self._build_intent_summary(),
+        )
+        self.run_search()
+```
+
+---
+
+## 2.7 Patch `remove_chip`
+
+Replace the full method body with:
+
+```python
+    def remove_chip(self, kind: str, value):
+        state = self.store.get_state()
+
+        if kind == "preset":
+            state.preset_id = None
+
+        elif kind == "person":
+            state.active_people = [p for p in state.active_people if p != value]
+
+        elif kind == "filter":
+            remove_key = None
+            for chip in state.active_chips:
+                if chip.get("kind") == "filter" and chip.get("value") == value:
+                    remove_key = chip.get("filter_key")
+                    break
+            if remove_key:
+                state.active_filters.pop(remove_key, None)
+
+        elif kind == "query":
+            state.query_text = ""
+
+        elif kind == "browse":
+            state.browse_mode = None
+            state.browse_scope_label = ""
+            if value == "favorites":
+                state.active_filters.pop("favorites_only", None)
+            elif value == "videos":
+                state.active_filters.pop("media_type", None)
+            elif value == "with_location":
+                state.active_filters.pop("with_location", None)
+
+        state.active_chips = [
+            chip for chip in state.active_chips
+            if not (chip.get("kind") == kind and chip.get("value") == value)
+        ]
+
+        state.family = self._infer_family()
+        state.visible_facet_keys = self._compute_visible_facet_keys()
+        state.intent_summary = self._build_intent_summary()
+
+        self.store.stateChanged.emit(state)
+        self.run_search()
+```
+
+---
+
+## 2.8 Patch `_build_intent_summary`
+
+Replace with:
+
+```python
+    def _build_intent_summary(self) -> str:
+        state = self.store.get_state()
+        parts = []
+
+        if state.browse_scope_label:
+            parts.append(state.browse_scope_label)
+
+        if state.preset_id:
+            parts.append(state.preset_id.replace("_", " ").title())
+
+        if state.query_text.strip():
+            parts.append(state.query_text.strip())
+
+        for person in state.active_people:
+            parts.append(person)
+
+        return " + ".join(dict.fromkeys(parts)) if parts else "All Photos"
+```
+
+This avoids duplicate summary text and keeps Browse visible when active.
+
+---
+
+## 2.9 Patch `apply_result_summary`
+
+Replace with:
+
+```python
+    def apply_result_summary(
+        self,
+        result_paths=None,
+        result_count: int = 0,
+        result_facets=None,
+        family: Optional[str] = None,
+        warnings=None,
+    ):
+        state = self.store.get_state()
+        warning_list = list(warnings or [])
+        model_warning = ""
+
+        joined = " ".join(str(w) for w in warning_list).lower()
+        if "clip-vit-large-patch14" in joined or "better model available" in joined:
+            model_warning = "Better model available"
+
+        discover_counts = dict(state.discover_counts or {})
+        discover_previews = dict(state.discover_previews or {})
+        new_paths = list(result_paths or [])
+        effective_family = family or self._infer_family()
+
+        if state.preset_id:
+            discover_counts[state.preset_id] = result_count
+
+            preview_labels = []
+            for path in new_paths[:3]:
+                try:
+                    import os
+                    preview_labels.append(os.path.basename(path))
+                except Exception:
+                    pass
+            discover_previews[state.preset_id] = preview_labels
+
+        explanation_parts = []
+        if state.browse_scope_label:
+            explanation_parts.append(state.browse_scope_label)
+        if state.preset_id:
+            explanation_parts.append(state.preset_id.replace("_", " ").title())
+        if state.query_text.strip():
+            explanation_parts.append(f'query "{state.query_text.strip()}"')
+        if state.active_people:
+            explanation_parts.append(f"{len(state.active_people)} people filter(s)")
+        if state.active_filters:
+            explanation_parts.append(f"{len(state.active_filters)} active filter(s)")
+
+        result_explanation = ""
+        if explanation_parts:
+            result_explanation = "Results based on " + ", ".join(dict.fromkeys(explanation_parts))
+
+        self.store.update(
+            result_paths=new_paths,
+            displayed_result_paths=new_paths,
+            last_nonempty_result_paths=new_paths if new_paths else list(state.last_nonempty_result_paths or []),
+            result_count=result_count,
+            result_facets=result_facets or {},
+            family=effective_family,
+            visible_facet_keys=self._compute_visible_facet_keys(),
+            warnings=warning_list,
+            model_warning=model_warning,
+            discover_counts=discover_counts,
+            discover_previews=discover_previews,
+            search_in_progress=False,
+            empty_state_reason=None if result_count > 0 else "no_results",
+            intent_summary=self._build_intent_summary(),
+            result_explanation=result_explanation,
+        )
+```
+
+---
+
+# 3. Replace `ui/search/sections/filter_section.py`
+
+Replace the full file with this family-aware version:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QLabel, QPushButton, QWidget, QHBoxLayout
+
+
+class FilterSection(QGroupBox):
+    filterChanged = Signal(str, object)
+    filterRemoved = Signal(str, object)
+    clearAllFiltersRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__("Filters", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(8)
+
+        self.lbl_empty = QLabel("Filters appear after search or preset selection.")
+        self.layout.addWidget(self.lbl_empty)
+
+        self.filter_rows_host = QWidget()
+        self.filter_rows_layout = QVBoxLayout(self.filter_rows_host)
+        self.filter_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.filter_rows_layout.setSpacing(6)
+        self.layout.addWidget(self.filter_rows_host)
+
+        self.btn_clear_all = QPushButton("Clear All Filters")
+        self.btn_clear_all.clicked.connect(self.clearAllFiltersRequested.emit)
+        self.layout.addWidget(self.btn_clear_all)
+
+        self.setVisible(False)
+
+    def _clear_rows(self):
+        while self.filter_rows_layout.count():
+            item = self.filter_rows_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def set_facets(self, facets: dict, active_filters: dict, visible_keys=None):
+        self._clear_rows()
+
+        has_any = False
+        active_filters = active_filters or {}
+        facets = facets or {}
+        visible_keys = list(visible_keys or [])
+
+        if "people" in visible_keys:
+            has_any |= self._add_facet_row("people", "People", facets.get("people", []), active_filters)
+
+        if "location" in visible_keys:
+            has_any |= self._add_facet_row("location", "Location", facets.get("locations", []), active_filters)
+
+        if "year" in visible_keys:
+            has_any |= self._add_facet_row("year", "Year", facets.get("years", []), active_filters)
+
+        if "type" in visible_keys:
+            has_any |= self._add_facet_row("type", "Type", facets.get("types", []), active_filters)
+
+        self.lbl_empty.setVisible(not has_any)
+        self.filter_rows_host.setVisible(has_any)
+        self.btn_clear_all.setVisible(has_any or bool(active_filters))
+        self.setVisible(bool(visible_keys) and (has_any or bool(active_filters)))
+
+    def _add_facet_row(self, key: str, label: str, items, active_filters: dict):
+        if not items:
+            return False
+
+        row = QWidget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+
+        row_layout.addWidget(QLabel(f"{label}:"))
+
+        active_value = active_filters.get(key)
+
+        for item in items[:10]:
+            if isinstance(item, dict):
+                value = item.get("id", item.get("name", item.get("value")))
+                text = item.get("label") or item.get("name") or str(item.get("value") or item.get("id"))
+                count = item.get("count")
+            else:
+                value = item
+                text = str(item)
+                count = None
+
+            caption = f"{text} ({count})" if count is not None else text
+            btn = QPushButton(caption)
+            if active_value == value:
+                btn.setObjectName("ActiveFacetButton")
+            btn.clicked.connect(lambda checked=False, k=key, v=value: self.filterChanged.emit(k, v))
+            row_layout.addWidget(btn)
+
+        row_layout.addStretch(1)
+        self.filter_rows_layout.addWidget(row)
+        return True
+```
+
+---
+
+# 4. Patch `ui/search/search_sidebar.py`
+
+Update it so `FilterSection` gets visible facet keys.
+
+## Find the `filter_section.set_facets(...)` call and replace with:
+
+```python
+        self.filter_section.set_facets(
+            getattr(state, "result_facets", {}) or {},
+            getattr(state, "active_filters", {}) or {},
+            getattr(state, "visible_facet_keys", []) or [],
+        )
+```
+
+No other large changes needed here.
+
+---
+
+# 5. Patch `ui/search/sections/browse_section.py`
+
+Make active mode more stable and visually distinct from semantic states.
+
+Replace the full file with:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton
+
+
+class BrowseSection(QGroupBox):
+    browseNodeSelected = Signal(str, object)
+
+    def __init__(self, parent=None):
+        super().__init__("Browse", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(6)
+
+        self.btn_all = QPushButton("All Photos")
+        self.btn_favorites = QPushButton("Favorites")
+        self.btn_videos = QPushButton("Videos")
+        self.btn_location = QPushButton("With Location")
+        self.btn_albums = QPushButton("Albums")
+        self.btn_folders = QPushButton("Folders")
+        self.btn_dates = QPushButton("Dates")
+
+        self.layout.addWidget(self.btn_all)
+        self.layout.addWidget(self.btn_favorites)
+        self.layout.addWidget(self.btn_videos)
+        self.layout.addWidget(self.btn_location)
+        self.layout.addWidget(self.btn_albums)
+        self.layout.addWidget(self.btn_folders)
+        self.layout.addWidget(self.btn_dates)
+        self.layout.addStretch(1)
+
+        self.btn_all.clicked.connect(lambda: self.browseNodeSelected.emit("all_photos", None))
+        self.btn_favorites.clicked.connect(lambda: self.browseNodeSelected.emit("favorites", True))
+        self.btn_videos.clicked.connect(lambda: self.browseNodeSelected.emit("videos", True))
+        self.btn_location.clicked.connect(lambda: self.browseNodeSelected.emit("with_location", True))
+        self.btn_albums.clicked.connect(lambda: self.browseNodeSelected.emit("albums", None))
+        self.btn_folders.clicked.connect(lambda: self.browseNodeSelected.emit("folders", None))
+        self.btn_dates.clicked.connect(lambda: self.browseNodeSelected.emit("dates", None))
+
+    def set_enabled_for_project(self, enabled: bool):
+        self.setEnabled(enabled)
+
+    def set_active_mode(self, browse_key):
+        mapping = {
+            "all_photos": self.btn_all,
+            "favorites": self.btn_favorites,
+            "videos": self.btn_videos,
+            "with_location": self.btn_location,
+            "albums": self.btn_albums,
+            "folders": self.btn_folders,
+            "dates": self.btn_dates,
+        }
+
+        for key, btn in mapping.items():
+            if key == browse_key:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: #d2e3fc;
+                        border: 1px solid #8ab4f8;
+                        border-radius: 6px;
+                        padding: 6px 10px;
+                        font-weight: 600;
+                    }
+                """)
+            else:
+                btn.setStyleSheet("")
+```
+
+---
+
+# 6. Patch `ui/search/active_chips_bar.py`
+
+Stabilize chip semantics visually.
+
+Replace button-creation block with:
+
+```python
+            btn = QPushButton(f"{label} ✕")
+
+            kind_name = (kind or "").lower()
+            if kind_name == "preset":
+                btn.setObjectName("SearchChipPreset")
+            elif kind_name == "browse":
+                btn.setObjectName("SearchChipBrowse")
+            elif kind_name == "filter":
+                btn.setObjectName("SearchChipFilter")
+            elif kind_name == "person":
+                btn.setObjectName("SearchChipPerson")
+            elif kind_name == "query":
+                btn.setObjectName("SearchChipQuery")
+            else:
+                btn.setObjectName("SearchChip")
+
+            btn.clicked.connect(lambda checked=False, k=kind, v=value: self.chipRemoved.emit(k, v))
+            self.layout.addWidget(btn)
+```
+
+And set the clear button:
+
+```python
+        clear_btn = QPushButton("Clear")
+        clear_btn.setObjectName("SearchChipClear")
+```
+
+This gives styling hooks for stable semantics.
+
+---
+
+# 7. Patch `ui/search/search_results_header.py`
+
+Make browse/search coexistence visible.
+
+## In `_on_state_changed()`, replace the summary block with:
+
+```python
+        if state.search_in_progress:
+            self.lbl_summary.setText(state.intent_summary or "Searching...")
+            self.lbl_status.setText("Searching")
+            self.lbl_status.setVisible(True)
+        else:
+            summary = state.intent_summary or "All Photos"
+            if getattr(state, "browse_scope_label", "") and state.search_mode == "browse":
+                summary = f"{state.browse_scope_label}"
+            self.lbl_summary.setText(summary)
+            self.lbl_status.setVisible(False)
+```
+
+This keeps browse context clear instead of hiding it behind semantic wording.
+
+---
+
+# 8. Patch `main_window_qt.py`
+
+## 8.1 Improve `_on_ux1_search_requested()` for browse mode coexistence
+
+At the start of `_on_ux1_search_requested()`, after reading payload, add:
+
+```python
+browse_mode = payload.get("browse_mode")
+```
+
+Then before the preset/query dispatch logic, add this browse routing block:
+
+```python
+        # Browse-first compatibility routing
+        if browse_mode == "all_photos":
+            try:
+                if hasattr(self, "grid") and hasattr(self.grid, "load_project"):
+                    pid = payload.get("project_id")
+                    if pid is not None:
+                        self.grid.load_project(pid)
+                result_paths = list(getattr(self.grid, "all_photo_paths", []) or [])
+                self.search_controller.apply_result_summary(
+                    result_paths=result_paths,
+                    result_count=len(result_paths),
+                    family="utility",
+                    result_facets={},
+                    warnings=[],
+                )
+                return
+            except Exception as e:
+                self.search_controller.apply_result_summary(
+                    result_paths=[],
+                    result_count=0,
+                    family="utility",
+                    result_facets={},
+                    warnings=[str(e)],
+                )
+                return
+```
+
+Then for the other browse modes, keep the current bridge pattern and let existing filters/search paths handle them if available. This avoids overreaching.
+
+## 8.2 Improve query chip coexistence
+
+If not already done, keep query-chip insertion isolated to `kind="query"` and do not remove browse chips when adding query chips.
+
+---
+
+# 9. Optional patch `layouts/google_layout.py`
+
+This file should continue to respect `SearchState`, but facets should not be rendered there yet.
+
+The only useful UX-8C adjustment here is:
+
+* when no results, show empty state,
+* when search in progress and `displayed_result_paths` exist, keep results surface visible,
+* when search finishes, switch cleanly.
+
+No additional facet UI should be added there yet.
+
+---
+
+# 10. What UX-8C should feel like
+
+After this patch:
+
+* Browse mode is clearly visible and stable
+* Presets no longer ambiguously fight browse scope
+* Facets shown are relevant to the current family/scope
+* Chips are semantically distinct and removable without breaking unrelated state
+* Counts and filters feel grounded in the current result set
+
+That is the missing polish between “lots of controls” and “coherent controls”.
+
+---
+
+# 11. What comes after UX-8C
+
+After this, the next natural step is:
+
+## UX-9, facet quality and people intelligence
+
+That should include:
+
+* better facet generation from orchestrator/search features
+* stronger people facet quality
+* merge-suggestion engine beyond heuristic placeholders
+* unnamed-cluster review workflow
+* side-by-side person comparison UI
+
+That is the next place where product value rises sharply.
+
+---
+
+# Bottom line
+
+Proceed now with this **UX-8C exact patch pack**.
+
+It is the right next layer because:
+
+* you already have the shell,
+* you already have browse, people, filters, discover, and activity,
+* the next real improvement is to make them **coexist intelligently**, not to add more sections.

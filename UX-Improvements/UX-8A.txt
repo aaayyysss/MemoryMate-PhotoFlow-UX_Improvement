@@ -1,0 +1,852 @@
+Below is the **exact UX-8A implementation pack**.
+
+This phase turns the current People quick-access surface into a **real review workflow**.
+
+# UX-8A goal
+
+Enable the user to:
+
+* review suspicious cluster pairs,
+* review unnamed clusters,
+* accept a merge,
+* reject a merge,
+* keep a lightweight audit trail,
+* open this from the centralized search shell.
+
+This is still a **safe bridge phase**. It does **not** require a full backend rewrite.
+
+---
+
+# Scope
+
+This pack adds:
+
+1. `ui/search/people_merge_suggestions_panel.py`
+2. richer `PeopleQuickSection` actions
+3. `people_section.py` adapters for:
+
+   * merge candidates
+   * unnamed clusters
+   * merge / reject actions
+4. `MainWindow` bridge methods
+5. optional `SearchStateStore` fields for people review summaries
+6. optional sidebar signal wiring
+
+This pack does **not** yet do:
+
+* persistent merge history DB schema
+* auto-learning merge engine
+* visual side-by-side face comparison thumbnails
+* full moderation queue
+
+Those come later.
+
+---
+
+# 1. Create `ui/search/people_merge_suggestions_panel.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QPushButton, QHBoxLayout, QDialog, QDialogButtonBox
+)
+
+
+class PeopleMergeSuggestionsPanel(QWidget):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lbl_title = QLabel("Possible People Merges")
+        self.list_widget = QListWidget()
+
+        self.btn_accept = QPushButton("Merge Selected")
+        self.btn_reject = QPushButton("Reject Selected")
+
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.btn_accept)
+        btn_row.addWidget(self.btn_reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.list_widget)
+        layout.addLayout(btn_row)
+
+        self._items = []
+
+        self.btn_accept.clicked.connect(self._accept_selected)
+        self.btn_reject.clicked.connect(self._reject_selected)
+
+    def set_suggestions(self, suggestions):
+        self._items = list(suggestions or [])
+        self.list_widget.clear()
+
+        for item in self._items:
+            left_id = str(item.get("left_id", ""))
+            right_id = str(item.get("right_id", ""))
+            score = item.get("score")
+            score_txt = f"{score:.2f}" if isinstance(score, (float, int)) else "?"
+            title = item.get("label") or f"{left_id} ↔ {right_id}  (score={score_txt})"
+
+            list_item = QListWidgetItem(title)
+            list_item.setData(256, (left_id, right_id))
+            self.list_widget.addItem(list_item)
+
+    def _accept_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        left_id, right_id = item.data(256)
+        self.mergeAccepted.emit(left_id, right_id)
+
+    def _reject_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        left_id, right_id = item.data(256)
+        self.mergeRejected.emit(left_id, right_id)
+
+
+class PeopleMergeSuggestionsDialog(QDialog):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("People Merge Review")
+        self.resize(540, 420)
+
+        self.panel = PeopleMergeSuggestionsPanel(self)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(self.close)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.panel)
+        layout.addWidget(buttons)
+
+        self.panel.mergeAccepted.connect(self.mergeAccepted.emit)
+        self.panel.mergeRejected.connect(self.mergeRejected.emit)
+
+    def set_suggestions(self, suggestions):
+        self.panel.set_suggestions(suggestions)
+```
+
+---
+
+# 2. Replace `ui/search/sections/people_quick_section.py`
+
+Replace the full file with this UX-8A version:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout
+
+
+class PeopleQuickSection(QGroupBox):
+    personSelected = Signal(str)
+    showAllPeopleRequested = Signal()
+    mergeReviewRequested = Signal()
+    unnamedRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__("People", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(8)
+
+        self.lbl_empty = QLabel("People will appear after face clustering.")
+        self.layout.addWidget(self.lbl_empty)
+
+        self.people_host = QWidget()
+        self.people_layout = QVBoxLayout(self.people_host)
+        self.people_layout.setContentsMargins(0, 0, 0, 0)
+        self.people_layout.setSpacing(6)
+        self.layout.addWidget(self.people_host)
+
+        self.btn_merge_review = QPushButton("Review Possible Merges")
+        self.btn_merge_review.clicked.connect(self.mergeReviewRequested.emit)
+        self.layout.addWidget(self.btn_merge_review)
+
+        self.btn_unnamed = QPushButton("Show Unnamed Clusters")
+        self.btn_unnamed.clicked.connect(self.unnamedRequested.emit)
+        self.layout.addWidget(self.btn_unnamed)
+
+        self.btn_show_all = QPushButton("Show All People")
+        self.btn_show_all.clicked.connect(self.showAllPeopleRequested.emit)
+        self.layout.addWidget(self.btn_show_all)
+
+        self.setVisible(False)
+
+    def _clear_people(self):
+        while self.people_layout.count():
+            item = self.people_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def set_people(self, payload):
+        self._clear_people()
+
+        payload = payload or {}
+        people_items = list(payload.get("top_people", []))
+        merge_candidates = int(payload.get("merge_candidates", 0) or 0)
+        unnamed_count = int(payload.get("unnamed_count", 0) or 0)
+
+        has_any = bool(people_items or merge_candidates or unnamed_count)
+
+        self.lbl_empty.setVisible(not has_any)
+        self.people_host.setVisible(bool(people_items))
+        self.btn_merge_review.setVisible(merge_candidates > 0)
+        self.btn_merge_review.setText(f"Review Possible Merges ({merge_candidates})")
+        self.btn_unnamed.setVisible(unnamed_count > 0)
+        self.btn_unnamed.setText(f"Show Unnamed Clusters ({unnamed_count})")
+        self.btn_show_all.setVisible(has_any)
+        self.setVisible(has_any)
+
+        for item in people_items[:8]:
+            person_id = item.get("id")
+            label = item.get("label", str(person_id))
+            count = item.get("count", 0)
+
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(6)
+
+            btn = QPushButton(f"{label} ({count})")
+            btn.clicked.connect(lambda checked=False, pid=person_id: self.personSelected.emit(str(pid)))
+            row_layout.addWidget(btn)
+
+            self.people_layout.addWidget(row)
+```
+
+---
+
+# 3. Patch `ui/search/search_state_store.py`
+
+Add these fields to `SearchState`:
+
+```python
+    people_quick_payload: Dict[str, Any] = field(default_factory=dict)
+    merge_suggestions: List[Dict[str, Any]] = field(default_factory=list)
+```
+
+In `clear_search()`, do **not** clear `people_quick_payload` or `merge_suggestions`.
+
+These are project-level review aids, not query-only state.
+
+---
+
+# 4. Patch `ui/search/search_controller.py`
+
+Add these methods:
+
+```python
+    def set_people_quick_payload(self, payload: dict):
+        self.store.update(people_quick_payload=dict(payload or {}))
+
+    def set_merge_suggestions(self, suggestions):
+        self.store.update(merge_suggestions=list(suggestions or []))
+```
+
+Keep `apply_people_filter()` unchanged.
+
+---
+
+# 5. Replace `ui/search/search_sidebar.py`
+
+Replace the full file with this UX-8A version:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame
+
+from ui.search.sections.search_hub_section import SearchHubSection
+from ui.search.sections.discover_section import DiscoverSection
+from ui.search.sections.people_quick_section import PeopleQuickSection
+from ui.search.sections.filter_section import FilterSection
+from ui.search.sections.browse_section import BrowseSection
+from ui.search.sections.activity_mini_section import ActivityMiniSection
+
+
+class SearchSidebar(QWidget):
+    folderSelected = Signal(int)
+    selectBranch = Signal(str)
+    selectDate = Signal(str)
+    selectVideos = Signal(str)
+    selectGroup = Signal(int)
+    openActivityCenterRequested = Signal()
+
+    def __init__(self, store, controller=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.controller = controller
+
+        self.search_hub_section = SearchHubSection()
+        self.discover_section = DiscoverSection()
+        self.people_quick_section = PeopleQuickSection()
+        self.browse_section = BrowseSection()
+        self.filter_section = FilterSection()
+        self.activity_mini_section = ActivityMiniSection()
+
+        self._build_ui()
+        self._wire_signals()
+
+        self.store.stateChanged.connect(self._on_state_changed)
+
+    def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        content = QFrame()
+        self.content_layout = QVBoxLayout(content)
+        self.content_layout.setContentsMargins(6, 6, 6, 6)
+        self.content_layout.setSpacing(10)
+
+        self.content_layout.addWidget(self.search_hub_section)
+        self.content_layout.addWidget(self.discover_section)
+        self.content_layout.addWidget(self.people_quick_section)
+        self.content_layout.addWidget(self.browse_section)
+        self.content_layout.addWidget(self.filter_section)
+        self.content_layout.addWidget(self.activity_mini_section)
+        self.content_layout.addStretch(1)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+    def _wire_signals(self):
+        if self.controller:
+            self.discover_section.presetSelected.connect(self.controller.set_preset)
+
+            self.search_hub_section.recentSearchClicked.connect(self.controller.submit_query)
+            self.search_hub_section.suggestionClicked.connect(self.controller.submit_query)
+            self.search_hub_section.clearRecentRequested.connect(self.controller.clear_recent_queries)
+
+            self.people_quick_section.personSelected.connect(self.controller.apply_people_filter)
+            self.people_quick_section.showAllPeopleRequested.connect(self._emit_show_all_people)
+            self.people_quick_section.mergeReviewRequested.connect(self._emit_merge_review)
+            self.people_quick_section.unnamedRequested.connect(self._emit_unnamed_people)
+
+            self.browse_section.browseNodeSelected.connect(self.controller.apply_browse_mode)
+
+            self.filter_section.filterChanged.connect(self.controller.apply_filter)
+            self.filter_section.clearAllFiltersRequested.connect(self.controller.clear_filters)
+
+            self.activity_mini_section.openActivityCenterRequested.connect(self.openActivityCenterRequested.emit)
+
+    def _emit_show_all_people(self):
+        self.selectBranch.emit("people")
+
+    def _emit_merge_review(self):
+        self.selectBranch.emit("people_merge_review")
+
+    def _emit_unnamed_people(self):
+        self.selectBranch.emit("people_unnamed")
+
+    def _on_state_changed(self, state):
+        enabled = state.has_active_project
+
+        self.search_hub_section.set_enabled_for_project(enabled)
+        self.discover_section.setEnabled(enabled)
+        self.people_quick_section.setEnabled(enabled)
+        self.browse_section.set_enabled_for_project(enabled)
+
+        self.search_hub_section.set_recent_queries(getattr(state, "recent_queries", []))
+        self.search_hub_section.set_suggestions(getattr(state, "suggestions", []))
+
+        self.discover_section.update_counts(getattr(state, "discover_counts", {}))
+        self.discover_section.set_active_preset(getattr(state, "preset_id", None))
+        self.discover_section.update_previews(getattr(state, "discover_previews", {}))
+
+        self.people_quick_section.set_people(getattr(state, "people_quick_payload", {}))
+        self.browse_section.set_active_mode(getattr(state, "browse_mode", None))
+
+        self.filter_section.set_facets(
+            getattr(state, "result_facets", {}) or {},
+            getattr(state, "active_filters", {}) or {},
+        )
+
+        self.activity_mini_section.set_activity(getattr(state, "activity_snapshot", {}) or {})
+
+    def reload_date_tree(self):
+        pass
+
+    def set_project(self, project_id: int):
+        pass
+
+    def toggle_fold(self, folded: bool):
+        self.setVisible(not folded)
+
+    def _effective_display_mode(self):
+        return "list"
+
+    def switch_display_mode(self, mode: str):
+        pass
+```
+
+---
+
+# 6. Patch `ui/accordion_sidebar/people_section.py`
+
+Add this method inside the People section class:
+
+```python
+def get_people_quick_payload(self):
+    """
+    UX-8A adapter for the centralized search shell.
+    Returns:
+    - top identities
+    - suspicious merge-review count
+    - unnamed cluster count
+    """
+    try:
+        payload = {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+
+        source = getattr(self, "people_data", None) or getattr(self, "clusters", None) or []
+
+        unnamed_count = 0
+        top_people = []
+
+        for item in list(source):
+            if not isinstance(item, dict):
+                continue
+
+            pid = item.get("id") or item.get("person_id") or item.get("label")
+            label = item.get("label") or item.get("name") or str(pid)
+            count = int(item.get("count", 0))
+
+            if label.lower().startswith("face_") or "unnamed" in label.lower():
+                unnamed_count += 1
+
+            if pid is not None:
+                top_people.append({
+                    "id": str(pid),
+                    "label": str(label),
+                    "count": count,
+                })
+
+        top_people = sorted(top_people, key=lambda x: x.get("count", 0), reverse=True)
+        payload["top_people"] = top_people[:8]
+        payload["unnamed_count"] = unnamed_count
+
+        # Lightweight merge candidate heuristic
+        merge_candidates = 0
+        counts = [x.get("count", 0) for x in top_people[:20]]
+        if len(counts) >= 2:
+            merge_candidates = len([c for c in counts if c <= 3])
+
+        payload["merge_candidates"] = merge_candidates
+        return payload
+
+    except Exception:
+        return {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+```
+
+Add this second method too:
+
+```python
+def get_merge_suggestions(self):
+    """
+    UX-8A lightweight merge suggestion adapter.
+    Returns a list of possible cluster pairs for review.
+    """
+    try:
+        suggestions = []
+        source = getattr(self, "people_data", None) or getattr(self, "clusters", None) or []
+
+        normalized = []
+        for item in list(source):
+            if not isinstance(item, dict):
+                continue
+            pid = item.get("id") or item.get("person_id") or item.get("label")
+            label = item.get("label") or item.get("name") or str(pid)
+            count = int(item.get("count", 0))
+            if pid is not None:
+                normalized.append({
+                    "id": str(pid),
+                    "label": str(label),
+                    "count": count,
+                })
+
+        normalized = sorted(normalized, key=lambda x: x["count"])
+
+        for i in range(min(len(normalized) - 1, 8)):
+            left = normalized[i]
+            right = normalized[i + 1]
+
+            if left["id"] == right["id"]:
+                continue
+
+            # lightweight heuristic only
+            if left["count"] <= 3 and right["count"] <= 5:
+                suggestions.append({
+                    "left_id": left["id"],
+                    "right_id": right["id"],
+                    "score": 0.55,
+                    "label": f"{left['label']} ↔ {right['label']} (small clusters)",
+                })
+
+        return suggestions
+
+    except Exception:
+        return []
+```
+
+And add merge/reject stub actions:
+
+```python
+def accept_merge_suggestion(self, left_id: str, right_id: str):
+    print(f"[PeopleSection] Accept merge suggestion: {left_id} + {right_id}")
+
+def reject_merge_suggestion(self, left_id: str, right_id: str):
+    print(f"[PeopleSection] Reject merge suggestion: {left_id} + {right_id}")
+```
+
+These are intentionally safe stubs for now.
+
+---
+
+# 7. Create `ui/search/people_merge_suggestions_panel.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QPushButton, QHBoxLayout, QDialog, QDialogButtonBox
+)
+
+
+class PeopleMergeSuggestionsPanel(QWidget):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lbl_title = QLabel("Possible People Merges")
+        self.list_widget = QListWidget()
+
+        self.btn_accept = QPushButton("Merge Selected")
+        self.btn_reject = QPushButton("Reject Selected")
+
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.btn_accept)
+        btn_row.addWidget(self.btn_reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.list_widget)
+        layout.addLayout(btn_row)
+
+        self._items = []
+
+        self.btn_accept.clicked.connect(self._accept_selected)
+        self.btn_reject.clicked.connect(self._reject_selected)
+
+    def set_suggestions(self, suggestions):
+        self._items = list(suggestions or [])
+        self.list_widget.clear()
+
+        for item in self._items:
+            left_id = str(item.get("left_id", ""))
+            right_id = str(item.get("right_id", ""))
+            score = item.get("score")
+            score_txt = f"{score:.2f}" if isinstance(score, (float, int)) else "?"
+            title = item.get("label") or f"{left_id} ↔ {right_id}  (score={score_txt})"
+
+            list_item = QListWidgetItem(title)
+            list_item.setData(256, (left_id, right_id))
+            self.list_widget.addItem(list_item)
+
+    def _accept_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        left_id, right_id = item.data(256)
+        self.mergeAccepted.emit(left_id, right_id)
+
+    def _reject_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        left_id, right_id = item.data(256)
+        self.mergeRejected.emit(left_id, right_id)
+
+
+class PeopleMergeSuggestionsDialog(QDialog):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("People Merge Review")
+        self.resize(540, 420)
+
+        self.panel = PeopleMergeSuggestionsPanel(self)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(self.close)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.panel)
+        layout.addWidget(buttons)
+
+        self.panel.mergeAccepted.connect(self.mergeAccepted.emit)
+        self.panel.mergeRejected.connect(self.mergeRejected.emit)
+
+    def set_suggestions(self, suggestions):
+        self.panel.set_suggestions(suggestions)
+```
+
+---
+
+# 8. Patch `main_window_qt.py`
+
+## 8.1 Replace `_refresh_people_quick_section`
+
+Replace it with:
+
+```python
+def _refresh_people_quick_section(self):
+    """
+    UX-8A bridge: populate PeopleQuickSection from existing people backend if available.
+    """
+    try:
+        payload = {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+        suggestions = []
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section:
+                if hasattr(people_section, "get_people_quick_payload"):
+                    payload = dict(people_section.get_people_quick_payload() or payload)
+                if hasattr(people_section, "get_merge_suggestions"):
+                    suggestions = list(people_section.get_merge_suggestions() or [])
+
+        if not payload.get("top_people") and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section:
+                    if hasattr(people_section, "get_people_quick_payload"):
+                        payload = dict(people_section.get_people_quick_payload() or payload)
+                    if hasattr(people_section, "get_merge_suggestions"):
+                        suggestions = list(people_section.get_merge_suggestions() or [])
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.set_people_quick_payload(payload)
+            self.search_controller.set_merge_suggestions(suggestions)
+
+    except Exception as e:
+        print(f"[UX-8A] Error refreshing people quick section: {e}")
+```
+
+## 8.2 Add merge review dialog launcher
+
+Add this method inside `MainWindow`:
+
+```python
+def _open_people_merge_review(self):
+    try:
+        from ui.search.people_merge_suggestions_panel import PeopleMergeSuggestionsDialog
+
+        state = self.search_state_store.get_state()
+        suggestions = list(getattr(state, "merge_suggestions", []) or [])
+
+        dlg = PeopleMergeSuggestionsDialog(self)
+        dlg.set_suggestions(suggestions)
+        dlg.mergeAccepted.connect(self._accept_people_merge_suggestion)
+        dlg.mergeRejected.connect(self._reject_people_merge_suggestion)
+        dlg.exec()
+
+    except Exception as e:
+        print(f"[UX-8A] Failed to open merge review dialog: {e}")
+```
+
+## 8.3 Add accept/reject handlers
+
+Add:
+
+```python
+def _accept_people_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        handled = False
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section and hasattr(people_section, "accept_merge_suggestion"):
+                people_section.accept_merge_suggestion(left_id, right_id)
+                handled = True
+
+        if not handled and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section and hasattr(people_section, "accept_merge_suggestion"):
+                    people_section.accept_merge_suggestion(left_id, right_id)
+                    handled = True
+
+        self._refresh_people_quick_section()
+
+    except Exception as e:
+        print(f"[UX-8A] Failed to accept merge suggestion: {e}")
+
+
+def _reject_people_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        handled = False
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section and hasattr(people_section, "reject_merge_suggestion"):
+                people_section.reject_merge_suggestion(left_id, right_id)
+                handled = True
+
+        if not handled and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section and hasattr(people_section, "reject_merge_suggestion"):
+                    people_section.reject_merge_suggestion(left_id, right_id)
+                    handled = True
+
+        self._refresh_people_quick_section()
+
+    except Exception as e:
+        print(f"[UX-8A] Failed to reject merge suggestion: {e}")
+```
+
+## 8.4 Connect sidebar merge-review action
+
+After `self.search_sidebar` exists in `__init__()`, connect:
+
+```python
+self.search_sidebar.selectBranch.connect(self._handle_search_sidebar_branch_request)
+```
+
+Add this method:
+
+```python
+def _handle_search_sidebar_branch_request(self, branch: str):
+    if branch == "people_merge_review":
+        self._open_people_merge_review()
+        return
+
+    if branch == "people_unnamed":
+        # first safe routing: open People branch
+        if hasattr(self, "sidebar"):
+            try:
+                self.sidebar.selectBranch.emit("people")
+            except Exception:
+                pass
+        return
+
+    if hasattr(self, "sidebar"):
+        try:
+            self.sidebar.selectBranch.emit(branch)
+        except Exception:
+            pass
+```
+
+This preserves compatibility.
+
+---
+
+# 9. Patch `services/ui_refresh_mediator.py`
+
+Where stable refresh points already exist, add guarded calls:
+
+```python
+if hasattr(self.main_window, "_refresh_people_quick_section"):
+    self.main_window._refresh_people_quick_section()
+
+if hasattr(self.main_window, "_refresh_activity_snapshot"):
+    self.main_window._refresh_activity_snapshot()
+```
+
+Only add these in stable points:
+
+* after people refresh
+* after scan/post-scan completion
+* after job-state changes
+
+Do not spray them everywhere.
+
+---
+
+# 10. Patch `ui/activity_center.py`
+
+No redesign needed.
+
+If needed, add:
+
+```python
+def open_from_sidebar(self):
+    self.show()
+    self.raise_()
+```
+
+This is enough.
+
+---
+
+# 11. Audit-based conclusion
+
+The current runtime is stable enough for this phase because:
+
+* onboarding suppression is still working,
+* scan/post-scan stability is strong,
+* layout switching survives,
+* search shell and sidebar sections are now mature enough to support review workflows.
+
+The only notable rough edge remains the brief `project_id=None` reload when coming back to Current layout, but that does not block the merge-review entry point or the mini-activity/full-activity connection. 
+
+---
+
+# Bottom line
+
+The next exact step is:
+
+## UX-8A, People merge review
+
+with:
+
+* richer `PeopleQuickSection`
+* `people_merge_suggestions_panel.py`
+* People-section adapters
+* merge accept/reject bridge
+* mini activity → full activity connection
+* `ui_refresh_mediator` propagation hooks
+
+After that, the next step should be:
+
+## UX-8B, result grid interaction polish
+
+not another shell build-out.

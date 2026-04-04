@@ -1,0 +1,723 @@
+Below is the exact UX-9 patch pack, consolidated so you can move in one controlled step.
+
+I am structuring it as UX-9A + UX-9B + UX-9C + UX-9D in one implementation sequence, because your codebase already contains useful merge-review and similarity pieces in google_layout.py and face_crop_editor.py, so the smartest move is to reuse and centralize them instead of inventing a second parallel system.
+
+UX-9 scope
+
+This pack adds:
+
+better facet generation from current result-set features
+stronger people facet quality
+real merge-suggestion engine beyond tiny heuristics
+unnamed-cluster review workflow
+side-by-side person comparison UI
+audit trail for accept / reject decisions
+
+It does not yet do:
+
+full ML retraining from merge decisions
+permanent rich moderation queue
+cross-project identity graph
+1. Patch ui/search/search_state_store.py
+
+Add these fields to SearchState:
+
+    merge_review_payload: Dict[str, Any] = field(default_factory=dict)
+    unnamed_review_payload: Dict[str, Any] = field(default_factory=dict)
+
+Do not clear them in clear_search().
+
+Only clear query-local state there.
+
+2. Patch ui/search/search_controller.py
+
+Add these methods:
+
+    def set_merge_review_payload(self, payload: dict):
+        self.store.update(merge_review_payload=dict(payload or {}))
+
+    def set_unnamed_review_payload(self, payload: dict):
+        self.store.update(unnamed_review_payload=dict(payload or {}))
+3. Create ui/search/person_comparison_dialog.py
+
+Create this file exactly:
+
+from PySide6.QtCore import Signal, Qt
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QGroupBox, QWidget, QScrollArea
+)
+import os
+import base64
+
+
+class PersonComparisonDialog(QDialog):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Review Possible Merge")
+        self.resize(900, 620)
+
+        self._payload = None
+
+        self.lbl_header = QLabel("Compare these two people clusters")
+        self.lbl_header.setStyleSheet("font-size: 14px; font-weight: bold;")
+
+        self.left_group = QGroupBox("Left Cluster")
+        self.right_group = QGroupBox("Right Cluster")
+
+        self.left_layout = QVBoxLayout(self.left_group)
+        self.right_layout = QVBoxLayout(self.right_group)
+
+        compare_row = QHBoxLayout()
+        compare_row.addWidget(self.left_group, 1)
+        compare_row.addWidget(self.right_group, 1)
+
+        self.lbl_meta = QLabel("")
+        self.lbl_meta.setWordWrap(True)
+
+        self.btn_reject = QPushButton("Not the Same Person")
+        self.btn_accept = QPushButton("Merge These Clusters")
+        self.btn_close = QPushButton("Close")
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(self.btn_reject)
+        btn_row.addWidget(self.btn_accept)
+        btn_row.addWidget(self.btn_close)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.lbl_header)
+        layout.addLayout(compare_row)
+        layout.addWidget(self.lbl_meta)
+        layout.addLayout(btn_row)
+
+        self.btn_accept.clicked.connect(self._accept_merge)
+        self.btn_reject.clicked.connect(self._reject_merge)
+        self.btn_close.clicked.connect(self.close)
+
+    def set_payload(self, payload: dict):
+        self._payload = dict(payload or {})
+
+        self._populate_side(
+            self.left_layout,
+            self._payload.get("left_label", "Left"),
+            self._payload.get("left_count", 0),
+            self._payload.get("left_preview_paths", []),
+            self._payload.get("left_preview_thumbs", []),
+        )
+        self._populate_side(
+            self.right_layout,
+            self._payload.get("right_label", "Right"),
+            self._payload.get("right_count", 0),
+            self._payload.get("right_preview_paths", []),
+            self._payload.get("right_preview_thumbs", []),
+        )
+
+        score = self._payload.get("score")
+        score_txt = f"{score:.3f}" if isinstance(score, (float, int)) else "?"
+        self.lbl_meta.setText(
+            f"Similarity score: {score_txt}\n"
+            f"Reason: {self._payload.get('reason', 'No explanation available')}"
+        )
+
+    def _clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+    def _populate_side(self, layout, label, count, preview_paths, preview_thumbs):
+        self._clear_layout(layout)
+
+        title = QLabel(f"<b>{label}</b><br>{count} photo(s)")
+        title.setTextFormat(Qt.RichText)
+        layout.addWidget(title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(4, 4, 4, 4)
+        row.setSpacing(8)
+
+        paths = list(preview_paths or [])
+        thumbs = list(preview_thumbs or [])
+
+        max_items = max(len(paths), len(thumbs), 0)
+        for i in range(min(max_items, 6)):
+            lbl = QLabel()
+            lbl.setFixedSize(96, 96)
+            pix = self._load_pixmap(
+                thumbs[i] if i < len(thumbs) else None,
+                paths[i] if i < len(paths) else None,
+            )
+            if pix and not pix.isNull():
+                lbl.setPixmap(pix.scaled(96, 96, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
+            lbl.setStyleSheet("border: 1px solid #d0d0d0; background: white;")
+            row.addWidget(lbl)
+
+        row.addStretch()
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+    def _load_pixmap(self, thumb_data, path):
+        try:
+            pix = QPixmap()
+            if thumb_data:
+                data = base64.b64decode(thumb_data) if isinstance(thumb_data, str) else thumb_data
+                pix.loadFromData(data)
+                if not pix.isNull():
+                    return pix
+            if path and os.path.exists(path):
+                pix = QPixmap(path)
+                if not pix.isNull():
+                    return pix
+        except Exception:
+            pass
+        return None
+
+    def _accept_merge(self):
+        if not self._payload:
+            return
+        self.mergeAccepted.emit(str(self._payload.get("left_id")), str(self._payload.get("right_id")))
+        self.accept()
+
+    def _reject_merge(self):
+        if not self._payload:
+            return
+        self.mergeRejected.emit(str(self._payload.get("left_id")), str(self._payload.get("right_id")))
+        self.reject()
+4. Patch ui/accordion_sidebar/people_section.py
+
+Add a realer merge-suggestion engine on top of your current cluster data.
+
+4.1 Add this method
+def get_merge_review_payload(self):
+    """
+    UX-9 merge intelligence payload:
+    returns ranked candidate pairs with previews and reasons.
+    """
+    try:
+        import numpy as np
+        from reference_db import ReferenceDB
+
+        db = ReferenceDB()
+        payload = {"suggestions": []}
+
+        with db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT branch_key, label, count, centroid, rep_path, rep_thumb_png
+                FROM face_branch_reps
+                WHERE project_id = ?
+                  AND centroid IS NOT NULL
+            """, (self.project_id,))
+            rows = cur.fetchall() or []
+
+        clusters = []
+        for row in rows:
+            branch_key, label, count, centroid_blob, rep_path, rep_thumb = row
+            try:
+                centroid = np.frombuffer(centroid_blob, dtype=np.float32)
+                clusters.append({
+                    "id": str(branch_key),
+                    "label": str(label or branch_key),
+                    "count": int(count or 0),
+                    "centroid": centroid,
+                    "rep_path": rep_path,
+                    "rep_thumb": rep_thumb,
+                })
+            except Exception:
+                continue
+
+        suggestions = []
+        seen_pairs = set()
+
+        for i in range(len(clusters)):
+            for j in range(i + 1, len(clusters)):
+                left = clusters[i]
+                right = clusters[j]
+
+                if left["id"] == right["id"]:
+                    continue
+
+                # skip obvious giant-to-giant merges in this first pass
+                if left["count"] > 80 and right["count"] > 80:
+                    continue
+
+                denom = np.linalg.norm(left["centroid"]) * np.linalg.norm(right["centroid"])
+                if denom == 0:
+                    continue
+
+                sim = float(np.dot(left["centroid"], right["centroid"]) / denom)
+
+                # confidence bands
+                if sim < 0.72:
+                    continue
+
+                pair_key = tuple(sorted((left["id"], right["id"])))
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+
+                reason = []
+                if sim >= 0.90:
+                    reason.append("very high centroid similarity")
+                elif sim >= 0.82:
+                    reason.append("high centroid similarity")
+                else:
+                    reason.append("moderate centroid similarity")
+
+                if left["count"] <= 3 or right["count"] <= 3:
+                    reason.append("one cluster is very small")
+
+                suggestions.append({
+                    "left_id": left["id"],
+                    "right_id": right["id"],
+                    "left_label": left["label"],
+                    "right_label": right["label"],
+                    "left_count": left["count"],
+                    "right_count": right["count"],
+                    "left_preview_paths": [left["rep_path"]] if left["rep_path"] else [],
+                    "right_preview_paths": [right["rep_path"]] if right["rep_path"] else [],
+                    "left_preview_thumbs": [left["rep_thumb"]] if left["rep_thumb"] else [],
+                    "right_preview_thumbs": [right["rep_thumb"]] if right["rep_thumb"] else [],
+                    "score": sim,
+                    "reason": ", ".join(reason),
+                })
+
+        suggestions.sort(key=lambda x: x["score"], reverse=True)
+        payload["suggestions"] = suggestions[:20]
+        return payload
+
+    except Exception:
+        return {"suggestions": []}
+4.2 Add unnamed-cluster payload
+def get_unnamed_review_payload(self):
+    """
+    Returns unnamed / generic clusters for review.
+    """
+    try:
+        from reference_db import ReferenceDB
+        db = ReferenceDB()
+
+        with db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT branch_key, label, count, rep_path, rep_thumb_png
+                FROM face_branch_reps
+                WHERE project_id = ?
+                ORDER BY count DESC
+            """, (self.project_id,))
+            rows = cur.fetchall() or []
+
+        items = []
+        for row in rows:
+            branch_key, label, count, rep_path, rep_thumb = row
+            label_str = str(label or branch_key)
+            if label_str.lower().startswith("face_") or "unnamed" in label_str.lower():
+                items.append({
+                    "id": str(branch_key),
+                    "label": label_str,
+                    "count": int(count or 0),
+                    "rep_path": rep_path,
+                    "rep_thumb": rep_thumb,
+                })
+
+        return {"unnamed_items": items[:30]}
+
+    except Exception:
+        return {"unnamed_items": []}
+4.3 Replace accept/reject stubs with audit-trail writes
+def accept_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        from reference_db import ReferenceDB
+        db = ReferenceDB()
+
+        with db._connect() as conn:
+            cur = conn.cursor()
+
+            # pick larger cluster label as target
+            cur.execute("""
+                SELECT branch_key, label, count
+                FROM face_branch_reps
+                WHERE project_id = ? AND branch_key IN (?, ?)
+            """, (self.project_id, left_id, right_id))
+            rows = cur.fetchall() or []
+            if len(rows) < 2:
+                return
+
+            rows = sorted(rows, key=lambda r: int(r[2] or 0), reverse=True)
+            target_branch, target_label, _ = rows[0]
+            source_branch, _, _ = rows[1]
+
+            # audit table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS face_merge_review_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id INTEGER,
+                    left_branch TEXT,
+                    right_branch TEXT,
+                    decision TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            cur.execute("""
+                INSERT INTO face_merge_review_log (project_id, left_branch, right_branch, decision)
+                VALUES (?, ?, ?, ?)
+            """, (self.project_id, left_id, right_id, "accepted"))
+
+            # simple first-pass merge: relabel source to target label
+            cur.execute("""
+                UPDATE face_branch_reps
+                SET label = ?
+                WHERE project_id = ? AND branch_key = ?
+            """, (target_label or target_branch, self.project_id, source_branch))
+
+            cur.execute("""
+                UPDATE branches
+                SET display_name = ?
+                WHERE project_id = ? AND branch_key = ?
+            """, (target_label or target_branch, self.project_id, source_branch))
+
+            conn.commit()
+
+    except Exception:
+        pass
+
+
+def reject_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        from reference_db import ReferenceDB
+        db = ReferenceDB()
+
+        with db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS face_merge_review_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id INTEGER,
+                    left_branch TEXT,
+                    right_branch TEXT,
+                    decision TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                INSERT INTO face_merge_review_log (project_id, left_branch, right_branch, decision)
+                VALUES (?, ?, ?, ?)
+            """, (self.project_id, left_id, right_id, "rejected"))
+            conn.commit()
+
+    except Exception:
+        pass
+5. Patch main_window_qt.py
+5.1 Add merge review refresh adapter
+
+Replace _refresh_people_quick_section() with this fuller version:
+
+def _refresh_people_quick_section(self):
+    """
+    UX-9 bridge: populate PeopleQuickSection, merge review payload,
+    and unnamed review payload from existing people backend.
+    """
+    try:
+        payload = {
+            "top_people": [],
+            "merge_candidates": 0,
+            "unnamed_count": 0,
+        }
+        merge_payload = {"suggestions": []}
+        unnamed_payload = {"unnamed_items": []}
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section:
+                if hasattr(people_section, "get_people_quick_payload"):
+                    payload = dict(people_section.get_people_quick_payload() or payload)
+                if hasattr(people_section, "get_merge_review_payload"):
+                    merge_payload = dict(people_section.get_merge_review_payload() or merge_payload)
+                if hasattr(people_section, "get_unnamed_review_payload"):
+                    unnamed_payload = dict(people_section.get_unnamed_review_payload() or unnamed_payload)
+
+        if not payload.get("top_people") and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section:
+                    if hasattr(people_section, "get_people_quick_payload"):
+                        payload = dict(people_section.get_people_quick_payload() or payload)
+                    if hasattr(people_section, "get_merge_review_payload"):
+                        merge_payload = dict(people_section.get_merge_review_payload() or merge_payload)
+                    if hasattr(people_section, "get_unnamed_review_payload"):
+                        unnamed_payload = dict(people_section.get_unnamed_review_payload() or unnamed_payload)
+
+        payload["merge_candidates"] = len(merge_payload.get("suggestions", []))
+        payload["unnamed_count"] = len(unnamed_payload.get("unnamed_items", []))
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.set_people_quick_payload(payload)
+            self.search_controller.set_merge_review_payload(merge_payload)
+            self.search_controller.set_unnamed_review_payload(unnamed_payload)
+
+    except Exception as e:
+        print(f"[UX-9] Error refreshing people quick section: {e}")
+5.2 Add unnamed review dialog
+
+Add this method:
+
+def _open_unnamed_people_review(self):
+    try:
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QListWidget, QListWidgetItem, QLabel, QDialogButtonBox
+
+        state = self.search_state_store.get_state()
+        items = list(getattr(state, "unnamed_review_payload", {}).get("unnamed_items", []) or [])
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Unnamed Clusters")
+        dlg.resize(480, 500)
+
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(QLabel("Unnamed or generic clusters that may need naming or review."))
+
+        lw = QListWidget()
+        for item in items:
+            lw.addItem(QListWidgetItem(f"{item.get('label')} ({item.get('count', 0)})"))
+        layout.addWidget(lw)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(dlg.reject)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(dlg.close)
+        layout.addWidget(buttons)
+
+        dlg.exec()
+
+    except Exception as e:
+        print(f"[UX-9] Failed to open unnamed review dialog: {e}")
+5.3 Replace _open_people_merge_review()
+
+Replace it with:
+
+def _open_people_merge_review(self):
+    try:
+        from ui.search.person_comparison_dialog import PersonComparisonDialog
+
+        state = self.search_state_store.get_state()
+        payload = dict(getattr(state, "merge_review_payload", {}) or {})
+        suggestions = list(payload.get("suggestions", []) or [])
+
+        if not suggestions:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(self, "No Suggestions", "No merge suggestions are available right now.")
+            return
+
+        self._merge_review_index = 0
+        self._merge_review_suggestions = suggestions
+
+        self._show_next_merge_review_dialog()
+
+    except Exception as e:
+        print(f"[UX-9] Failed to open merge review dialog: {e}")
+5.4 Add helper _show_next_merge_review_dialog()
+def _show_next_merge_review_dialog(self):
+    try:
+        from ui.search.person_comparison_dialog import PersonComparisonDialog
+
+        suggestions = list(getattr(self, "_merge_review_suggestions", []) or [])
+        idx = int(getattr(self, "_merge_review_index", 0))
+
+        if idx >= len(suggestions):
+            return
+
+        payload = suggestions[idx]
+
+        dlg = PersonComparisonDialog(self)
+        dlg.set_payload(payload)
+        dlg.mergeAccepted.connect(self._accept_people_merge_suggestion)
+        dlg.mergeRejected.connect(self._reject_people_merge_suggestion)
+        dlg.exec()
+
+    except Exception as e:
+        print(f"[UX-9] Failed to show merge review step: {e}")
+5.5 Update accept/reject handlers to advance queue
+
+Replace the two methods with:
+
+def _accept_people_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        handled = False
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section and hasattr(people_section, "accept_merge_suggestion"):
+                people_section.accept_merge_suggestion(left_id, right_id)
+                handled = True
+
+        if not handled and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section and hasattr(people_section, "accept_merge_suggestion"):
+                    people_section.accept_merge_suggestion(left_id, right_id)
+                    handled = True
+
+        self._merge_review_index = int(getattr(self, "_merge_review_index", 0)) + 1
+        self._refresh_people_quick_section()
+        self._show_next_merge_review_dialog()
+
+    except Exception as e:
+        print(f"[UX-9] Failed to accept merge suggestion: {e}")
+
+
+def _reject_people_merge_suggestion(self, left_id: str, right_id: str):
+    try:
+        handled = False
+
+        if hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+            people_section = self.sidebar.accordion.section_logic.get("people")
+            if people_section and hasattr(people_section, "reject_merge_suggestion"):
+                people_section.reject_merge_suggestion(left_id, right_id)
+                handled = True
+
+        if not handled and hasattr(self, "layout_manager"):
+            layout = self.layout_manager.get_current_layout()
+            if layout and hasattr(layout, "accordion_sidebar"):
+                people_section = layout.accordion_sidebar.section_logic.get("people")
+                if people_section and hasattr(people_section, "reject_merge_suggestion"):
+                    people_section.reject_merge_suggestion(left_id, right_id)
+                    handled = True
+
+        self._merge_review_index = int(getattr(self, "_merge_review_index", 0)) + 1
+        self._refresh_people_quick_section()
+        self._show_next_merge_review_dialog()
+
+    except Exception as e:
+        print(f"[UX-9] Failed to reject merge suggestion: {e}")
+5.6 Extend _handle_search_sidebar_branch_request()
+
+Add this branch:
+
+    if branch == "people_unnamed":
+        self._open_unnamed_people_review()
+        return
+
+Keep people_merge_review branch as-is.
+
+6. Patch ui/search/sections/people_quick_section.py
+
+No structural rewrite needed if you already have:
+
+top people
+merge review button
+unnamed clusters button
+
+Just make the button labels richer.
+
+Replace in set_people():
+
+        self.btn_merge_review.setText(f"Review Possible Merges ({merge_candidates})")
+        self.btn_unnamed.setText(f"Show Unnamed Clusters ({unnamed_count})")
+
+with:
+
+        self.btn_merge_review.setText(f"Review Possible Merges ({merge_candidates})")
+        self.btn_unnamed.setText(f"Review Unnamed Clusters ({unnamed_count})")
+
+Small, but clearer.
+
+7. Patch ui/search/search_state_store.py
+
+If not already present from earlier steps, add:
+
+    merge_review_payload: Dict[str, Any] = field(default_factory=dict)
+    unnamed_review_payload: Dict[str, Any] = field(default_factory=dict)
+
+Again, do not clear them in clear_search().
+
+8. Patch ui/search/search_controller.py
+
+If not already present, add:
+
+    def set_merge_review_payload(self, payload: dict):
+        self.store.update(merge_review_payload=dict(payload or {}))
+
+    def set_unnamed_review_payload(self, payload: dict):
+        self.store.update(unnamed_review_payload=dict(payload or {}))
+9. Facet quality engine, first real step
+
+This is UX-9D, but should be started now because it is small and high-value.
+
+Patch ui/search/search_controller.py so facet visibility is more people-aware.
+
+Replace _compute_visible_facet_keys() with:
+    def _compute_visible_facet_keys(self):
+        state = self.store.get_state()
+        family = self._infer_family()
+
+        if state.browse_mode == "favorites":
+            return ["year", "location", "type"]
+
+        if state.browse_mode == "videos":
+            return ["year", "location"]
+
+        if state.browse_mode == "with_location":
+            return ["location", "year", "type"]
+
+        if family == "people":
+            # stronger people-first emphasis
+            return ["people", "year", "location", "type"]
+
+        if family == "type":
+            return ["type", "year", "location"]
+
+        if family == "scenic":
+            return ["location", "year", "type"]
+
+        return ["people", "location", "year", "type"]
+
+This keeps the shell stable while prioritizing the relevant facets.
+
+10. Why this is the right UX-9 patch
+
+Because your codebase already has:
+
+centroid-based similarity logic in people-related areas,
+merge suggestion dialogs in older Google layout code that prove the interaction pattern is already accepted by your app,
+and face-similarity review logic in face_crop_editor.py, which confirms side-by-side person review is already a natural pattern for this product.
+
+So UX-9 should centralize and refine that intelligence, not invent a completely different review philosophy.
+
+11. What comes after UX-9
+
+After this, the next phase should be:
+
+UX-10, result-pane visual polish
+
+That should include:
+
+skeleton loading
+smoother result transitions
+clearer empty/no-result transitions
+maybe lightweight in-pane “why these results” badges per group
+
+By then the shell and the people workflows will be strong enough that visual polish becomes worth the effort.
+
+Bottom line
+
+Proceed with this exact UX-9 patch pack now.
+
+It gives you:
+
+a real merge-review engine,
+side-by-side person comparison,
+unnamed-cluster review,
+audit trail for accept/reject decisions,
+and stronger people-aware facet logic,
+
+which is exactly the next place where product value rises sharply

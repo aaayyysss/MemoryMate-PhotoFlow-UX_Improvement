@@ -1,0 +1,692 @@
+Below is the UX-9A exact patch pack, focused on the real leap:
+
+UX-9A scope
+merge engine
+scoring
+DB schema
+accepted / rejected merge decisions
+unnamed-cluster candidate handling hook
+backend bridge for the existing People review UI
+
+This phase does not yet do:
+
+side-by-side face preview UI, that is UX-9B
+final unnamed-cluster workflow UI, that is UX-9C
+facet quality engine, that is UX-9D
+1. New DB schema
+
+You need persistent memory for:
+
+accepted merges
+rejected merges
+candidate cache
+cluster summary metadata
+Patch repository/schema.py
+
+Add these tables to your schema / migration block:
+
+MERGE_ENGINE_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS people_merge_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    left_person_id TEXT NOT NULL,
+    right_person_id TEXT NOT NULL,
+    decision TEXT NOT NULL CHECK(decision IN ('accept', 'reject')),
+    score REAL,
+    reason TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, left_person_id, right_person_id, decision)
+);
+
+CREATE TABLE IF NOT EXISTS people_merge_candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    left_person_id TEXT NOT NULL,
+    right_person_id TEXT NOT NULL,
+    score REAL NOT NULL,
+    evidence_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, left_person_id, right_person_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_people_merge_candidates_project
+ON people_merge_candidates(project_id, score DESC);
+
+CREATE INDEX IF NOT EXISTS idx_people_merge_decisions_project
+ON people_merge_decisions(project_id, decision);
+
+CREATE TABLE IF NOT EXISTS people_cluster_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    person_id TEXT NOT NULL,
+    label TEXT,
+    face_count INTEGER DEFAULT 0,
+    representative_face_path TEXT,
+    avg_embedding BLOB,
+    is_unnamed INTEGER DEFAULT 0,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, person_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_people_cluster_summary_project
+ON people_cluster_summary(project_id, face_count DESC);
+"""
+
+If your schema system uses a SCHEMA_VERSION, increment it by one.
+
+Then ensure this SQL is executed in your schema bootstrap / migration path.
+
+2. New file services/people_merge_engine.py
+
+Create this file exactly:
+
+import json
+import math
+import sqlite3
+from typing import List, Dict, Any, Optional
+
+
+def _cosine_similarity(vec_a, vec_b) -> float:
+    if not vec_a or not vec_b:
+        return 0.0
+
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    na = math.sqrt(sum(a * a for a in vec_a))
+    nb = math.sqrt(sum(b * b for b in vec_b))
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / (na * nb)
+
+
+class PeopleMergeEngine:
+    """
+    UX-9A merge engine:
+    - builds cluster summaries
+    - scores merge candidates
+    - stores accept/reject decisions
+    - excludes already-rejected pairs
+    """
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def list_merge_suggestions(self, project_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+        summaries = self._load_cluster_summaries(project_id)
+        rejected = self._load_rejected_pairs(project_id)
+
+        suggestions: List[Dict[str, Any]] = []
+        n = len(summaries)
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                left = summaries[i]
+                right = summaries[j]
+
+                pair_key = self._normalize_pair(left["person_id"], right["person_id"])
+                if pair_key in rejected:
+                    continue
+
+                score, evidence = self._score_pair(left, right)
+                if score < 0.62:
+                    continue
+
+                suggestions.append({
+                    "left_id": left["person_id"],
+                    "right_id": right["person_id"],
+                    "left_label": left["label"],
+                    "right_label": right["label"],
+                    "score": score,
+                    "label": f'{left["label"]} ↔ {right["label"]} (score={score:.2f})',
+                    "evidence": evidence,
+                })
+
+        suggestions.sort(key=lambda x: x["score"], reverse=True)
+        return suggestions[:limit]
+
+    def accept_merge(self, project_id: int, left_person_id: str, right_person_id: str, score: Optional[float] = None, reason: str = ""):
+        left_person_id, right_person_id = self._normalize_pair(left_person_id, right_person_id)
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT OR IGNORE INTO people_merge_decisions
+                (project_id, left_person_id, right_person_id, decision, score, reason)
+                VALUES (?, ?, ?, 'accept', ?, ?)
+                """,
+                (project_id, left_person_id, right_person_id, score, reason),
+            )
+
+    def reject_merge(self, project_id: int, left_person_id: str, right_person_id: str, score: Optional[float] = None, reason: str = ""):
+        left_person_id, right_person_id = self._normalize_pair(left_person_id, right_person_id)
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT OR IGNORE INTO people_merge_decisions
+                (project_id, left_person_id, right_person_id, decision, score, reason)
+                VALUES (?, ?, ?, 'reject', ?, ?)
+                """,
+                (project_id, left_person_id, right_person_id, score, reason),
+            )
+
+    def cache_candidates(self, project_id: int, suggestions: List[Dict[str, Any]]):
+        with self.conn:
+            self.conn.execute("DELETE FROM people_merge_candidates WHERE project_id = ?", (project_id,))
+            for s in suggestions:
+                left_id, right_id = self._normalize_pair(s["left_id"], s["right_id"])
+                self.conn.execute(
+                    """
+                    INSERT OR REPLACE INTO people_merge_candidates
+                    (project_id, left_person_id, right_person_id, score, evidence_json)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        project_id,
+                        left_id,
+                        right_id,
+                        float(s.get("score", 0.0)),
+                        json.dumps(s.get("evidence", {}), ensure_ascii=False),
+                    ),
+                )
+
+    def rebuild_cluster_summaries(self, project_id: int, cluster_rows: List[Dict[str, Any]]):
+        with self.conn:
+            self.conn.execute("DELETE FROM people_cluster_summary WHERE project_id = ?", (project_id,))
+            for row in cluster_rows:
+                self.conn.execute(
+                    """
+                    INSERT INTO people_cluster_summary
+                    (project_id, person_id, label, face_count, representative_face_path, avg_embedding, is_unnamed)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        project_id,
+                        str(row["person_id"]),
+                        str(row.get("label") or row["person_id"]),
+                        int(row.get("face_count", 0)),
+                        row.get("representative_face_path"),
+                        row.get("avg_embedding_blob"),
+                        1 if row.get("is_unnamed") else 0,
+                    ),
+                )
+
+    def _load_cluster_summaries(self, project_id: int) -> List[Dict[str, Any]]:
+        cur = self.conn.execute(
+            """
+            SELECT person_id, label, face_count, representative_face_path, avg_embedding, is_unnamed
+            FROM people_cluster_summary
+            WHERE project_id = ?
+            ORDER BY face_count DESC
+            """,
+            (project_id,),
+        )
+        rows = []
+        for person_id, label, face_count, rep_path, emb_blob, is_unnamed in cur.fetchall():
+            rows.append({
+                "person_id": str(person_id),
+                "label": str(label or person_id),
+                "face_count": int(face_count or 0),
+                "representative_face_path": rep_path,
+                "avg_embedding": self._decode_embedding_blob(emb_blob),
+                "is_unnamed": bool(is_unnamed),
+            })
+        return rows
+
+    def _load_rejected_pairs(self, project_id: int):
+        cur = self.conn.execute(
+            """
+            SELECT left_person_id, right_person_id
+            FROM people_merge_decisions
+            WHERE project_id = ? AND decision = 'reject'
+            """,
+            (project_id,),
+        )
+        return {self._normalize_pair(a, b) for a, b in cur.fetchall()}
+
+    def _score_pair(self, left: Dict[str, Any], right: Dict[str, Any]):
+        emb_score = _cosine_similarity(left.get("avg_embedding"), right.get("avg_embedding"))
+
+        size_balance = min(left["face_count"], right["face_count"]) / max(1, max(left["face_count"], right["face_count"]))
+        unnamed_bonus = 0.05 if (left.get("is_unnamed") or right.get("is_unnamed")) else 0.0
+
+        score = (emb_score * 0.78) + (size_balance * 0.17) + unnamed_bonus
+
+        evidence = {
+            "embedding_similarity": round(emb_score, 4),
+            "size_balance": round(size_balance, 4),
+            "unnamed_bonus": unnamed_bonus,
+        }
+        return score, evidence
+
+    def _decode_embedding_blob(self, blob):
+        if not blob:
+            return []
+        try:
+            import pickle
+            vec = pickle.loads(blob)
+            return [float(x) for x in vec]
+        except Exception:
+            return []
+
+    def _normalize_pair(self, left_id: str, right_id: str):
+        a, b = sorted([str(left_id), str(right_id)])
+        return a, b
+3. Patch reference_db.py
+
+Add helper methods so the merge engine can be used without changing the whole repo layer.
+
+Add imports near top:
+import pickle
+from services.people_merge_engine import PeopleMergeEngine
+Add these methods inside ReferenceDB:
+    def get_people_merge_engine(self):
+        return PeopleMergeEngine(self.conn)
+
+    def get_cluster_summary_rows_for_merge_engine(self, project_id: int):
+        """
+        Adapter from existing people/cluster storage into people_cluster_summary rebuild input.
+        Adjust the SQL if your actual person/face tables differ.
+        """
+        cur = self.conn.execute(
+            """
+            SELECT
+                person_id,
+                COALESCE(label, person_id) AS label,
+                COUNT(*) AS face_count,
+                MIN(image_path) AS representative_face_path,
+                AVG(0) AS dummy_avg,
+                CASE
+                    WHEN lower(COALESCE(label, person_id)) LIKE 'face_%' THEN 1
+                    ELSE 0
+                END AS is_unnamed
+            FROM faces
+            WHERE project_id = ? AND person_id IS NOT NULL
+            GROUP BY person_id, COALESCE(label, person_id)
+            ORDER BY face_count DESC
+            """,
+            (project_id,),
+        )
+
+        rows = []
+        for person_id, label, face_count, rep_path, _dummy, is_unnamed in cur.fetchall():
+            avg_embedding_blob = self._compute_avg_embedding_blob_for_person(project_id, str(person_id))
+            rows.append({
+                "person_id": str(person_id),
+                "label": str(label or person_id),
+                "face_count": int(face_count or 0),
+                "representative_face_path": rep_path,
+                "avg_embedding_blob": avg_embedding_blob,
+                "is_unnamed": bool(is_unnamed),
+            })
+        return rows
+
+    def _compute_avg_embedding_blob_for_person(self, project_id: int, person_id: str):
+        cur = self.conn.execute(
+            """
+            SELECT embedding
+            FROM faces
+            WHERE project_id = ? AND person_id = ? AND embedding IS NOT NULL
+            """,
+            (project_id, person_id),
+        )
+
+        vectors = []
+        for (blob,) in cur.fetchall():
+            try:
+                vec = pickle.loads(blob)
+                vec = [float(x) for x in vec]
+                if vec:
+                    vectors.append(vec)
+            except Exception:
+                continue
+
+        if not vectors:
+            return None
+
+        dims = len(vectors[0])
+        avg = [0.0] * dims
+        for vec in vectors:
+            if len(vec) != dims:
+                continue
+            for i, value in enumerate(vec):
+                avg[i] += value
+
+        n = max(1, len(vectors))
+        avg = [x / n for x in avg]
+        return pickle.dumps(avg)
+
+    def rebuild_people_merge_summaries(self, project_id: int):
+        engine = self.get_people_merge_engine()
+        rows = self.get_cluster_summary_rows_for_merge_engine(project_id)
+        engine.rebuild_cluster_summaries(project_id, rows)
+
+    def list_people_merge_suggestions(self, project_id: int, limit: int = 20):
+        engine = self.get_people_merge_engine()
+        suggestions = engine.list_merge_suggestions(project_id, limit=limit)
+        engine.cache_candidates(project_id, suggestions)
+        return suggestions
+
+    def accept_people_merge_suggestion(self, project_id: int, left_id: str, right_id: str, score=None, reason=""):
+        engine = self.get_people_merge_engine()
+        engine.accept_merge(project_id, left_id, right_id, score=score, reason=reason)
+
+    def reject_people_merge_suggestion(self, project_id: int, left_id: str, right_id: str, score=None, reason=""):
+        engine = self.get_people_merge_engine()
+        engine.reject_merge(project_id, left_id, right_id, score=score, reason=reason)
+Important
+
+If your face table is not called faces, adapt only those SQL queries.
+Everything else can remain.
+
+4. Patch ui/accordion_sidebar/people_section.py
+
+Replace the current heuristic merge methods with DB-backed versions.
+
+Replace get_merge_suggestions() with:
+def get_merge_suggestions(self):
+    try:
+        db = getattr(self, "reference_db", None) or getattr(self, "db", None)
+        project_id = getattr(self, "project_id", None)
+
+        if db is None or project_id is None:
+            return []
+
+        if hasattr(db, "rebuild_people_merge_summaries"):
+            db.rebuild_people_merge_summaries(project_id)
+
+        if hasattr(db, "list_people_merge_suggestions"):
+            return db.list_people_merge_suggestions(project_id, limit=20)
+
+        return []
+
+    except Exception:
+        return []
+Replace accept_merge_suggestion() with:
+def accept_merge_suggestion(self, left_id: str, right_id: str):
+    db = getattr(self, "reference_db", None) or getattr(self, "db", None)
+    project_id = getattr(self, "project_id", None)
+
+    if db is None or project_id is None:
+        return
+
+    if hasattr(db, "accept_people_merge_suggestion"):
+        db.accept_people_merge_suggestion(project_id, left_id, right_id, reason="ui_accept")
+Replace reject_merge_suggestion() with:
+def reject_merge_suggestion(self, left_id: str, right_id: str):
+    db = getattr(self, "reference_db", None) or getattr(self, "db", None)
+    project_id = getattr(self, "project_id", None)
+
+    if db is None or project_id is None:
+        return
+
+    if hasattr(db, "reject_people_merge_suggestion"):
+        db.reject_people_merge_suggestion(project_id, left_id, right_id, reason="ui_reject")
+5. Replace ui/search/people_merge_suggestions_panel.py
+
+Upgrade it from simple list to side-by-side review scaffold.
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QPushButton, QHBoxLayout, QDialog, QDialogButtonBox, QFrame
+)
+
+
+class _PersonSideCard(QFrame):
+    def __init__(self, title="", subtitle="", parent=None):
+        super().__init__(parent)
+        self.lbl_title = QLabel(title)
+        self.lbl_subtitle = QLabel(subtitle)
+        self.lbl_subtitle.setWordWrap(True)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.lbl_subtitle)
+
+    def set_content(self, title: str, subtitle: str):
+        self.lbl_title.setText(title)
+        self.lbl_subtitle.setText(subtitle)
+
+
+class PeopleMergeSuggestionsPanel(QWidget):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lbl_title = QLabel("Possible People Merges")
+        self.list_widget = QListWidget()
+
+        self.left_card = _PersonSideCard("Left cluster", "")
+        self.right_card = _PersonSideCard("Right cluster", "")
+
+        compare_row = QHBoxLayout()
+        compare_row.addWidget(self.left_card)
+        compare_row.addWidget(self.right_card)
+
+        self.lbl_evidence = QLabel("")
+        self.lbl_evidence.setWordWrap(True)
+
+        self.btn_accept = QPushButton("Merge Selected")
+        self.btn_reject = QPushButton("Reject Selected")
+
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.btn_accept)
+        btn_row.addWidget(self.btn_reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.list_widget)
+        layout.addLayout(compare_row)
+        layout.addWidget(self.lbl_evidence)
+        layout.addLayout(btn_row)
+
+        self._items = []
+
+        self.btn_accept.clicked.connect(self._accept_selected)
+        self.btn_reject.clicked.connect(self._reject_selected)
+        self.list_widget.currentRowChanged.connect(self._refresh_detail)
+
+    def set_suggestions(self, suggestions):
+        self._items = list(suggestions or [])
+        self.list_widget.clear()
+
+        for item in self._items:
+            left_id = str(item.get("left_id", ""))
+            right_id = str(item.get("right_id", ""))
+            score = item.get("score")
+            score_txt = f"{score:.2f}" if isinstance(score, (float, int)) else "?"
+            title = item.get("label") or f"{left_id} ↔ {right_id}  (score={score_txt})"
+
+            list_item = QListWidgetItem(title)
+            list_item.setData(256, (left_id, right_id))
+            self.list_widget.addItem(list_item)
+
+        if self.list_widget.count() > 0:
+            self.list_widget.setCurrentRow(0)
+        else:
+            self.left_card.set_content("Left cluster", "")
+            self.right_card.set_content("Right cluster", "")
+            self.lbl_evidence.setText("")
+
+    def _refresh_detail(self, row: int):
+        if row < 0 or row >= len(self._items):
+            return
+
+        item = self._items[row]
+        left_label = item.get("left_label") or item.get("left_id", "")
+        right_label = item.get("right_label") or item.get("right_id", "")
+
+        evidence = item.get("evidence", {}) or {}
+        evidence_lines = [
+            f'Embedding similarity: {evidence.get("embedding_similarity", "?")}',
+            f'Size balance: {evidence.get("size_balance", "?")}',
+            f'Unnamed bonus: {evidence.get("unnamed_bonus", "?")}',
+        ]
+
+        self.left_card.set_content(str(left_label), f'ID: {item.get("left_id", "")}')
+        self.right_card.set_content(str(right_label), f'ID: {item.get("right_id", "")}')
+        self.lbl_evidence.setText("\n".join(evidence_lines))
+
+    def _accept_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        left_id, right_id = item.data(256)
+        self.mergeAccepted.emit(left_id, right_id)
+
+    def _reject_selected(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            return
+        left_id, right_id = item.data(256)
+        self.mergeRejected.emit(left_id, right_id)
+
+
+class PeopleMergeSuggestionsDialog(QDialog):
+    mergeAccepted = Signal(str, str)
+    mergeRejected = Signal(str, str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("People Merge Review")
+        self.resize(720, 520)
+
+        self.panel = PeopleMergeSuggestionsPanel(self)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(self.close)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.panel)
+        layout.addWidget(buttons)
+
+        self.panel.mergeAccepted.connect(self.mergeAccepted.emit)
+        self.panel.mergeRejected.connect(self.mergeRejected.emit)
+
+    def set_suggestions(self, suggestions):
+        self.panel.set_suggestions(suggestions)
+6. Patch main_window_qt.py
+
+Keep the UX-8A bridge, but now DB-backed suggestions will flow through it.
+
+In _refresh_people_quick_section(), keep:
+get_people_quick_payload()
+get_merge_suggestions()
+
+No further major rewrite needed.
+
+In _accept_people_merge_suggestion() and _reject_people_merge_suggestion()
+
+keep the same logic, because people_section.py now writes to DB.
+
+After either action, keep:
+
+self._refresh_people_quick_section()
+7. Patch ui/search/sections/filter_section.py
+
+This is the first facet-quality improvement. Make people facet stronger and stable.
+
+Replace the first facet block inside set_facets():
+        if "people" in visible_keys:
+            has_any |= self._add_facet_row("people", "People", facets.get("people", []), active_filters)
+
+with:
+
+        if "people" in visible_keys:
+            people_items = facets.get("people", [])
+            people_items = sorted(
+                list(people_items),
+                key=lambda x: x.get("count", 0) if isinstance(x, dict) else 0,
+                reverse=True
+            )[:8]
+            has_any |= self._add_facet_row("people", "People", people_items, active_filters)
+
+This is a small but important improvement.
+
+8. Patch ui/search/search_controller.py
+
+Strengthen facet quality by normalizing people filters and result facets.
+
+Add helper:
+    def _normalize_result_facets(self, facets: dict):
+        facets = dict(facets or {})
+
+        people_items = list(facets.get("people", []) or [])
+        people_items = sorted(
+            people_items,
+            key=lambda x: x.get("count", 0) if isinstance(x, dict) else 0,
+            reverse=True
+        )
+        facets["people"] = people_items[:8]
+
+        return facets
+Then in apply_result_summary(), replace:
+            result_facets=result_facets or {},
+
+with:
+
+            result_facets=self._normalize_result_facets(result_facets or {}),
+9. Patch ui/search/search_state_store.py
+
+For unnamed workflow support, add:
+
+    unnamed_cluster_items: List[Dict[str, Any]] = field(default_factory=list)
+
+Do not wire the full UI yet. This prepares UX-9C.
+
+10. What UX-9A gives you
+
+After this patch:
+
+merge candidates are no longer pure placeholder heuristics,
+accepted / rejected decisions persist,
+rejected pairs stop reappearing,
+merge review dialog becomes side-by-side enough to be useful,
+people facet quality improves,
+unnamed workflow is prepared.
+
+That is the first real intelligence jump.
+
+11. UX-10 and UX-11 roadmap
+UX-10, unnamed-cluster review workflow
+
+Build:
+
+ui/search/unnamed_cluster_review_panel.py
+list unnamed clusters
+assign to existing identity
+mark as distinct person
+ignore low-quality cluster
+write decisions to DB
+
+This completes the “People correction” loop.
+
+UX-11, facet intelligence and ranking trust
+
+Build:
+
+orchestrator-backed facet generation
+project/result-set facet mode toggle if needed
+family-aware facet suppression
+better people/location co-filtering
+ranking explanation hints
+“why this result” per group or per card
+
+That is the stage where search starts to feel expert-grade.
+
+Bottom line
+
+This UX-9A exact patch pack is the right next leap:
+
+merge engine
+scoring
+DB schema
+review dialog upgrade
+stronger people facet quality
+
+After this, the correct next order is:
+
+UX-10, unnamed-cluster review
+UX-11, facet intelligence and ranking trust

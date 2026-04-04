@@ -1,0 +1,515 @@
+The latest run is stable enough to proceed.
+
+The log shows the app starts cleanly in onboarding mode, suppresses the heavy initial project-bound load, switches to project `1` successfully, scans 25 photos without failures, completes embeddings, duplicates, similar-shot generation, and refreshes the sidebar/location/date structures correctly. It also survives switching between Google and Current layouts without crashing. That is a good enough stability baseline for the next UX layer. 
+
+One important caveat remains: after switching back to Current layout, the sidebar and grid still briefly reload with `project_id=None` before the project-aware state settles, and the grid aborts reload in that state. That is not a blocker for UX-6, but it is still a state propagation rough edge you should keep in mind while wiring the next sections. 
+
+Also, the runtime still uses the existing post-scan pipeline and current layout reload flow to refresh media, duplicates, embeddings, and location/date branches. That is actually fine for UX-6 because Browse and Activity can sit on top of this existing pipeline without rewriting it. 
+
+## Recommendation
+
+Proceed now with **UX-6**, but implement it in the order that best fits the current architecture:
+
+1. `BrowseSection`
+2. `ActivityMiniSection`
+
+The “People merge review” part you quoted earlier should remain a later refinement of the People stack, not part of this next pack.
+
+---
+
+# UX-6 exact implementation pack
+
+This pack adds:
+
+* `BrowseSection`
+* `ActivityMiniSection`
+* state plumbing for browse mode and activity snapshot
+* `SearchSidebar` integration
+* `MainWindow` bridge wiring
+
+It does **not** yet implement:
+
+* merge review UI
+* people merge suggestions panel
+* deep ActivityCenter refactor
+
+---
+
+# 1. Create `ui/search/sections/browse_section.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton
+
+
+class BrowseSection(QGroupBox):
+    browseNodeSelected = Signal(str, object)
+
+    def __init__(self, parent=None):
+        super().__init__("Browse", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(6)
+
+        self.btn_all = QPushButton("All Photos")
+        self.btn_favorites = QPushButton("Favorites")
+        self.btn_videos = QPushButton("Videos")
+        self.btn_location = QPushButton("With Location")
+        self.btn_albums = QPushButton("Albums")
+        self.btn_folders = QPushButton("Folders")
+        self.btn_dates = QPushButton("Dates")
+
+        self.layout.addWidget(self.btn_all)
+        self.layout.addWidget(self.btn_favorites)
+        self.layout.addWidget(self.btn_videos)
+        self.layout.addWidget(self.btn_location)
+        self.layout.addWidget(self.btn_albums)
+        self.layout.addWidget(self.btn_folders)
+        self.layout.addWidget(self.btn_dates)
+        self.layout.addStretch(1)
+
+        self.btn_all.clicked.connect(lambda: self.browseNodeSelected.emit("all_photos", None))
+        self.btn_favorites.clicked.connect(lambda: self.browseNodeSelected.emit("favorites", True))
+        self.btn_videos.clicked.connect(lambda: self.browseNodeSelected.emit("videos", True))
+        self.btn_location.clicked.connect(lambda: self.browseNodeSelected.emit("with_location", True))
+        self.btn_albums.clicked.connect(lambda: self.browseNodeSelected.emit("albums", None))
+        self.btn_folders.clicked.connect(lambda: self.browseNodeSelected.emit("folders", None))
+        self.btn_dates.clicked.connect(lambda: self.browseNodeSelected.emit("dates", None))
+
+    def set_enabled_for_project(self, enabled: bool):
+        self.setEnabled(enabled)
+
+    def set_active_mode(self, browse_key: str | None):
+        mapping = {
+            "all_photos": self.btn_all,
+            "favorites": self.btn_favorites,
+            "videos": self.btn_videos,
+            "with_location": self.btn_location,
+            "albums": self.btn_albums,
+            "folders": self.btn_folders,
+            "dates": self.btn_dates,
+        }
+
+        for key, btn in mapping.items():
+            if key == browse_key:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: #d2e3fc;
+                        border: 1px solid #8ab4f8;
+                        border-radius: 6px;
+                        padding: 6px 10px;
+                        font-weight: 600;
+                    }
+                """)
+            else:
+                btn.setStyleSheet("")
+```
+
+---
+
+# 2. Create `ui/search/sections/activity_mini_section.py`
+
+Create this file exactly:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QLabel, QProgressBar, QPushButton
+
+
+class ActivityMiniSection(QGroupBox):
+    openActivityCenterRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__("Activity", parent)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(6)
+
+        self.lbl_job = QLabel("No active background tasks")
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.progress.setVisible(False)
+
+        self.btn_open = QPushButton("Open Activity Center")
+        self.btn_open.clicked.connect(self.openActivityCenterRequested.emit)
+
+        self.layout.addWidget(self.lbl_job)
+        self.layout.addWidget(self.progress)
+        self.layout.addWidget(self.btn_open)
+
+        self.setVisible(True)
+
+    def set_activity(self, activity: dict | None):
+        activity = activity or {}
+
+        label = activity.get("label") or "No active background tasks"
+        percent = activity.get("progress")
+
+        self.lbl_job.setText(str(label))
+
+        if percent is None:
+            self.progress.setVisible(False)
+        else:
+            self.progress.setVisible(True)
+            self.progress.setValue(max(0, min(100, int(percent))))
+```
+
+---
+
+# 3. Patch `ui/search/search_state_store.py`
+
+Add these fields to `SearchState`:
+
+```python
+    browse_mode: str | None = None
+    activity_snapshot: Dict[str, Any] = field(default_factory=dict)
+```
+
+And in `clear_search()` add:
+
+```python
+        self._state.browse_mode = None
+```
+
+Do **not** clear `activity_snapshot` there.
+
+---
+
+# 4. Patch `ui/search/search_controller.py`
+
+Add browse-mode and activity helpers.
+
+## 4.1 Add `apply_browse_mode`
+
+Add this method:
+
+```python
+    def apply_browse_mode(self, browse_key: str, value):
+        state = self.store.get_state()
+
+        new_filters = dict(state.active_filters or {})
+        chips = [chip for chip in state.active_chips if chip.get("kind") not in {"browse", "preset"}]
+
+        preset_id = None
+
+        if browse_key == "all_photos":
+            new_filters.pop("favorites_only", None)
+            new_filters.pop("media_type", None)
+            new_filters.pop("with_location", None)
+
+        elif browse_key == "favorites":
+            new_filters["favorites_only"] = True
+            chips.append({
+                "kind": "browse",
+                "label": "Favorites",
+                "value": "favorites",
+            })
+
+        elif browse_key == "videos":
+            new_filters["media_type"] = "video"
+            chips.append({
+                "kind": "browse",
+                "label": "Videos",
+                "value": "videos",
+            })
+
+        elif browse_key == "with_location":
+            new_filters["with_location"] = True
+            chips.append({
+                "kind": "browse",
+                "label": "With Location",
+                "value": "with_location",
+            })
+
+        elif browse_key in {"albums", "folders", "dates"}:
+            chips.append({
+                "kind": "browse",
+                "label": browse_key.replace("_", " ").title(),
+                "value": browse_key,
+            })
+
+        self.store.update(
+            browse_mode=browse_key,
+            preset_id=preset_id,
+            active_filters=new_filters,
+            active_chips=chips,
+            search_mode="browse",
+            intent_summary=browse_key.replace("_", " ").title(),
+        )
+        self.run_search()
+```
+
+## 4.2 Add `set_activity_snapshot`
+
+Add:
+
+```python
+    def set_activity_snapshot(self, activity: dict):
+        self.store.update(activity_snapshot=dict(activity or {}))
+```
+
+## 4.3 Extend `remove_chip`
+
+Inside `remove_chip()`, add:
+
+```python
+        elif kind == "browse":
+            state.browse_mode = None
+            if value == "favorites":
+                state.active_filters.pop("favorites_only", None)
+            elif value == "videos":
+                state.active_filters.pop("media_type", None)
+            elif value == "with_location":
+                state.active_filters.pop("with_location", None)
+```
+
+---
+
+# 5. Replace `ui/search/search_sidebar.py`
+
+Replace the full file with this UX-6 version:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame
+
+from ui.search.sections.search_hub_section import SearchHubSection
+from ui.search.sections.discover_section import DiscoverSection
+from ui.search.sections.people_quick_section import PeopleQuickSection
+from ui.search.sections.filter_section import FilterSection
+from ui.search.sections.browse_section import BrowseSection
+from ui.search.sections.activity_mini_section import ActivityMiniSection
+
+
+class SearchSidebar(QWidget):
+    folderSelected = Signal(int)
+    selectBranch = Signal(str)
+    selectDate = Signal(str)
+    selectVideos = Signal(str)
+    selectGroup = Signal(int)
+
+    def __init__(self, store, controller=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.controller = controller
+
+        self.search_hub_section = SearchHubSection()
+        self.discover_section = DiscoverSection()
+        self.people_quick_section = PeopleQuickSection()
+        self.browse_section = BrowseSection()
+        self.filter_section = FilterSection()
+        self.activity_mini_section = ActivityMiniSection()
+
+        self._build_ui()
+        self._wire_signals()
+
+        self.store.stateChanged.connect(self._on_state_changed)
+
+    def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        content = QFrame()
+        self.content_layout = QVBoxLayout(content)
+        self.content_layout.setContentsMargins(6, 6, 6, 6)
+        self.content_layout.setSpacing(10)
+
+        self.content_layout.addWidget(self.search_hub_section)
+        self.content_layout.addWidget(self.discover_section)
+        self.content_layout.addWidget(self.people_quick_section)
+        self.content_layout.addWidget(self.browse_section)
+        self.content_layout.addWidget(self.filter_section)
+        self.content_layout.addWidget(self.activity_mini_section)
+        self.content_layout.addStretch(1)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+    def _wire_signals(self):
+        if self.controller:
+            self.discover_section.presetSelected.connect(self.controller.set_preset)
+
+            self.search_hub_section.recentSearchClicked.connect(self.controller.submit_query)
+            self.search_hub_section.suggestionClicked.connect(self.controller.submit_query)
+            self.search_hub_section.clearRecentRequested.connect(self.controller.clear_recent_queries)
+
+            self.people_quick_section.personSelected.connect(self.controller.apply_people_filter)
+            self.people_quick_section.showAllPeopleRequested.connect(self._emit_show_all_people)
+
+            self.browse_section.browseNodeSelected.connect(self.controller.apply_browse_mode)
+
+            self.filter_section.filterChanged.connect(self.controller.apply_filter)
+            self.filter_section.clearAllFiltersRequested.connect(self.controller.clear_filters)
+
+            self.activity_mini_section.openActivityCenterRequested.connect(self._emit_open_activity_center)
+
+    def _emit_show_all_people(self):
+        self.selectBranch.emit("people")
+
+    def _emit_open_activity_center(self):
+        # MainWindow may optionally connect this later
+        pass
+
+    def _on_state_changed(self, state):
+        enabled = state.has_active_project
+
+        self.search_hub_section.set_enabled_for_project(enabled)
+        self.discover_section.setEnabled(enabled)
+        self.people_quick_section.setEnabled(enabled)
+        self.browse_section.set_enabled_for_project(enabled)
+
+        self.search_hub_section.set_recent_queries(getattr(state, "recent_queries", []))
+        self.search_hub_section.set_suggestions(getattr(state, "suggestions", []))
+
+        self.discover_section.update_counts(getattr(state, "discover_counts", {}))
+        self.discover_section.set_active_preset(getattr(state, "preset_id", None))
+        self.discover_section.update_previews(getattr(state, "discover_previews", {}))
+
+        self.people_quick_section.set_people(getattr(state, "people_quick_items", []))
+        self.browse_section.set_active_mode(getattr(state, "browse_mode", None))
+
+        self.filter_section.set_facets(
+            getattr(state, "result_facets", {}) or {},
+            getattr(state, "active_filters", {}) or {},
+        )
+
+        self.activity_mini_section.set_activity(getattr(state, "activity_snapshot", {}) or {})
+
+    def reload_date_tree(self):
+        pass
+
+    def set_project(self, project_id: int):
+        pass
+
+    def toggle_fold(self, folded: bool):
+        self.setVisible(not folded)
+
+    def _effective_display_mode(self):
+        return "list"
+
+    def switch_display_mode(self, mode: str):
+        pass
+```
+
+---
+
+# 6. Patch `main_window_qt.py`
+
+Add a lightweight activity snapshot adapter.
+
+## 6.1 Add this method inside `MainWindow`
+
+```python
+def _refresh_activity_snapshot(self):
+    """
+    UX-6 adapter: populate ActivityMiniSection from current job/activity state.
+    """
+    try:
+        snapshot = {}
+
+        if hasattr(self, "job_manager") and self.job_manager:
+            active_jobs = []
+            try:
+                active_jobs = list(getattr(self.job_manager, "_tracked_jobs", {}).values())
+            except Exception:
+                active_jobs = []
+
+            if active_jobs:
+                job = active_jobs[-1]
+                label = getattr(job, "title", None) or getattr(job, "job_type", None) or "Background task running"
+                progress = getattr(job, "progress", None)
+                snapshot = {
+                    "label": str(label),
+                    "progress": progress if progress is not None else None,
+                }
+
+        if hasattr(self, "search_controller"):
+            self.search_controller.set_activity_snapshot(snapshot)
+
+    except Exception as e:
+        print(f"[UX-6] Error refreshing activity snapshot: {e}")
+```
+
+## 6.2 Call it at stable points
+
+Call this:
+
+* after job registration if you already have a central hook,
+* after scan start / post-scan start,
+* after job completion,
+* and at least once after project switch.
+
+A safe first pass is to call it in:
+
+* `_on_project_changed_by_id(...)`
+* after `_refresh_people_quick_section()`
+* after scan completion callback
+
+Add after your project switch finishing logic:
+
+```python
+if hasattr(self, "_refresh_activity_snapshot"):
+    self._refresh_activity_snapshot()
+```
+
+And after your scan / post-scan completion bookkeeping:
+
+```python
+if hasattr(self, "_refresh_activity_snapshot"):
+    self._refresh_activity_snapshot()
+```
+
+---
+
+# 7. Optional patch to `ui/activity_center.py`
+
+No deep redesign yet.
+
+If you want the mini-section button to open the full dock immediately, expose a simple `show_activity_center()` method in `MainWindow` or existing dock host and connect it later.
+
+This is optional for the first pass.
+
+---
+
+# 8. Audit-based note
+
+The current log still shows a brief `project_id=None` reload when returning to Current layout after Google, before the project-aware state settles. That means Browse actions that depend on project-specific sidebar structures should still route through the centralized shell/controller first, not directly assume the legacy sidebar is already fully synced. 
+
+That is why this UX-6 pack keeps Browse as **state-first** and backend-light.
+
+---
+
+# 9. What comes after UX-6
+
+After this, the next natural step is:
+
+## UX-7, People merge review and suspicious clusters
+
+That should include:
+
+* suspicious clusters / merge review entry
+* recent unnamed clusters
+* optional `people_merge_suggestions_panel.py`
+
+That is the right moment to make the People experience more expert-grade.
+
+---
+
+# Bottom line
+
+Yes, the latest test run is stable enough to proceed. The app is not crashing, onboarding is light, scanning/post-scan pipelines are solid, and layout switching is survivable. 
+
+So the correct next step is the **exact UX-6 pack** above:
+
+* `BrowseSection`
+* `ActivityMiniSection`
+* browse-mode state plumbing
+* activity snapshot adapter
+
+If you apply this, the next pack after that should be **UX-7, People merge review**.

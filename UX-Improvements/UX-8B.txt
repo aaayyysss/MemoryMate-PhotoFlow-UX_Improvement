@@ -1,0 +1,672 @@
+Here is the **exact UX-8B patch pack**.
+
+## UX-8B goal
+
+Polish the **result pane interaction** so it feels connected to the shell and less transitional.
+
+This phase focuses on:
+
+* preserving previous results while search is running,
+* showing better loading / no-results / no-project states,
+* surfacing “why these results”,
+* making chip / filter / result transitions feel stable,
+* improving result-pane state handling without rewriting the whole grid.
+
+This is the correct next step after UX-8A.
+
+---
+
+# Scope
+
+This pack adds:
+
+1. richer result-pane state support in `google_layout.py`
+2. lightweight “why these results” support in the header
+3. previous-results preservation in the search controller/store
+4. better empty-state transitions
+5. safer search-state-driven UI refresh
+6. optional result-explanation label
+
+It does **not** yet do:
+
+* animation framework
+* skeleton thumbnail components
+* full result virtualization rewrite
+* semantic ranking explanation cards per image
+
+---
+
+# 1. Patch `ui/search/search_state_store.py`
+
+Add these fields to `SearchState`:
+
+```python
+    displayed_result_paths: List[str] = field(default_factory=list)
+    last_nonempty_result_paths: List[str] = field(default_factory=list)
+    result_explanation: str = ""
+```
+
+## Patch `clear_search()`
+
+Find the body of `clear_search()` and make sure it includes:
+
+```python
+        self._state.result_explanation = ""
+```
+
+Do **not** clear `last_nonempty_result_paths` there.
+
+---
+
+# 2. Patch `ui/search/search_controller.py`
+
+This is the key UX-8B behavior patch.
+
+## 2.1 Patch `run_search()`
+
+Find the start of `run_search()` and replace the search-start update block with:
+
+```python
+        current_state = self.store.get_state()
+
+        if not current_state.has_active_project:
+            self.store.update(
+                result_paths=[],
+                displayed_result_paths=[],
+                result_count=0,
+                search_in_progress=False,
+                empty_state_reason="no_project",
+                result_explanation="",
+            )
+            return
+
+        current_display = list(current_state.displayed_result_paths or current_state.result_paths or [])
+        self.store.update(
+            search_in_progress=True,
+            displayed_result_paths=current_display,
+            intent_summary=self._build_intent_summary(),
+        )
+```
+
+## Why
+
+This preserves existing visible results while the new search is running.
+
+---
+
+## 2.2 Patch `apply_result_summary()`
+
+Replace the full method with:
+
+```python
+    def apply_result_summary(
+        self,
+        result_paths=None,
+        result_count: int = 0,
+        result_facets=None,
+        family: Optional[str] = None,
+        warnings=None,
+    ):
+        state = self.store.get_state()
+        warning_list = list(warnings or [])
+        model_warning = ""
+
+        joined = " ".join(str(w) for w in warning_list).lower()
+        if "clip-vit-large-patch14" in joined or "better model available" in joined:
+            model_warning = "Better model available"
+
+        discover_counts = dict(state.discover_counts or {})
+        discover_previews = dict(state.discover_previews or {})
+        new_paths = list(result_paths or [])
+
+        if state.preset_id:
+            discover_counts[state.preset_id] = result_count
+
+            preview_labels = []
+            for path in new_paths[:3]:
+                try:
+                    import os
+                    preview_labels.append(os.path.basename(path))
+                except Exception:
+                    pass
+            discover_previews[state.preset_id] = preview_labels
+
+        explanation_parts = []
+        if state.preset_id:
+            explanation_parts.append(state.preset_id.replace("_", " ").title())
+        if state.query_text.strip():
+            explanation_parts.append(f'query "{state.query_text.strip()}"')
+        if state.active_people:
+            explanation_parts.append(f"{len(state.active_people)} people filter(s)")
+        if state.active_filters:
+            explanation_parts.append(f"{len(state.active_filters)} active filter(s)")
+
+        result_explanation = ""
+        if explanation_parts:
+            result_explanation = "Results based on " + ", ".join(explanation_parts)
+
+        self.store.update(
+            result_paths=new_paths,
+            displayed_result_paths=new_paths,
+            last_nonempty_result_paths=new_paths if new_paths else list(state.last_nonempty_result_paths or []),
+            result_count=result_count,
+            result_facets=result_facets or {},
+            family=family,
+            warnings=warning_list,
+            model_warning=model_warning,
+            discover_counts=discover_counts,
+            discover_previews=discover_previews,
+            search_in_progress=False,
+            empty_state_reason=None if result_count > 0 else "no_results",
+            intent_summary=self._build_intent_summary(),
+            result_explanation=result_explanation,
+        )
+```
+
+## Why
+
+This adds stable display paths, preserves last nonempty results, and creates a human-readable explanation string.
+
+---
+
+## 2.3 Patch `clear_search()`
+
+Find:
+
+```python
+    def clear_search(self):
+        self.store.clear_search()
+        self.searchCleared.emit()
+```
+
+Replace with:
+
+```python
+    def clear_search(self):
+        self.store.clear_search()
+        state = self.store.get_state()
+        self.store.update(
+            displayed_result_paths=list(state.last_nonempty_result_paths or []),
+            result_explanation="",
+        )
+        self.searchCleared.emit()
+```
+
+## Why
+
+This avoids jarring blank result pane transitions when clearing state.
+
+---
+
+# 3. Patch `ui/search/search_results_header.py`
+
+Add “why these results” support.
+
+## Replace the full file with:
+
+```python
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox
+from shiboken6 import isValid
+
+
+class SearchResultsHeader(QWidget):
+    def __init__(self, store, controller=None, parent=None):
+        super().__init__(parent)
+        self.store = store
+        self.controller = controller
+
+        self.lbl_summary = QLabel("All Photos")
+        self.lbl_count = QLabel("0 results")
+
+        self.lbl_status = QLabel("")
+        self.lbl_status.setObjectName("SearchStatusBadge")
+        self.lbl_status.setVisible(False)
+
+        self.lbl_warning = QLabel("")
+        self.lbl_warning.setObjectName("SearchWarningBadge")
+        self.lbl_warning.setVisible(False)
+
+        self.lbl_model = QLabel("")
+        self.lbl_model.setObjectName("SearchModelBadge")
+        self.lbl_model.setVisible(False)
+
+        self.lbl_explanation = QLabel("")
+        self.lbl_explanation.setObjectName("SearchExplanationLabel")
+        self.lbl_explanation.setWordWrap(True)
+        self.lbl_explanation.setVisible(False)
+
+        self.cmb_sort = QComboBox()
+        self.cmb_sort.addItem("Relevance", "relevance")
+        self.cmb_sort.addItem("Newest", "newest")
+        self.cmb_sort.addItem("Oldest", "oldest")
+
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setSpacing(10)
+        top_row.addWidget(self.lbl_summary, 1)
+        top_row.addWidget(self.lbl_count)
+        top_row.addWidget(self.lbl_status)
+        top_row.addWidget(self.lbl_warning)
+        top_row.addWidget(self.lbl_model)
+        top_row.addWidget(self.cmb_sort)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(4)
+        outer.addLayout(top_row)
+        outer.addWidget(self.lbl_explanation)
+
+        self.store.stateChanged.connect(self._on_state_changed)
+        self.cmb_sort.currentIndexChanged.connect(self._on_sort_changed)
+
+    def _on_state_changed(self, state):
+        if not isValid(self):
+            return
+
+        if state.onboarding_mode:
+            self.lbl_summary.setText("No active project")
+            self.lbl_count.setText("")
+            self.lbl_status.setVisible(False)
+            self.lbl_warning.setVisible(False)
+            self.lbl_model.setVisible(False)
+            self.lbl_explanation.setVisible(False)
+            return
+
+        if state.search_in_progress:
+            self.lbl_summary.setText(state.intent_summary or "Searching...")
+            self.lbl_status.setText("Searching")
+            self.lbl_status.setVisible(True)
+        else:
+            self.lbl_summary.setText(state.intent_summary or "All Photos")
+            self.lbl_status.setVisible(False)
+
+        self.lbl_count.setText(f"{state.result_count} result(s)")
+
+        warnings = list(getattr(state, "warnings", []) or [])
+        if warnings:
+            self.lbl_warning.setText(str(warnings[0]))
+            self.lbl_warning.setVisible(True)
+        else:
+            self.lbl_warning.setVisible(False)
+
+        model_warning = getattr(state, "model_warning", "")
+        if model_warning:
+            self.lbl_model.setText(model_warning)
+            self.lbl_model.setVisible(True)
+        else:
+            self.lbl_model.setVisible(False)
+
+        explanation = getattr(state, "result_explanation", "")
+        if explanation:
+            self.lbl_explanation.setText(explanation)
+            self.lbl_explanation.setVisible(True)
+        else:
+            self.lbl_explanation.setVisible(False)
+
+    def _on_sort_changed(self):
+        if not self.controller:
+            return
+
+        state = self.store.get_state()
+        state.sort_mode = self.cmb_sort.currentData()
+        self.store.stateChanged.emit(state)
+        self.controller.run_search()
+```
+
+---
+
+# 4. Patch `ui/search/empty_state_view.py`
+
+Improve state messaging for UX-8B.
+
+Replace the full file with:
+
+```python
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
+
+
+class EmptyStateView(QWidget):
+    actionRequested = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lbl_title = QLabel("No results")
+        self.lbl_title.setObjectName("EmptyStateTitle")
+
+        self.lbl_message = QLabel("")
+        self.lbl_message.setWordWrap(True)
+        self.lbl_message.setObjectName("EmptyStateMessage")
+
+        self.btn_primary = QPushButton()
+        self.btn_primary.setVisible(False)
+        self.btn_primary.clicked.connect(self._emit_primary)
+
+        self._primary_action = ""
+
+        layout = QVBoxLayout(self)
+        layout.addStretch(1)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.lbl_message)
+        layout.addWidget(self.btn_primary)
+        layout.addStretch(1)
+
+        self.set_state("no_results")
+
+    def _emit_primary(self):
+        if self._primary_action:
+            self.actionRequested.emit(self._primary_action)
+
+    def set_state(self, reason: str, warnings=None):
+        warnings = list(warnings or [])
+
+        if reason == "no_project":
+            self.lbl_title.setText("No active project")
+            self.lbl_message.setText("Create or select a project to begin browsing and searching.")
+            self._primary_action = "create_or_select_project"
+            self.btn_primary.setText("Select Project")
+            self.btn_primary.setVisible(True)
+
+        elif reason == "embeddings_missing":
+            self.lbl_title.setText("Embeddings not ready")
+            self.lbl_message.setText("Smart search quality will improve after extracting embeddings.")
+            self._primary_action = "extract_embeddings"
+            self.btn_primary.setText("Extract Embeddings")
+            self.btn_primary.setVisible(True)
+
+        elif reason == "indexing":
+            self.lbl_title.setText("Indexing in progress")
+            self.lbl_message.setText("Background indexing is still running. Results may improve as processing completes.")
+            self._primary_action = ""
+            self.btn_primary.setVisible(False)
+
+        elif reason == "loading":
+            self.lbl_title.setText("Searching")
+            self.lbl_message.setText("Preparing refined results. Previous results may remain visible until the new search completes.")
+            self._primary_action = ""
+            self.btn_primary.setVisible(False)
+
+        else:
+            self.lbl_title.setText("No results")
+            extra = f"\n\n{warnings[0]}" if warnings else ""
+            self.lbl_message.setText("No matches were found. Try a broader query, remove some filters, or switch presets." + extra)
+            self._primary_action = ""
+            self.btn_primary.setVisible(False)
+```
+
+---
+
+# 5. Patch `layouts/google_layout.py`
+
+This is the main result-pane integration patch.
+
+## 5.1 Add persistent search-store attachment support
+
+If not already present, keep:
+
+```python
+def attach_search_store(self, store):
+    self.search_state_store = store
+    if self.search_state_store:
+        self.search_state_store.stateChanged.connect(self._on_search_state_changed)
+```
+
+## 5.2 Replace `_on_search_state_changed()` with this version:
+
+```python
+def _on_search_state_changed(self, state):
+    try:
+        if not hasattr(self, "empty_state"):
+            return
+
+        displayed_paths = list(getattr(state, "displayed_result_paths", []) or [])
+        result_paths = list(getattr(state, "result_paths", []) or [])
+        search_in_progress = bool(getattr(state, "search_in_progress", False))
+
+        # Onboarding / no project
+        if getattr(state, "onboarding_mode", False):
+            self._show_empty_state("no_project", getattr(state, "warnings", []))
+            return
+
+        # Search in progress: keep showing previous results if available
+        if search_in_progress:
+            if displayed_paths:
+                self._show_results_surface()
+            else:
+                self._show_empty_state("loading", getattr(state, "warnings", []))
+            return
+
+        # Indexing state
+        if getattr(state, "indexing_in_progress", False) and not result_paths:
+            self._show_empty_state("indexing", getattr(state, "warnings", []))
+            return
+
+        # Missing embeddings path
+        if not getattr(state, "embeddings_ready", True):
+            reason = getattr(state, "empty_state_reason", None)
+            if reason == "embeddings_missing" and not result_paths:
+                self._show_empty_state("embeddings_missing", getattr(state, "warnings", []))
+                return
+
+        if not result_paths:
+            self._show_empty_state(getattr(state, "empty_state_reason", None) or "no_results",
+                                   getattr(state, "warnings", []))
+            return
+
+        self._show_results_surface()
+
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _on_search_state_changed error: {e}")
+```
+
+## Why
+
+This is the core UX-8B behavior: preserve previous results during search instead of flashing empty state.
+
+---
+
+## 5.3 Ensure `_show_empty_state()` and `_show_results_surface()` exist
+
+Keep or add:
+
+```python
+def _show_empty_state(self, reason: str, warnings=None):
+    try:
+        if hasattr(self, "empty_state"):
+            self.empty_state.set_state(reason, warnings or [])
+        if hasattr(self, "results_stack") and hasattr(self, "empty_state"):
+            self.results_stack.setCurrentWidget(self.empty_state)
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _show_empty_state error: {e}")
+
+def _show_results_surface(self):
+    try:
+        if hasattr(self, "results_stack") and hasattr(self, "timeline"):
+            self.results_stack.setCurrentWidget(self.timeline)
+    except Exception as e:
+        print(f"[GooglePhotosLayout] _show_results_surface error: {e}")
+```
+
+---
+
+# 6. Patch `current_layout.py`
+
+This layout should also react better to search-state transitions.
+
+Add store attachment support parallel to Google layout.
+
+## 6.1 Add:
+
+```python
+def attach_search_store(self, store):
+    self.search_state_store = store
+    if self.search_state_store:
+        self.search_state_store.stateChanged.connect(self._on_search_state_changed)
+```
+
+## 6.2 Add:
+
+```python
+def _on_search_state_changed(self, state):
+    try:
+        # Keep this light: current layout should not own shell state,
+        # but it should avoid unnecessary blank reloads during active search.
+        if getattr(state, "search_in_progress", False):
+            return
+
+        # Hook point for future grid refresh based on centralized search state.
+        # For now this safely prevents aggressive reload churn.
+        pass
+
+    except Exception as e:
+        print(f"[CurrentLayout] _on_search_state_changed error: {e}")
+```
+
+This is intentionally light. The goal is to reduce side-channel churn, not rewrite CurrentLayout yet.
+
+---
+
+# 7. Patch `main_window_qt.py`
+
+## 7.1 Attach search store to active layout after switches
+
+Keep or add this helper:
+
+```python
+def _attach_search_store_to_current_layout(self):
+    try:
+        layout = self.layout_manager.get_current_layout()
+        if layout and hasattr(layout, "attach_search_store"):
+            layout.attach_search_store(self.search_state_store)
+    except Exception as e:
+        print(f"[MainWindow] Error attaching search store to layout: {e}")
+```
+
+Call it:
+
+* after initial layout setup
+* after each layout switch
+
+If you already have a layout switch callback, insert it there.
+
+---
+
+## 7.2 Improve `_on_ux1_search_requested()` to preserve previous results
+
+Inside `_on_ux1_search_requested()`, before dispatching quick search or preset search, add:
+
+```python
+state = self.search_state_store.get_state()
+current_visible = list(getattr(state, "displayed_result_paths", []) or getattr(state, "result_paths", []) or [])
+self.search_state_store.update(
+    search_in_progress=True,
+    displayed_result_paths=current_visible,
+)
+```
+
+Then keep the existing bridge execution.
+
+## Why
+
+This makes the result pane stay visually stable while the bridge is running.
+
+---
+
+## 7.3 Improve query-chip synchronization
+
+If not already present, keep this after handling `query_text`:
+
+```python
+state = self.search_state_store.get_state()
+if query_text:
+    state.active_chips = [
+        chip for chip in state.active_chips
+        if chip.get("kind") != "query"
+    ]
+    state.active_chips.insert(0, {
+        "kind": "query",
+        "label": query_text,
+        "value": query_text,
+    })
+    self.search_state_store.stateChanged.emit(state)
+```
+
+---
+
+# 8. Optional patch `ui/search/active_chips_bar.py`
+
+Add stable object names for chip styling if not already present.
+
+Replace button creation block with:
+
+```python
+            btn = QPushButton(f"{label} ✕")
+            btn.setObjectName("SearchChip")
+            btn.clicked.connect(lambda checked=False, k=kind, v=value: self.chipRemoved.emit(k, v))
+            self.layout.addWidget(btn)
+```
+
+And for clear button:
+
+```python
+        clear_btn = QPushButton("Clear")
+        clear_btn.setObjectName("SearchChipClear")
+```
+
+This is minor, but useful for UX polish.
+
+---
+
+# 9. Optional patch `services/ui_refresh_mediator.py`
+
+Where stable refresh points exist, keep using guarded calls only:
+
+```python
+if hasattr(self.main_window, "_refresh_people_quick_section"):
+    self.main_window._refresh_people_quick_section()
+
+if hasattr(self.main_window, "_refresh_activity_snapshot"):
+    self.main_window._refresh_activity_snapshot()
+```
+
+Do not add broad, eager search-state churn.
+
+---
+
+# 10. What UX-8B should feel like
+
+After this patch:
+
+* search starts, old results stay visible,
+* header says “Searching”,
+* no abrupt blank state flash,
+* empty state is only shown when there are truly no results and no previous visible surface to preserve,
+* results feel less side-channel and more part of the shell.
+
+That is exactly the missing polish between “working shell” and “usable product”.
+
+---
+
+# 11. What comes after UX-8B
+
+After this, the next natural step is:
+
+## UX-8C, facet intelligence and browse/search coexistence polish
+
+That should include:
+
+* family-aware facet exposure
+* better facet counts
+* cleaner interaction between Browse and Search modes
+* stable active-chip semantics for filters vs browse vs presets
+
+That is the right next layer after result-pane polish.
+
+---
+
+# Bottom line
+
+Proceed with this exact **UX-8B patch pack** now.
+
+It is the correct next move because you have already built most of the shell, and the biggest remaining gap is **result-pane interaction quality**, not more shell sections.
