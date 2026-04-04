@@ -1,0 +1,12 @@
+__pycache__/
+
+# Database files (user data)
+reference_data.db
+photo_organizer.db
+*.db-journal
+*.db-wal
+*.db-shm
+photos.db
+thumbnails_cache.db
+*.backup_*
+*.backup
