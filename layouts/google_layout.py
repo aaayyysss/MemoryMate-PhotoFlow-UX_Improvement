@@ -433,6 +433,10 @@ class GooglePhotosLayout(BaseLayout):
 
         # UX-1: Syncing search box in layout is no longer needed as search is centralized in MainWindow
 
+        # Phase 2A: suppress grid reload when no project is active
+        if not getattr(self, 'project_id', None):
+            return
+
         # Trigger photo grid update if result paths changed
         # We use a signature-based check to avoid redundant work
         sig = (tuple(state.result_paths), state.active_project_id)
@@ -10121,10 +10125,23 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
 
     # ── Phase 2A: Reload gate helpers ────────────────────────────────────
 
+    # Valid keyword arguments for _load_photos()
+    _LOAD_PHOTOS_KWARGS = frozenset({
+        'thumb_size', 'filter_year', 'filter_month', 'filter_day',
+        'filter_folder', 'filter_person', 'filter_paths',
+    })
+
     def request_reload(self, reason: str = "unknown", **kwargs):
-        """Schedule a debounced photo reload, coalescing rapid requests."""
-        self._pending_reload_kwargs = kwargs
-        self._pending_reload_reason = (reason, tuple(sorted(kwargs.items())))
+        """Schedule a debounced photo reload, coalescing rapid requests.
+
+        kwargs may include metadata (e.g. project_id) for the dedup
+        signature.  Only _load_photos-compatible keys are forwarded.
+        """
+        self._pending_reload_reason = (reason, self.project_id)
+        # Keep only kwargs that _load_photos actually accepts
+        self._pending_reload_kwargs = {
+            k: v for k, v in kwargs.items() if k in self._LOAD_PHOTOS_KWARGS
+        }
         self._reload_debounce_timer.stop()
         self._reload_debounce_timer.start()
 
@@ -10195,6 +10212,10 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         Called by ProjectController or combobox when user changes project.
         Phase 2A: This is the sole owner of project-bound loading.
         """
+        if project_id is not None and project_id == self.project_id:
+            print(f"[GooglePhotosLayout] set_project() called: already on project {project_id}, skipping")
+            return
+
         print(f"[GooglePhotosLayout] set_project() called: {self.project_id} -> {project_id}")
 
         if self._project_switch_in_progress:
