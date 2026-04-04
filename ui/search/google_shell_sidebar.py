@@ -1,0 +1,192 @@
+# ui/search/google_shell_sidebar.py
+# Phase 2B: Passive shell sidebar for GooglePhotosLayout
+# Visual-only — legacy accordion remains the action owner
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton,
+    QFrame, QScrollArea, QSizePolicy,
+)
+
+
+class _ShellSection(QFrame):
+    """Collapsible card-style section for the shell sidebar."""
+
+    def __init__(self, title: str, expanded: bool = True, parent=None):
+        super().__init__(parent)
+        self._expanded = expanded
+        self.setObjectName("ShellSection")
+        self.setFrameShape(QFrame.NoFrame)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        self.header_btn = QPushButton(title)
+        self.header_btn.setObjectName("ShellSectionHeader")
+        self.header_btn.setCheckable(True)
+        self.header_btn.setChecked(expanded)
+        self.header_btn.clicked.connect(self._toggle)
+
+        self.body = QWidget()
+        self.body_layout = QVBoxLayout(self.body)
+        self.body_layout.setContentsMargins(10, 2, 10, 8)
+        self.body_layout.setSpacing(3)
+        self.body.setVisible(expanded)
+
+        root.addWidget(self.header_btn)
+        root.addWidget(self.body)
+
+    def _toggle(self):
+        self._expanded = self.header_btn.isChecked()
+        self.body.setVisible(self._expanded)
+
+    def add_widget(self, w: QWidget):
+        self.body_layout.addWidget(w)
+
+
+class GoogleShellSidebar(QWidget):
+    """
+    Phase 2B passive shell sidebar.
+
+    Displays the future navigation structure above the legacy accordion.
+    Clicks emit selectBranch / openActivityCenterRequested but do NOT
+    own any routing — the layout's passive handler bridges to the
+    legacy accordion.
+    """
+
+    selectBranch = Signal(str)
+    openActivityCenterRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("GoogleShellSidebar")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        content = QWidget()
+        lay = QVBoxLayout(content)
+        lay.setContentsMargins(8, 8, 8, 8)
+        lay.setSpacing(6)
+
+        # ── Search Hub ────────────────────────────────────────────
+        self.search_hub = _ShellSection("Search Hub", expanded=True)
+        self.search_hub.add_widget(self._hint("Recent searches, scopes"))
+        self.search_hub.add_widget(self._nav("Open Search", "find"))
+
+        # ── Discover ──────────────────────────────────────────────
+        self.discover = _ShellSection("Discover", expanded=True)
+        self.discover.add_widget(self._hint("Smart Find presets"))
+        self.discover.add_widget(self._nav("Scenes", "discover_scenes"))
+        self.discover.add_widget(self._nav("Duplicates", "duplicates"))
+
+        # ── People ────────────────────────────────────────────────
+        self.people = _ShellSection("People", expanded=False)
+        self.people.add_widget(self._hint("Top people, merge tools"))
+        self.people.add_widget(self._nav("Review Merges", "people_merge_review"))
+        self.people.add_widget(self._nav("Unnamed Clusters", "people_unnamed"))
+        self.people.add_widget(self._nav("All People", "people_show_all"))
+
+        # ── Browse ────────────────────────────────────────────────
+        self.browse = _ShellSection("Browse", expanded=True)
+        self.browse.add_widget(self._nav("All Photos", "all"))
+        self.browse.add_widget(self._nav("Dates", "dates"))
+        self.browse.add_widget(self._nav("Folders", "folders"))
+        self.browse.add_widget(self._nav("Videos", "videos"))
+        self.browse.add_widget(self._nav("Locations", "locations"))
+        self.browse.add_widget(self._nav("Favorites", "favorites"))
+        self.browse.add_widget(self._nav("Duplicates", "duplicates"))
+
+        # ── Filters ───────────────────────────────────────────────
+        self.filters = _ShellSection("Filters", expanded=False)
+        self.filters.add_widget(self._hint("People, dates, types, favorites"))
+
+        # ── Activity ──────────────────────────────────────────────
+        self.activity = _ShellSection("Activity", expanded=False)
+        self.activity.add_widget(self._hint("Jobs, indexing, AI processing"))
+        btn_act = QPushButton("Open Activity Center")
+        btn_act.setObjectName("ShellNavBtn")
+        btn_act.clicked.connect(self.openActivityCenterRequested.emit)
+        self.activity.add_widget(btn_act)
+
+        for section in (self.search_hub, self.discover, self.people,
+                        self.browse, self.filters, self.activity):
+            lay.addWidget(section)
+        lay.addStretch(1)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+        self.setStyleSheet(_SHELL_STYLE)
+
+    # ── helpers ───────────────────────────────────────────────────
+
+    def _hint(self, text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setObjectName("ShellHint")
+        lbl.setWordWrap(True)
+        return lbl
+
+    def _nav(self, label: str, branch: str) -> QPushButton:
+        btn = QPushButton(label)
+        btn.setObjectName("ShellNavBtn")
+        btn.clicked.connect(lambda _, b=branch: self.selectBranch.emit(b))
+        return btn
+
+
+_SHELL_STYLE = """
+QWidget#GoogleShellSidebar {
+    background: transparent;
+}
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QFrame#ShellSection {
+    background: #ffffff;
+    border: 1px solid #e6e8eb;
+    border-radius: 10px;
+}
+QPushButton#ShellSectionHeader {
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 8px 10px;
+}
+QPushButton#ShellSectionHeader:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 10px;
+}
+QPushButton#ShellSectionHeader:checked {
+    color: #1a73e8;
+}
+QLabel#ShellHint {
+    color: #80868b;
+    font-size: 11px;
+    padding: 0 2px;
+}
+QPushButton#ShellNavBtn {
+    text-align: left;
+    font-size: 12px;
+    color: #3c4043;
+    border: none;
+    background: transparent;
+    padding: 5px 8px;
+    border-radius: 6px;
+}
+QPushButton#ShellNavBtn:hover {
+    background: #e8f0fe;
+    color: #1a73e8;
+}
+"""

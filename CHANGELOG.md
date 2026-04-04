@@ -4,6 +4,27 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-04
 
+### Phase 2B — Passive Shell Insertion
+
+Added a new visual navigation shell above the legacy accordion in `GooglePhotosLayout`. The shell is passive — the legacy accordion remains the sole action owner.
+
+#### New Shell Structure
+- **`ui/search/google_shell_sidebar.py`** (new): `GoogleShellSidebar` widget with collapsible card sections: Search Hub, Discover, People, Browse, Filters, Activity. Google Photos-inspired visual design with soft borders, section headers, and hover states.
+- **`layouts/google_layout.py`**: Left panel now contains the new shell on top with the legacy accordion below in a collapsible "Legacy Tools" group box. Shell clicks bridge to the accordion via `_on_passive_shell_branch_clicked()` which expands the matching legacy section.
+- **`layouts/google_layout_legacy.py`**: Unchanged — no shell insertion.
+
+#### Passive Behavior
+- Shell branch clicks expand the corresponding accordion section (e.g. "Folders" → accordion folders section)
+- "Open Activity Center" delegates to MainWindow's existing toggle
+- No new routing, no `_load_photos()` wiring, no Browse/People migration
+
+### Files Changed
+- `ui/search/google_shell_sidebar.py` (new)
+- `layouts/google_layout.py`
+- `CHANGELOG.md`
+
+---
+
 ### Phase 0 — Baseline Bug Fixes
 
 - **AssetRepository.list_duplicate_assets()**: Added missing `limit` and `offset` parameters to support pagination from the service layer. Previously caused `TypeError` at runtime when the duplicate loading worker attempted paginated queries.
