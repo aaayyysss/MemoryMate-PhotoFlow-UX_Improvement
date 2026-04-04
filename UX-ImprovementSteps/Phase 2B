@@ -1,0 +1,93 @@
+Audit verdict:
+
+**Phase 2A is successful enough on `google` to move forward, but the correct next step is not the shell quality checkpoint yet. The next step, per the plan, is still Phase 2B, passive shell insertion.**
+
+## What passed
+
+Startup default is now fixed. The app logs `Overriding saved layout 'current' → 'google'`, then `Initializing default layout: google`, then switches directly `current → google`. That closes the remaining Phase 1 correction. 
+
+The no-project startup load is also fixed on `google`. In the latest run, Google layout starts, activates, and then logs `Suppressing initial project-bound layout load because no active project exists`, instead of starting a load with `No project selected`.
+
+Project creation on `google` is now much cleaner. The latest run shows:
+
+* `set_project() called: None -> 1`
+* delegation from `MainWindow`
+* project creation dialog completes
+* `set_project() called: already on project 1, skipping`
+* then a single `Executing debounced reload: project_switch`
+* then one clean generation 1 load.
+
+That is a major improvement over the earlier generation 2 → 3 → 4 storm during one project creation flow. Earlier logs clearly showed multiple redundant loads before and after project creation.
+
+`google_legacy` is also registered and selectable, and its onboarding path now suppresses the initial load too.
+
+## What is still not fully proven
+
+`google_legacy` project creation flow was not re-verified in the latest Phase 2A run. In the earlier run, legacy still had the old churn during project creation, with generation 2, 3, and 4 loads plus a `GRID reload()` abort on `project_id=None`.
+
+But because the current plan treats `google_legacy` as frozen fallback and all improvement work continues only on `google`, that does **not** block the next phase.
+
+## Decision
+
+So:
+
+* **Do proceed**
+* but **do not jump directly to the shell quality checkpoint**
+* the correct next step is **Phase 2B, passive shell insertion**
+* after that comes the shell quality checkpoint
+
+That is the sequence we agreed on, and skipping it would break the plan.
+
+## Why not jump straight to the shell quality checkpoint
+
+Because the shell quality checkpoint assumes the new shell already exists inside `GoogleLayout`. Right now, in this clean repo, `google` is still the stable accordion-based layout. The log shows Google layout is still the old stable shell with the accordion sidebar as the operational owner. 
+
+So if we tried to do the shell quality checkpoint now, we would be polishing a shell that does not exist yet.
+
+## Correct next step
+
+The next phase should be:
+
+### Phase 2B, passive shell insertion
+
+Only in `GoogleLayout`:
+
+* add a new shell above the legacy accordion
+* keep legacy accordion below
+* legacy still owns behavior
+* no routing changes yet
+* no Browse or People migration yet
+
+### Acceptance criteria for Phase 2B
+
+* `google` shows the new shell on top
+* legacy accordion remains below
+* legacy accordion still does all real work
+* no regression in grid behavior
+* `google_legacy` remains untouched
+
+Once that is stable, then we do:
+
+### Phase 3, shell quality checkpoint
+
+* width 280 to 300 px
+* Search Hub and Discover expanded
+* People collapsed by default
+* Browse expanded
+* Filters and Activity collapsed
+* legacy block collapsed by default
+* no giant blank areas
+* onboarding state looks intentional
+
+## Final answer
+
+So the correct answer to your “Phase 3, or?” is:
+
+**Not yet.
+Phase 2A passed well enough on `google`.
+The next step is Phase 2B, passive shell insertion.
+Then Phase 3, shell quality checkpoint.**
+
+Your latest log supports that sequencing cleanly. 
+
+Next I should give you the **exact Phase 2B implementation pack**, file by file, and keep it strictly limited to passive shell insertion.
