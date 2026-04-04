@@ -91,3 +91,390 @@ Then Phase 3, shell quality checkpoint.**
 Your latest log supports that sequencing cleanly. 
 
 Next I should give you the **exact Phase 2B implementation pack**, file by file, and keep it strictly limited to passive shell insertion.
+
+Proceeding with **Phase 2B only, passive shell insertion**, is correct. Phase 2A on `google` is now clean enough to support it: startup is forced to `google`, no-project startup load is suppressed, and project creation on `google` now collapses to a single debounced reload instead of the old multi-generation storm. `google_legacy` remains selectable and untouched as fallback.
+
+# Phase 2B implementation pack
+
+## Scope lock
+
+Only:
+
+* add a **new passive shell** above the legacy accordion in `GoogleLayout`
+* keep legacy accordion below
+* legacy accordion remains the action owner
+* no routing changes
+* no Browse/People migration
+* no shell behavior ownership changes
+
+---
+
+# File 1, `ui/search/search_sidebar.py`
+
+## Create new file if it does not exist
+
+```python
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QFrame, QSizePolicy
+)
+
+
+class _SectionCard(QFrame):
+    def __init__(self, title: str, expanded: bool = True, parent=None):
+        super().__init__(parent)
+        self._expanded = expanded
+
+        self.setObjectName("SectionCard")
+        self.setFrameShape(QFrame.NoFrame)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(4)
+
+        self.header_btn = QPushButton(title)
+        self.header_btn.setObjectName("SectionHeader")
+        self.header_btn.setCheckable(True)
+        self.header_btn.setChecked(expanded)
+        self.header_btn.clicked.connect(self._toggle)
+
+        self.body = QWidget(self)
+        self.body_layout = QVBoxLayout(self.body)
+        self.body_layout.setContentsMargins(8, 0, 8, 6)
+        self.body_layout.setSpacing(4)
+        self.body.setVisible(expanded)
+
+        root.addWidget(self.header_btn)
+        root.addWidget(self.body)
+
+    def _toggle(self):
+        self._expanded = self.header_btn.isChecked()
+        self.body.setVisible(self._expanded)
+
+    def addWidget(self, widget: QWidget):
+        self.body_layout.addWidget(widget)
+
+
+class SearchSidebar(QWidget):
+    selectBranch = Signal(str)
+    openActivityCenterRequested = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setObjectName("SearchSidebar")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(8, 8, 8, 8)
+        root.setSpacing(8)
+
+        self.search_hub = _SectionCard("Search Hub", expanded=True)
+        self.discover = _SectionCard("Discover", expanded=True)
+        self.people = _SectionCard("People", expanded=False)
+        self.browse = _SectionCard("Browse", expanded=True)
+        self.filters = _SectionCard("Filters", expanded=False)
+        self.activity = _SectionCard("Activity", expanded=False)
+
+        # Search Hub
+        self.search_hub.addWidget(self._muted_label("Search, recent searches, scopes"))
+        self.search_hub.addWidget(self._placeholder_button("Open Search", "find"))
+
+        # Discover
+        self.discover.addWidget(self._muted_label("Smart Find, scenes, presets"))
+        self.discover.addWidget(self._placeholder_button("Beach", "discover_beach"))
+        self.discover.addWidget(self._placeholder_button("Mountains", "discover_mountains"))
+        self.discover.addWidget(self._placeholder_button("City", "discover_city"))
+
+        # People
+        self.people.addWidget(self._muted_label("Top people and review tools"))
+        self.people.addWidget(self._placeholder_button("Review Possible Merges", "people_merge_review"))
+        self.people.addWidget(self._placeholder_button("Show Unnamed Clusters", "people_unnamed"))
+        self.people.addWidget(self._placeholder_button("Show All People", "people_show_all"))
+
+        # Browse
+        self.browse.addWidget(self._muted_label("Library, sources, collections"))
+        self.browse.addWidget(self._placeholder_button("All Photos", "all"))
+        self.browse.addWidget(self._placeholder_button("Folders", "folders"))
+        self.browse.addWidget(self._placeholder_button("Dates", "dates"))
+        self.browse.addWidget(self._placeholder_button("Videos", "videos"))
+        self.browse.addWidget(self._placeholder_button("Locations", "locations"))
+
+        # Filters
+        self.filters.addWidget(self._muted_label("People, dates, types, favorites"))
+
+        # Activity
+        self.activity.addWidget(self._muted_label("Jobs, indexing, AI processing"))
+        open_activity = QPushButton("Open Activity Center")
+        open_activity.clicked.connect(self.openActivityCenterRequested.emit)
+        self.activity.addWidget(open_activity)
+
+        root.addWidget(self.search_hub)
+        root.addWidget(self.discover)
+        root.addWidget(self.people)
+        root.addWidget(self.browse)
+        root.addWidget(self.filters)
+        root.addWidget(self.activity)
+        root.addStretch(1)
+
+        self.setStyleSheet("""
+            QWidget#SearchSidebar {
+                background: transparent;
+            }
+            QFrame#SectionCard {
+                background: #ffffff;
+                border: 1px solid #e6e8eb;
+                border-radius: 10px;
+            }
+            QPushButton#SectionHeader {
+                text-align: left;
+                font-weight: 600;
+                color: #202124;
+                border: none;
+                background: transparent;
+                padding: 8px 10px;
+            }
+            QPushButton#SectionHeader:hover {
+                background: #f5f7fa;
+                border-radius: 10px;
+            }
+            QLabel {
+                color: #5f6368;
+                padding: 2px 4px;
+            }
+            QPushButton {
+                text-align: left;
+                border: none;
+                background: transparent;
+                padding: 6px 8px;
+                border-radius: 8px;
+            }
+            QPushButton:hover {
+                background: #eef3ff;
+            }
+        """)
+
+    def _muted_label(self, text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setWordWrap(True)
+        return lbl
+
+    def _placeholder_button(self, text: str, branch: str) -> QPushButton:
+        btn = QPushButton(text)
+        btn.clicked.connect(lambda: self.selectBranch.emit(branch))
+        return btn
+```
+
+---
+
+# File 2, `layouts/google_layout.py`
+
+## Add import near the other imports
+
+```python
+from ui.search.search_sidebar import SearchSidebar
+```
+
+---
+
+## In `__init__()` or immediately after member initialization, add members
+
+```python
+self.search_sidebar = None
+self.left_shell_container = None
+self.left_shell_layout = None
+self.legacy_container = None
+```
+
+---
+
+## Add helper method `_build_passive_shell()`
+
+```python
+def _build_passive_shell(self):
+    self.left_shell_container = QWidget(self)
+    self.left_shell_container.setObjectName("GoogleLeftShell")
+    self.left_shell_container.setMinimumWidth(280)
+    self.left_shell_container.setMaximumWidth(300)
+    self.left_shell_container.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+
+    self.left_shell_layout = QVBoxLayout(self.left_shell_container)
+    self.left_shell_layout.setContentsMargins(8, 8, 8, 8)
+    self.left_shell_layout.setSpacing(8)
+
+    self.search_sidebar = SearchSidebar(self.left_shell_container)
+
+    # Passive only: no new routing ownership in this phase
+    self.search_sidebar.selectBranch.connect(self._on_passive_shell_branch_clicked)
+    self.search_sidebar.openActivityCenterRequested.connect(self._on_passive_activity_requested)
+
+    self.legacy_container = QGroupBox("Legacy Tools")
+    self.legacy_container.setCheckable(True)
+    self.legacy_container.setChecked(False)
+
+    legacy_layout = QVBoxLayout(self.legacy_container)
+    legacy_layout.setContentsMargins(0, 0, 0, 0)
+    legacy_layout.setSpacing(0)
+
+    if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+        self.accordion_sidebar.setMaximumHeight(180)
+        legacy_layout.addWidget(self.accordion_sidebar)
+
+    self.left_shell_layout.addWidget(self.search_sidebar, 1)
+    self.left_shell_layout.addWidget(self.legacy_container, 0)
+
+    self.left_shell_container.setStyleSheet("""
+        QWidget#GoogleLeftShell {
+            background: #f8f9fb;
+            border-right: 1px solid #e6e8eb;
+        }
+        QGroupBox {
+            font-weight: 600;
+            border: 1px solid #e6e8eb;
+            border-radius: 10px;
+            margin-top: 8px;
+            padding-top: 12px;
+            background: #ffffff;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 4px;
+        }
+    """)
+
+    return self.left_shell_container
+```
+
+---
+
+## Add passive handlers
+
+```python
+def _on_passive_shell_branch_clicked(self, branch: str):
+    """
+    Phase 2B only:
+    passive shell does not own behavior yet.
+    It only expands the corresponding legacy area where possible.
+    """
+    try:
+        if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
+            return
+
+        legacy_map = {
+            "find": "find",
+            "all": "dates",
+            "folders": "folders",
+            "dates": "dates",
+            "videos": "videos",
+            "locations": "locations",
+            "people_merge_review": "people",
+            "people_unnamed": "people",
+            "people_show_all": "people",
+        }
+
+        target = legacy_map.get(branch)
+        if target and hasattr(self.accordion_sidebar, "_expand_section"):
+            self.accordion_sidebar._expand_section(target)
+    except Exception as e:
+        print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")
+
+
+def _on_passive_activity_requested(self):
+    """
+    Phase 2B only:
+    keep this passive, no new ownership.
+    """
+    try:
+        if hasattr(self, "main_window") and self.main_window:
+            if hasattr(self.main_window, "_open_activity_center_from_sidebar"):
+                self.main_window._open_activity_center_from_sidebar()
+    except Exception as e:
+        print(f"[{self.__class__.__name__}] Passive activity request failed: {e}")
+```
+
+---
+
+## In the place where the left side of Google layout is assembled, replace the old direct accordion insertion
+
+### Replace any block similar to:
+
+```python
+left_panel_layout.addWidget(self.accordion_sidebar)
+```
+
+### With:
+
+```python
+left_shell = self._build_passive_shell()
+left_panel_layout.addWidget(left_shell)
+```
+
+If your Google layout uses a splitter or container rather than `left_panel_layout`, insert `left_shell` in the exact position where the old left-side accordion/sidebar used to go.
+
+---
+
+## Do not add any new routing or `_load_photos()` wiring here
+
+Phase 2B must remain passive.
+
+---
+
+# File 3, `layouts/google_layout_legacy.py`
+
+## No behavior changes
+
+Do not add the new shell here.
+
+Only verify:
+
+* class remains `GooglePhotosLayoutLegacy`
+* `get_id()` returns `google_legacy`
+* `get_name()` returns `Google Photos Legacy`
+
+No Phase 2B shell insertion in legacy.
+
+---
+
+# File 4, `main_window_qt.py`
+
+## No routing changes in Phase 2B
+
+Do not alter shell routing ownership in this phase.
+
+Only ensure `google` still switches and opens normally.
+
+If you previously added experimental shell routing in this clean repo, remove or bypass it for now.
+
+---
+
+# Phase 2B acceptance checks
+
+After applying this pack, verify all of these:
+
+* app still starts directly in `google` 
+* `google` shows:
+
+  * new shell on top
+  * legacy accordion below
+* `google_legacy` remains unchanged
+* clicking new shell items only expands or hints the matching legacy section
+* photo grid behavior is unchanged
+* no new routing regressions
+* no extra load churn introduced
+
+---
+
+# Important stop rule
+
+Do **not** proceed to Browse migration or People migration during this patch.
+
+This patch is complete once:
+
+* passive shell is visible
+* legacy remains the action owner
+* both layouts still switch correctly
+
+Then the next step is the **Phase 3 shell quality checkpoint**.
+
