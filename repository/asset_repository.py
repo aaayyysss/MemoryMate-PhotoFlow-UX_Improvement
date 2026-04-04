@@ -160,7 +160,13 @@ class AssetRepository(BaseRepository):
                     result[row["path"]] = row["asset_id"]
         return result
 
-    def list_duplicate_assets(self, project_id: int, min_instances: int = 2) -> List[Dict[str, Any]]:
+    def list_duplicate_assets(
+        self,
+        project_id: int,
+        min_instances: int = 2,
+        limit: Optional[int] = None,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
         sql = """
             WITH asset_counts AS (
                 SELECT asset_id, COUNT(*) as instance_count
@@ -172,8 +178,15 @@ class AssetRepository(BaseRepository):
             JOIN media_asset a ON a.asset_id = ac.asset_id
             ORDER BY ac.instance_count DESC
         """
+        params: list = [project_id, min_instances]
+        if limit is not None:
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+        elif offset:
+            sql += " LIMIT -1 OFFSET ?"
+            params.append(offset)
         with self.connection(read_only=True) as conn:
-            cur = conn.execute(sql, (project_id, min_instances))
+            cur = conn.execute(sql, params)
             return [dict(r) for r in cur.fetchall()]
 
     def count_duplicate_assets(self, project_id: int, min_instances: int = 2) -> int:
@@ -191,6 +204,18 @@ class AssetRepository(BaseRepository):
             cur = conn.execute(sql, (project_id, min_instances))
             row = cur.fetchone()
             return int(row["count"]) if row else 0
+
+    def delete_asset(self, project_id: int, asset_id: int) -> bool:
+        """Delete an asset by its ID within a project."""
+        sql = "DELETE FROM media_asset WHERE asset_id = ? AND project_id = ?"
+        with self.connection() as conn:
+            cur = conn.cursor()
+            cur.execute(sql, (asset_id, project_id))
+            conn.commit()
+            deleted = cur.rowcount > 0
+        if deleted:
+            self.logger.info(f"Deleted asset {asset_id} from project {project_id}")
+        return deleted
 
     # ── Backfill Support ──────────────────────────────────────────────────
 
