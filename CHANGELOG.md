@@ -8,7 +8,14 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 Full People domain representation in the new shell, with all legacy People actions accessible via bridge delegation. Still passive — legacy People section remains the action owner.
 
-#### Phase 5 Correction
+#### Phase 5 Correction (pass 2)
+- Restructured `_handle_people_branch()` with individual try/except per branch for isolated error handling
+- Extracted `_open_people_merge_review()`: gathers merge suggestions via `_suggest_cluster_merges` → `_show_merge_suggestions_dialog`, falls back to accordion expand
+- Extracted `_open_unnamed_cluster_review()`: expands People accordion section for unnamed cluster review
+- Simplified `_handle_search_sidebar_branch_request()`: clean delegation of `people_*` branches, sidebar fallback for others
+- All 9 branch names verified aligned: `people_merge_review`, `people_unnamed`, `people_show_all`, `people_tools`, `people_merge_history`, `people_undo_merge`, `people_redo_merge`, `people_expand`, `people_person:<id>`
+
+#### Phase 5 Correction (pass 1)
 - Fixed `_handle_people_branch()`: routes through layout's own handler methods (`_on_people_tools_requested`, `_on_people_merge_history_requested`, `_on_people_undo_requested`, `_on_people_redo_requested`, `_on_accordion_person_clicked`) instead of broken `section_logic` path
 - Added `_handle_search_sidebar_branch_request()`: general-purpose router for `SearchSidebar.selectBranch` — delegates `people_*` branches to `_handle_people_branch`, others to sidebar fallback
 - Fixed `_refresh_people_quick_section()`: payload now targets `self.sidebar` (SearchSidebar) and `layout.search_sidebar` instead of non-existent `google_shell_sidebar.set_people_quick_payload`

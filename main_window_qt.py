@@ -3190,102 +3190,137 @@ class MainWindow(QMainWindow):
     def _handle_people_branch(self, branch: str):
         """
         Phase 5: Handle People branch requests from the passive shell.
-        Routes to the layout's own handler methods (not section_logic).
+        Routes to the layout's own handler methods.
         """
         try:
-            layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+            layout = None
+            try:
+                if hasattr(self, "layout_manager") and self.layout_manager:
+                    layout = self.layout_manager.get_current_layout()
+            except Exception:
+                layout = None
 
             if branch == "people_merge_review":
-                # Trigger merge suggestions dialog via layout's merge review flow
-                if layout and hasattr(layout, "_show_merge_suggestions_dialog"):
-                    # Gather current merge suggestions and show dialog
-                    if hasattr(layout, "_suggest_cluster_merges"):
-                        try:
-                            from app_services import get_face_service
-                            face_service = get_face_service()
-                            project_id = getattr(layout, "project_id", None)
-                            if face_service and project_id:
-                                clusters = face_service.list_clusters(project_id) or []
-                                named = [c for c in clusters if c.get("display_name")]
-                                suggestions = layout._suggest_cluster_merges(named)
-                                if suggestions:
-                                    layout._show_merge_suggestions_dialog(suggestions)
-                                    return
-                        except Exception:
-                            pass
-                # Fallback: expand people accordion section
-                if layout and hasattr(layout, "accordion_sidebar"):
-                    if hasattr(layout.accordion_sidebar, "_expand_section"):
-                        layout.accordion_sidebar._expand_section("people")
+                self._open_people_merge_review()
                 return
 
             if branch == "people_unnamed":
-                # Expand people accordion to show unnamed clusters
-                if layout and hasattr(layout, "accordion_sidebar"):
-                    if hasattr(layout.accordion_sidebar, "_expand_section"):
-                        layout.accordion_sidebar._expand_section("people")
+                self._open_unnamed_cluster_review()
                 return
 
             if branch == "people_show_all":
-                if layout and hasattr(layout, "accordion_sidebar"):
-                    if hasattr(layout.accordion_sidebar, "_expand_section"):
-                        layout.accordion_sidebar._expand_section("people")
-                return
+                try:
+                    if layout and hasattr(layout, "accordion_sidebar"):
+                        if hasattr(layout.accordion_sidebar, "_expand_section"):
+                            layout.accordion_sidebar._expand_section("people")
+                            return
+                except Exception as e:
+                    print(f"[Routing] people_show_all failed: {e}")
 
             if branch == "people_tools":
-                if layout and hasattr(layout, "_on_people_tools_requested"):
-                    layout._on_people_tools_requested()
-                return
+                try:
+                    if layout and hasattr(layout, "_on_people_tools_requested"):
+                        layout._on_people_tools_requested()
+                        return
+                except Exception as e:
+                    print(f"[Routing] people_tools failed: {e}")
 
             if branch == "people_merge_history":
-                if layout and hasattr(layout, "_on_people_merge_history_requested"):
-                    layout._on_people_merge_history_requested()
-                return
+                try:
+                    if layout and hasattr(layout, "_on_people_merge_history_requested"):
+                        layout._on_people_merge_history_requested()
+                        return
+                except Exception as e:
+                    print(f"[Routing] people_merge_history failed: {e}")
 
             if branch == "people_undo_merge":
-                if layout and hasattr(layout, "_on_people_undo_requested"):
-                    layout._on_people_undo_requested()
-                return
+                try:
+                    if layout and hasattr(layout, "_on_people_undo_requested"):
+                        layout._on_people_undo_requested()
+                        return
+                except Exception as e:
+                    print(f"[Routing] people_undo_merge failed: {e}")
 
             if branch == "people_redo_merge":
-                if layout and hasattr(layout, "_on_people_redo_requested"):
-                    layout._on_people_redo_requested()
-                return
+                try:
+                    if layout and hasattr(layout, "_on_people_redo_requested"):
+                        layout._on_people_redo_requested()
+                        return
+                except Exception as e:
+                    print(f"[Routing] people_redo_merge failed: {e}")
 
             if branch == "people_expand":
-                if layout and hasattr(layout, "accordion_sidebar"):
-                    if hasattr(layout.accordion_sidebar, "_expand_section"):
-                        layout.accordion_sidebar._expand_section("people")
-                return
+                try:
+                    if layout and hasattr(layout, "accordion_sidebar"):
+                        if hasattr(layout.accordion_sidebar, "_expand_section"):
+                            layout.accordion_sidebar._expand_section("people")
+                            return
+                except Exception as e:
+                    print(f"[Routing] people_expand failed: {e}")
 
             if branch.startswith("people_person:"):
                 person_id = branch.split(":", 1)[1]
-                if layout and hasattr(layout, "_on_accordion_person_clicked"):
-                    layout._on_accordion_person_clicked(person_id)
-                return
+                try:
+                    if layout and hasattr(layout, "_on_accordion_person_clicked"):
+                        layout._on_accordion_person_clicked(person_id)
+                        return
+                except Exception as e:
+                    print(f"[Routing] people_person failed: {e}")
 
         except Exception as e:
             print(f"[MainWindow] _handle_people_branch failed: {branch} → {e}")
+
+    def _open_people_merge_review(self):
+        """Phase 5: Open the merge review dialog via layout's stable handler."""
+        try:
+            layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+            if layout and hasattr(layout, "_show_merge_suggestions_dialog"):
+                if hasattr(layout, "_suggest_cluster_merges"):
+                    try:
+                        from app_services import get_face_service
+                        face_service = get_face_service()
+                        project_id = getattr(layout, "project_id", None)
+                        if face_service and project_id:
+                            clusters = face_service.list_clusters(project_id) or []
+                            named = [c for c in clusters if c.get("display_name")]
+                            suggestions = layout._suggest_cluster_merges(named)
+                            if suggestions:
+                                layout._show_merge_suggestions_dialog(suggestions)
+                                return
+                    except Exception:
+                        pass
+            # Fallback: expand people accordion section
+            if layout and hasattr(layout, "accordion_sidebar"):
+                if hasattr(layout.accordion_sidebar, "_expand_section"):
+                    layout.accordion_sidebar._expand_section("people")
+        except Exception as e:
+            print(f"[MainWindow] _open_people_merge_review failed: {e}")
+
+    def _open_unnamed_cluster_review(self):
+        """Phase 5: Open unnamed cluster review via legacy People section."""
+        try:
+            layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+            # Expand people accordion to show unnamed clusters
+            if layout and hasattr(layout, "accordion_sidebar"):
+                if hasattr(layout.accordion_sidebar, "_expand_section"):
+                    layout.accordion_sidebar._expand_section("people")
+        except Exception as e:
+            print(f"[MainWindow] _open_unnamed_cluster_review failed: {e}")
 
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
         Phase 5: General-purpose branch router for SearchSidebar.selectBranch.
         Delegates People branches to _handle_people_branch, others to sidebar fallback.
         """
-        try:
-            if branch.startswith("people_"):
-                self._handle_people_branch(branch)
-                return
+        if branch.startswith("people_"):
+            self._handle_people_branch(branch)
+            return
 
-            # Non-People branches: forward to sidebar selectBranch for legacy handling
-            if hasattr(self, "sidebar"):
-                try:
-                    self.sidebar.selectBranch.emit(branch)
-                except Exception:
-                    pass
-
-        except Exception as e:
-            print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
+        if hasattr(self, "sidebar"):
+            try:
+                self.sidebar.selectBranch.emit(branch)
+            except Exception:
+                pass
 
     # ── end Phase 5 ──────────────────────────────────────────────────
 
