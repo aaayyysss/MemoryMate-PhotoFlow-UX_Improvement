@@ -1,0 +1,158 @@
+{
+  "app": {
+    "name": "MemoryMate PhotoFlow",
+    "version": "2.0.0",
+    "description": "نظام ذكي لإدارة الصور والفيديو"
+  },
+  "menu": {
+    "file": "ملف",
+    "new_project": "مشروع جديد",
+    "open_project": "فتح مشروع",
+    "save": "حفظ",
+    "preferences": "الإعدادات",
+    "exit": "خروج",
+    "edit": "تحرير",
+    "view": "عرض",
+    "tools": "أدوات",
+    "help": "مساعدة",
+    "about": "حول"
+  },
+  "preferences": {
+    "title": "الإعدادات",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "apply": "تطبيق",
+    "reset": "العودة للوضع الافتراضي",
+    "sections": {
+      "general": "عام",
+      "face_detection": "اكتشاف الوجوه",
+      "video_settings": "إعدادات الفيديو",
+      "ffmpeg": "إعداد FFmpeg",
+      "advanced": "متقدم",
+      "about": "حول"
+    },
+    "general": {
+      "title": "الإعدادات العامة",
+      "interface": "الواجهة",
+      "auto_refresh": "تحديث المصغرات تلقائياً",
+      "refresh_interval": "فترة التحديث (بالثواني)",
+      "default_view": "وضع العرض الافتراضي",
+      "theme": "السمة",
+      "language": "اللغة",
+      "startup": "بدء التشغيل",
+      "restore_project": "استعادة آخر مشروع عند التشغيل",
+      "show_welcome": "إظهار شاشة الترحيب"
+    },
+    "face_detection": {
+      "title": "إعدادات اكتشاف الوجوه",
+      "models": "النماذج",
+      "model_path": "مسار النموذج",
+      "browse": "تصفح...",
+      "test": "اختبار",
+      "clustering": "التجميع",
+      "clustering_threshold": "حد التجميع (eps)",
+      "min_samples": "الحد الأدنى للعَيّنات",
+      "auto_cluster": "التجميع تلقائياً بعد الفحص",
+      "performance": "الأداء",
+      "batch_size": "حجم الدفعة",
+      "max_workers": "أقصى عدد للعمال"
+    },
+    "video": {
+      "title": "إعدادات الفيديو",
+      "playback": "التشغيل",
+      "auto_play": "تشغيل الفيديو تلقائياً",
+      "loop": "تكرار",
+      "volume": "مستوى الصوت الافتراضي",
+      "thumbnails": "الصور المصغرة",
+      "thumbnail_time": "وقت التقاط الصورة المصغرة (ثواني)",
+      "thumbnail_quality": "جودة الصورة المصغرة"
+    },
+    "ffmpeg": {
+      "title": "إعدادات FFmpeg",
+      "detection": "الاكتشاف",
+      "ffmpeg_path": "مسار FFmpeg",
+      "ffprobe_path": "مسار FFprobe",
+      "auto_detect": "كشف تلقائي",
+      "status": "الحالة",
+      "detected": "تم الكشف",
+      "not_found": "غير موجود"
+    }
+  },
+  "messages": {
+    "success": {
+      "settings_saved": "تم حفظ الإعدادات بنجاح",
+      "project_created": "تم إنشاء المشروع بنجاح",
+      "scan_complete": "اكتمل الفحص: {count} ملف تمت معالجته"
+    },
+    "error": {
+      "settings_save_failed": "فشل حفظ الإعدادات: {error}",
+      "project_load_failed": "فشل تحميل المشروع: {error}",
+      "scan_failed": "فشل الفحص: {error}"
+    },
+    "confirm": {
+      "delete_project": "حذف المشروع '{name}'؟",
+      "delete_faces": "حذف {count} مجموعات وجه؟",
+      "reset_settings": "إعادة جميع الإعدادات للوضع الافتراضي؟"
+    }
+  },
+  "face_detection": {
+    "scanning": "جاري فحص الوجوه...",
+    "clustering": "جاري تجميع الوجوه...",
+    "complete": "اكتمل اكتشاف الوجوه",
+    "faces_found": "تم اكتشاف {count} وجه",
+    "people_found": "تم تحديد {count} شخص",
+    "unidentified": "وجوه غير معرّفة",
+    "unidentified_count": "⚠️ غير معرّف ({count} وجه)",
+    "review_needed": "مراجعة مطلوبة",
+    "actions": {
+      "merge_to_person": "دمج مع شخص...",
+      "create_new_person": "إنشاء شخص جديد",
+      "mark_false_detection": "وضع علامة على أنه اكتشاف خاطئ",
+      "keep_unidentified": "الاحتفاظ كغير معرّف"
+    },
+    "suggestions": {
+      "possibly_matches": "ربما يطابق: {person} (بنسبة {confidence}% احتمال)",
+      "confirm": "تأكيد",
+      "reject": "رفض"
+    }
+  },
+  "video": {
+    "filters": {
+      "size": "حجم الملف",
+      "small": "صغير (< 100MB)",
+      "medium": "متوسط (100MB - 1GB)",
+      "large": "كبير (1GB - 5GB)",
+      "xlarge": "ضخم (> 5GB)",
+      "duration": "المدة",
+      "codec": "الترميز",
+      "resolution": "الدقة"
+    }
+  },
+  "sidebar": {
+    "all_photos": "كل الصور",
+    "folders": "المجلدات",
+    "dates": "التواريخ",
+    "people": "الأشخاص",
+    "videos": "الفيديوهات",
+    "tags": "الوسوم",
+    "search": "بحث..."
+  },
+  "common": {
+    "yes": "نعم",
+    "no": "لا",
+    "ok": "حسناً",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "apply": "تطبيق",
+    "browse": "تصفح...",
+    "test": "اختبار",
+    "delete": "حذف",
+    "rename": "إعادة تسمية",
+    "merge": "دمج",
+    "loading": "جارٍ التحميل...",
+    "processing": "جارٍ المعالجة...",
+    "error": "خطأ",
+    "warning": "تحذير",
+    "info": "معلومة"
+  }
+}

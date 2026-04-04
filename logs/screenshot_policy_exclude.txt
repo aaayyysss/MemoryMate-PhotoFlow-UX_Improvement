@@ -1,0 +1,488 @@
+2026-03-20 01:52:01,488 [INFO] [GoogleLayout] All pages loaded: 136 rows total
+[GooglePhotosLayout] Grouped into 77 date groups
+[GooglePhotosLayout] Tracking 136 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 77 total date groups
+[GooglePhotosLayout] Rendered: 5 groups | Placeholders: 72 groups
+[GooglePhotosLayout] Queued 6 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:52:48,427 [INFO] [FacePipelineService] Starting pipeline for project 1 (scope=134 photos, model=buffalo_l, screenshot_policy=exclude)
+2026-03-20 01:52:48,427 [INFO] [JobManager] Registered tracked job -4: face_pipeline — Face detection (134 photos)
+2026-03-20 01:52:48,438 [INFO] [FacePipelineWorker] Starting face pipeline for project 1 (thread=Dummy-30, is_main=False)
+[ReferenceDB] Closed connection for thread 4152
+2026-03-20 01:52:48,450 [INFO] [FacePipelineWorker] Incremental cleanup: cleared 0 crops for 134 scoped photos, preserved 0 existing crops (project 1)
+[ReferenceDB] Closed connection for thread 4152
+2026-03-20 01:52:48,450 [INFO] [FacePipelineWorker] Cleared stale face data for project 1
+2026-03-20 01:52:48,490 [INFO] ✓ HEIC/HEIF support enabled for face detection (pillow_heif v1.1.0)
+2026-03-20 01:52:48,556 [INFO] [FaceDetectionWorker] Starting face detection for project 1 (thread=Dummy-30, is_main=False)
+2026-03-20 01:52:48,556 [INFO] [FaceDetectionLogger] Logging to: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\.memorymate\logs\face_detection\face_detection_p1_20260320_015248.jsonl
+2026-03-20 01:52:48,556 [INFO] 💻 Using CPU for face detection (CUDA not available)
+2026-03-20 01:52:48,556 [INFO] 📁 Using local bundled models: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l
+2026-03-20 01:52:48,556 [INFO] 📦 InsightFace version: 0.7.3
+2026-03-20 01:52:48,556 [INFO] Nested buffalo_l directory detected: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l\models\buffalo_l
+2026-03-20 01:52:48,556 [INFO]    This is expected for older InsightFace (models resolved at root/models/buffalo_l/).
+2026-03-20 01:52:48,556 [INFO] ✓ Initializing InsightFace with buffalo_l directory: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l
+2026-03-20 01:52:48,566 [INFO] ✓ Root dir for FaceAnalysis: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l
+2026-03-20 01:52:48,566 [INFO] ✓ Using ctx_id approach (older InsightFace v0.7.3, proof of concept compatible)
+2026-03-20 01:52:48,566 [INFO] ✓ Version detection: API signature check confirmed no providers parameter (older API)
+Applied providers: ['CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}}
+find model: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l\models\buffalo_l\1k3d68.onnx landmark_3d_68 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}}
+find model: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l\models\buffalo_l\2d106det.onnx landmark_2d_106 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}}
+find model: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l\models\buffalo_l\det_10g.onnx detection [1, 3, '?', '?'] 127.5 128.0
+Applied providers: ['CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}}
+find model: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l\models\buffalo_l\genderage.onnx genderage ['None', 3, 96, 96] 0.0 1.0
+Applied providers: ['CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}}
+find model: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\models\buffalo_l\models\buffalo_l\w600k_r50.onnx recognition ['None', 3, 112, 112] 127.5 127.5
+2026-03-20 01:52:49,741 [INFO] ✓ Using CPU acceleration (ctx_id=-1)
+set det-size: (640, 640)
+2026-03-20 01:52:50,486 [INFO] ✅ InsightFace (buffalo_l) loaded successfully with CPU acceleration (det_size=640x640)
+2026-03-20 01:52:50,486 [INFO] [FaceDetection] Initialized InsightFace with model=buffalo_l
+2026-03-20 01:52:50,490 [WARNING] [PROJECT_SCOPE_SEAL][WORKER] requested=134 validated=134 dropped=0 project=1
+2026-03-20 01:52:50,490 [INFO] [FaceDetectionWorker] Using validated scoped photos: 134 photos
+2026-03-20 01:52:50,492 [INFO] [FaceDetectionWorker] Processing 134 photos
+2026-03-20 01:52:50,492 [INFO] 💻 Using CPU for face detection (CUDA not available)
+2026-03-20 01:52:50,492 [INFO] [FaceDetectionLogger] Session started: 20260320_015248
+2026-03-20 01:52:50,492 [INFO] [FaceDetectionWorker] 💻 Sequential processing: GPU=not available, photos=134, batch_enabled=True
+2026-03-20 01:52:51,162 [INFO] [FaceDetection] Found 1 faces in animal 1.jpeg
+2026-03-20 01:52:51,626 [INFO] [FaceDetection] Found 2 faces in animal 2.jpeg
+2026-03-20 01:52:52,718 [INFO] [FaceDetection] Found 1 faces in animal 6.heic
+2026-03-20 01:52:57,706 [INFO] [FaceDetection] Found 2 faces in baby 2.jpeg
+2026-03-20 01:52:58,048 [INFO] [FaceDetection] Found 2 faces in baby 3.jpeg
+2026-03-20 01:53:02,886 [INFO] [FaceDetection] Found 2 faces in drinks 3.dng
+2026-03-20 01:53:05,013 [INFO] [FaceDetection] Found 1 faces in flower 6.jpeg
+2026-03-20 01:53:05,566 [INFO] [FaceDetection] Found 1 faces in flower 7.heic
+2026-03-20 01:53:06,166 [INFO] [FaceDetection] Found 1 faces in flower 8- kid 6.jpeg
+2026-03-20 01:53:06,571 [INFO] [FaceDetection] Found 1 faces in flower 9.dng
+2026-03-20 01:53:07,246 [INFO] [FaceDetection] Found 2 faces in food 2- kid 6.jpeg
+2026-03-20 01:53:09,706 [INFO] [FaceDetection] Found 1 faces in happy 4.jpeg
+2026-03-20 01:53:10,501 [INFO] [FaceDetection] Found 1 faces in img_1513.dng
+2026-03-20 01:53:10,881 [INFO] [FaceDetection] Found 2 faces in kids 2.jpeg
+2026-03-20 01:53:11,221 [INFO] [FaceDetection] Found 2 faces in kids 3.jpeg
+2026-03-20 01:53:11,666 [INFO] [FaceDetection] Found 2 faces in kids 5.jpeg
+2026-03-20 01:53:12,190 [INFO] [FaceDetection] Found 2 faces in kids 7.dng
+2026-03-20 01:53:17,113 [INFO] [FaceDetection] Found 1 faces in night 1- star 2.jpeg
+2026-03-20 01:53:21,506 [INFO] [FaceDetection] Found 0 faces in panorama 6.jpeg
+2026-03-20 01:53:22,327 [INFO] [FaceDetection] Found 2 faces in party 3.dng
+2026-03-20 01:53:23,285 [INFO] [FaceDetection] Found 5 faces in party 4- happy 5.dng
+2026-03-20 01:53:23,956 [INFO] [FaceDetection] Found 1 faces in portrait 1.jpeg
+2026-03-20 01:53:24,394 [INFO] [FaceDetection] Found 1 faces in portrait 2- flower 2.jpg
+2026-03-20 01:53:24,856 [INFO] [FaceDetection] Found 1 faces in portrait 3.heic
+2026-03-20 01:53:32,025 [INFO] [FacePipelineWorker] Running interim clustering (37 faces so far, pass #1)
+2026-03-20 01:53:32,025 [INFO] [FaceClusterWorker] Starting face clustering for project 1 (thread=Dummy-30, is_main=False)
+2026-03-20 01:53:32,035 [INFO] [FaceClusterWorker] Loaded 24 face embeddings
+2026-03-20 01:53:32,035 [INFO] [FaceClusterWorker] Found 16 clusters
+2026-03-20 01:53:32,048 [INFO] [FaceClusterWorker] Clustering Quality Analysis:
+  - Overall Quality: 76.4/100 (Good)
+  - Silhouette Score: 0.162 (Poor)
+  - Davies-Bouldin Index: 0.545 (Good)
+  - Noise Ratio: 0.0%
+  - Avg Cluster Compactness: 0.142
+  - Avg Cluster Separation: 0.885
+2026-03-20 01:53:32,048 [INFO] [FaceClusterWorker] Parameter Tuning Suggestions:
+2026-03-20 01:53:32,048 [INFO]   1. Low silhouette score (0.162): Consider increasing eps to merge similar clusters, or decreasing eps to split overlapping clusters.
+2026-03-20 01:53:32,052 [INFO]   2. Very low noise ratio (0.0%) but many small clusters: Might be over-clustering. Try increasing eps to merge similar clusters.
+2026-03-20 01:53:32,052 [INFO]   3. Many singleton clusters (14/16): Try increasing min_samples to require larger clusters, or increasing eps.
+2026-03-20 01:53:32,052 [INFO]   4. 15 clusters have poor silhouette scores: These clusters may need manual review or re-clustering.
+2026-03-20 01:53:32,166 [INFO] [FaceClusterWorker] Cluster 0 → 1 faces
+2026-03-20 01:53:32,364 [INFO] [FaceClusterWorker] Cluster 1 → 4 faces
+2026-03-20 01:53:32,373 [INFO] [FaceClusterWorker] Cluster 2 → 1 faces
+2026-03-20 01:53:32,740 [INFO] [FaceClusterWorker] Cluster 3 → 6 faces
+2026-03-20 01:53:32,830 [INFO] [FaceClusterWorker] Cluster 4 → 1 faces
+2026-03-20 01:53:33,097 [INFO] [FaceClusterWorker] Cluster 5 → 1 faces
+2026-03-20 01:53:33,241 [INFO] [FaceClusterWorker] Cluster 6 → 1 faces
+2026-03-20 01:53:33,326 [INFO] [FaceClusterWorker] Cluster 7 → 1 faces
+2026-03-20 01:53:33,416 [INFO] [FaceClusterWorker] Cluster 8 → 1 faces
+2026-03-20 01:53:33,435 [INFO] [FaceClusterWorker] Cluster 9 → 1 faces
+2026-03-20 01:53:33,435 [INFO] [FaceClusterWorker] Cluster 10 → 1 faces
+2026-03-20 01:53:33,448 [INFO] [FaceClusterWorker] Cluster 11 → 1 faces
+2026-03-20 01:53:33,457 [INFO] [FaceClusterWorker] Cluster 12 → 1 faces
+2026-03-20 01:53:33,472 [INFO] [FaceClusterWorker] Cluster 13 → 1 faces
+2026-03-20 01:53:33,756 [INFO] [FaceClusterWorker] Cluster 14 → 1 faces
+2026-03-20 01:53:34,025 [INFO] [FaceClusterWorker] Cluster 15 → 1 faces
+2026-03-20 01:53:34,025 [INFO] [FaceClusterWorker] 📊 Cluster Loop Performance Breakdown:
+2026-03-20 01:53:34,025 [INFO]   - Quality Analysis: 1.94s (99.9%)
+2026-03-20 01:53:34,025 [INFO]   - Database Operations: 0.00s (0.1%)
+2026-03-20 01:53:34,025 [INFO]   - Total Measured: 1.94s
+2026-03-20 01:53:34,025 [INFO] [FaceClusterWorker] ✅ Optimizations: Reused FaceQualityAnalyzer instance + batch INSERT with executemany()
+2026-03-20 01:53:34,025 [INFO] [FaceClusterWorker] Complete in 2.0s: 16 person clusters + 0 unidentified faces
+
+
+
+======================================================================
+Performance Report: face_clustering_project_1
+======================================================================
+Total Duration: 2.00s
+Total Operations: 7 (7 succeeded, 0 failed)
+
+Operation Breakdown:
+----------------------------------------------------------------------
+
+analyze_clustering_quality:
+  Count: 1
+  Total: 0.02s (0.8% of total)
+  Avg: 0.017s
+  Min/Max: 0.017s / 0.017s
+  Median: 0.017s
+
+load_embeddings:
+  Count: 1
+  Total: 0.01s (0.5% of total)
+  Avg: 0.010s
+  Min/Max: 0.010s / 0.010s
+  Median: 0.010s
+
+dbscan_clustering:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+clear_previous_clusters:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+quality_analysis:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+db_write_clusters:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+database_commit:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+======================================================================
+
+2026-03-20 01:53:34,055 [INFO] [FacePipelineWorker] Interim clustering #1 complete: 16 clusters from 37 faces
+2026-03-20 01:53:34,385 [INFO] [FaceDetection] Found 1 faces in portrait 4- baby 1.jpeg
+2026-03-20 01:53:34,801 [INFO] [FaceDetection] Found 1 faces in portrait 5- kid 1.jpeg
+2026-03-20 01:53:35,285 [INFO] [FaceDetection] Found 2 faces in portrait 6- kid 2.jpeg
+2026-03-20 01:53:38,191 [INFO] [FaceDetection] Found 2 faces in vehicles 2- happy 6.jpeg
+2026-03-20 01:53:39,035 [INFO] [FaceDetection] Found 1 faces in vehicles 4- kid 7.heic
+2026-03-20 01:53:39,566 [INFO] [FaceDetection] Found 1 faces in vehicles 5- kid 8.jpeg
+2026-03-20 01:53:40,230 [INFO] [FaceDetection] Found 2 faces in vehicles 7- happy 7.dng
+2026-03-20 01:53:41,421 [INFO] [FaceDetection] Found 6 faces in wedding 1.jpg
+2026-03-20 01:53:43,427 [INFO] [FaceDetection] Found 2 faces in wedding 2.jpg
+2026-03-20 01:53:44,514 [INFO] [FaceDetection] Found 2 faces in wedding 3.jpg
+2026-03-20 01:53:45,610 [INFO] [FaceDetection] Found 2 faces in wedding 4.jpg
+2026-03-20 01:53:46,003 [INFO] [FaceDetectionWorker] Complete in 57.4s: 134 processed (34 with faces), 8 skipped, 59 faces detected, 0 failed
+
+
+
+======================================================================
+Performance Report: face_detection_project_1
+======================================================================
+Total Duration: 57.45s
+Total Operations: 3 (3 succeeded, 0 failed)
+
+Operation Breakdown:
+----------------------------------------------------------------------
+
+process_all_photos:
+  Count: 1
+  Total: 55.51s (96.6% of total)
+  Avg: 55.511s
+  Min/Max: 55.511s / 55.511s
+  Median: 55.511s
+
+initialize_face_service:
+  Count: 1
+  Total: 1.93s (3.4% of total)
+  Avg: 1.930s
+  Min/Max: 1.930s / 1.930s
+  Median: 1.930s
+
+get_photos_to_process:
+  Count: 1
+  Total: 0.01s (0.0% of total)
+  Avg: 0.006s
+  Min/Max: 0.006s / 0.006s
+  Median: 0.006s
+
+======================================================================
+
+⚠️  BOTTLENECK DETECTED:
+   process_all_photos takes 96.6% of total time
+   Consider optimizing this operation for best performance gains
+======================================================================
+
+2026-03-20 01:53:46,009 [INFO] [FaceDetectionLogger] Session complete: 126 photos, 59 faces, 0 errors, 55.5s
+2026-03-20 01:53:46,009 [INFO] [FaceDetectionWorker] Session log saved: C:\Users\suleimaa\Downloads\Photo-Sorter\11.01.01.10-Photo-App\MemoryMate-PhotoFlow-Refactored-main-02\.memorymate\logs\face_detection\face_detection_p1_20260320_015248.jsonl
+2026-03-20 01:53:46,009 [INFO] [FacePipelineWorker] Detection complete: 59 faces in 134 images (1 interim cluster passes)
+2026-03-20 01:53:46,010 [INFO] [FacePipelineWorker] Incremental scan: 59 new faces detected, 59 total faces in database
+2026-03-20 01:53:46,010 [INFO] [FaceClusterWorker] Starting face clustering for project 1 (thread=Dummy-30, is_main=False)
+2026-03-20 01:53:46,012 [INFO] [FaceClusterWorker] Loaded 36 face embeddings
+2026-03-20 01:53:46,015 [INFO] [FaceClusterWorker] Found 24 clusters
+2026-03-20 01:53:46,020 [INFO] [FaceClusterWorker] Clustering Quality Analysis:
+  - Overall Quality: 74.5/100 (Good)
+  - Silhouette Score: 0.091 (Poor)
+  - Davies-Bouldin Index: 0.569 (Good)
+  - Noise Ratio: 0.0%
+  - Avg Cluster Compactness: 0.162
+  - Avg Cluster Separation: 0.905
+2026-03-20 01:53:46,020 [INFO] [FaceClusterWorker] Parameter Tuning Suggestions:
+2026-03-20 01:53:46,020 [INFO]   1. Low silhouette score (0.091): Consider increasing eps to merge similar clusters, or decreasing eps to split overlapping clusters.
+2026-03-20 01:53:46,020 [INFO]   2. Very low noise ratio (0.0%) but many small clusters: Might be over-clustering. Try increasing eps to merge similar clusters.
+2026-03-20 01:53:46,025 [INFO]   3. Many singleton clusters (22/24): Try increasing min_samples to require larger clusters, or increasing eps.
+2026-03-20 01:53:46,025 [INFO]   4. 23 clusters have poor silhouette scores: These clusters may need manual review or re-clustering.
+2026-03-20 01:53:46,130 [INFO] [FaceClusterWorker] Cluster 0 → 1 faces
+2026-03-20 01:53:46,635 [INFO] [FaceClusterWorker] Cluster 1 → 6 faces
+2026-03-20 01:53:46,645 [INFO] [FaceClusterWorker] Cluster 2 → 1 faces
+2026-03-20 01:53:47,347 [INFO] [FaceClusterWorker] Cluster 3 → 8 faces
+2026-03-20 01:53:47,437 [INFO] [FaceClusterWorker] Cluster 4 → 1 faces
+2026-03-20 01:53:47,695 [INFO] [FaceClusterWorker] Cluster 5 → 1 faces
+2026-03-20 01:53:47,840 [INFO] [FaceClusterWorker] Cluster 6 → 1 faces
+2026-03-20 01:53:47,927 [INFO] [FaceClusterWorker] Cluster 7 → 1 faces
+2026-03-20 01:53:48,012 [INFO] [FaceClusterWorker] Cluster 8 → 1 faces
+2026-03-20 01:53:48,030 [INFO] [FaceClusterWorker] Cluster 9 → 1 faces
+2026-03-20 01:53:48,040 [INFO] [FaceClusterWorker] Cluster 10 → 1 faces
+2026-03-20 01:53:48,045 [INFO] [FaceClusterWorker] Cluster 11 → 1 faces
+2026-03-20 01:53:48,058 [INFO] [FaceClusterWorker] Cluster 12 → 1 faces
+2026-03-20 01:53:48,065 [INFO] [FaceClusterWorker] Cluster 13 → 1 faces
+2026-03-20 01:53:48,347 [INFO] [FaceClusterWorker] Cluster 14 → 1 faces
+2026-03-20 01:53:48,615 [INFO] [FaceClusterWorker] Cluster 15 → 1 faces
+2026-03-20 01:53:48,739 [INFO] [FaceClusterWorker] Cluster 16 → 1 faces
+2026-03-20 01:53:48,847 [INFO] [FaceClusterWorker] Cluster 17 → 1 faces
+2026-03-20 01:53:48,935 [INFO] [FaceClusterWorker] Cluster 18 → 1 faces
+2026-03-20 01:53:49,023 [INFO] [FaceClusterWorker] Cluster 19 → 1 faces
+2026-03-20 01:53:49,095 [INFO] [FaceClusterWorker] Cluster 20 → 1 faces
+2026-03-20 01:53:49,150 [INFO] [FaceClusterWorker] Cluster 21 → 1 faces
+2026-03-20 01:53:49,198 [INFO] [FaceClusterWorker] Cluster 22 → 1 faces
+2026-03-20 01:53:49,485 [INFO] [FaceClusterWorker] Cluster 23 → 1 faces
+2026-03-20 01:53:49,490 [INFO] [FaceClusterWorker] 📊 Cluster Loop Performance Breakdown:
+2026-03-20 01:53:49,490 [INFO]   - Quality Analysis: 3.44s (100.0%)
+2026-03-20 01:53:49,490 [INFO]   - Database Operations: 0.00s (0.0%)
+2026-03-20 01:53:49,494 [INFO]   - Total Measured: 3.44s
+2026-03-20 01:53:49,494 [INFO] [FaceClusterWorker] ✅ Optimizations: Reused FaceQualityAnalyzer instance + batch INSERT with executemany()
+2026-03-20 01:53:49,496 [INFO] [FaceClusterWorker] Complete in 3.5s: 24 person clusters + 0 unidentified faces
+
+
+
+======================================================================
+Performance Report: face_clustering_project_1
+======================================================================
+Total Duration: 3.48s
+Total Operations: 7 (7 succeeded, 0 failed)
+
+Operation Breakdown:
+----------------------------------------------------------------------
+
+analyze_clustering_quality:
+  Count: 1
+  Total: 0.01s (0.3% of total)
+  Avg: 0.010s
+  Min/Max: 0.010s / 0.010s
+  Median: 0.010s
+
+dbscan_clustering:
+  Count: 1
+  Total: 0.00s (0.1% of total)
+  Avg: 0.003s
+  Min/Max: 0.003s / 0.003s
+  Median: 0.003s
+
+clear_previous_clusters:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.002s
+  Min/Max: 0.002s / 0.002s
+  Median: 0.002s
+
+database_commit:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.001s
+  Min/Max: 0.001s / 0.001s
+  Median: 0.001s
+
+load_embeddings:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+quality_analysis:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+db_write_clusters:
+  Count: 1
+  Total: 0.00s (0.0% of total)
+  Avg: 0.000s
+  Min/Max: 0.000s / 0.000s
+  Median: 0.000s
+
+======================================================================
+
+2026-03-20 01:53:49,499 [INFO] [FacePipelineWorker] Final clustering complete: 24 clusters from 36 faces
+2026-03-20 01:53:49,597 [INFO] [JobManager] Tracked job -4 (face_pipeline) completed: {'clusters_created': 24, 'errors': [], 'faces_detected': 59, 'images_processed': 134, 'interim_passes': 1}
+2026-03-20 01:53:49,609 [INFO] [SearchFeatureRepo] Refreshed 134 rows for project 1 in 12ms
+2026-03-20 01:53:49,848 [INFO] [PeopleSection] Loading face clusters (generation 3)…
+2026-03-20 01:53:49,849 [INFO] [UIRefreshMediator] Refreshed people (google, pid=1)
+2026-03-20 01:53:49,860 [INFO] [PeopleSection] Loaded 24 clusters (gen 3)
+[ReferenceDB] Closed connection for thread 16548
+2026-03-20 01:53:49,864 [INFO] [PEOPLE_UI] loaded=24 clusters (gen 3)
+2026-03-20 01:53:49,864 [INFO] [PeopleSection] Data load confirmed: 24 clusters at generation 3
+2026-03-20 01:53:50,185 [INFO] [PeopleSection] Grid built with 24 people + Groups tab
+2026-03-20 01:53:50,245 [INFO] [AccordionSidebar] Section people loaded and displayed
+2026-03-20 01:54:05,670 [INFO] [AccordionSidebar] Expanding section: people
+2026-03-20 01:54:05,675 [INFO] [PeopleSection] Loading face clusters (generation 4)…
+2026-03-20 01:54:05,685 [INFO] [PeopleSection] Loaded 24 clusters (gen 4)
+[ReferenceDB] Closed connection for thread 31852
+2026-03-20 01:54:05,706 [INFO] [PEOPLE_UI] loaded=24 clusters (gen 4)
+2026-03-20 01:54:05,706 [INFO] [PeopleSection] Data load confirmed: 24 clusters at generation 4
+2026-03-20 01:54:05,787 [INFO] [PeopleSection] Grid built with 24 people + Groups tab
+2026-03-20 01:54:05,841 [INFO] [AccordionSidebar] Section people loaded and displayed
+2026-03-20 01:54:11,500 [INFO] [GooglePhotosLayout] Accordion person clicked: face_003
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_003]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 6) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 6, page_size=250)
+2026-03-20 01:54:11,558 [INFO] [GoogleLayout] Page count ready: gen=6 total=8 (threshold=3000)
+2026-03-20 01:54:11,558 [INFO] [GoogleLayout] Page ready: gen=6 offset=0 rows=8 loaded=8/8
+[GooglePhotosLayout] Dispatching 8 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:11,558 [INFO] [GoogleLayout] All pages loaded: 8 rows total
+[GooglePhotosLayout] Grouped into 8 date groups
+[GooglePhotosLayout] Tracking 8 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 8 total date groups
+[GooglePhotosLayout] Rendered: 5 groups | Placeholders: 3 groups
+[GooglePhotosLayout] Queued 5 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:33,591 [INFO] [GooglePhotosLayout] Accordion person clicked: face_001
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_001]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 7) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 7, page_size=250)
+2026-03-20 01:54:33,653 [INFO] [GoogleLayout] Page count ready: gen=7 total=6 (threshold=3000)
+2026-03-20 01:54:33,653 [INFO] [GoogleLayout] Page ready: gen=7 offset=0 rows=6 loaded=6/6
+[GooglePhotosLayout] Dispatching 6 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:33,655 [INFO] [GoogleLayout] All pages loaded: 6 rows total
+[GooglePhotosLayout] Grouped into 6 date groups
+[GooglePhotosLayout] Tracking 6 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 6 total date groups
+[GooglePhotosLayout] Rendered: 5 groups | Placeholders: 1 groups
+[GooglePhotosLayout] Queued 5 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:37,564 [INFO] [GooglePhotosLayout] Accordion person clicked: face_000
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_000]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 8) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 8, page_size=250)
+2026-03-20 01:54:37,645 [INFO] [GoogleLayout] Page count ready: gen=8 total=1 (threshold=3000)
+2026-03-20 01:54:37,645 [INFO] [GoogleLayout] Page ready: gen=8 offset=0 rows=1 loaded=1/1
+[GooglePhotosLayout] Dispatching 1 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:37,645 [INFO] [GoogleLayout] All pages loaded: 1 rows total
+[GooglePhotosLayout] Grouped into 1 date groups
+[GooglePhotosLayout] Tracking 1 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
+[GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
+[GooglePhotosLayout] Queued 1 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:38,736 [INFO] [GooglePhotosLayout] Accordion person clicked: face_002
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_002]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 9) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 9, page_size=250)
+2026-03-20 01:54:38,807 [INFO] [GoogleLayout] Page count ready: gen=9 total=1 (threshold=3000)
+2026-03-20 01:54:38,807 [INFO] [GoogleLayout] Page ready: gen=9 offset=0 rows=1 loaded=1/1
+[GooglePhotosLayout] Dispatching 1 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:38,807 [INFO] [GoogleLayout] All pages loaded: 1 rows total
+[GooglePhotosLayout] Grouped into 1 date groups
+[GooglePhotosLayout] Tracking 1 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
+[GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
+[GooglePhotosLayout] Queued 1 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:39,964 [INFO] [GooglePhotosLayout] Accordion person clicked: face_004
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_004]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 10) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 10, page_size=250)
+2026-03-20 01:54:40,025 [INFO] [GoogleLayout] Page count ready: gen=10 total=1 (threshold=3000)
+2026-03-20 01:54:40,025 [INFO] [GoogleLayout] Page ready: gen=10 offset=0 rows=1 loaded=1/1
+[GooglePhotosLayout] Dispatching 1 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:40,025 [INFO] [GoogleLayout] All pages loaded: 1 rows total
+[GooglePhotosLayout] Grouped into 1 date groups
+[GooglePhotosLayout] Tracking 1 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
+[GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
+[GooglePhotosLayout] Queued 1 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:40,860 [INFO] [GooglePhotosLayout] Accordion person clicked: face_005
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_005]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 11) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 11, page_size=250)
+2026-03-20 01:54:40,918 [INFO] [GoogleLayout] Page count ready: gen=11 total=1 (threshold=3000)
+2026-03-20 01:54:40,918 [INFO] [GoogleLayout] Page ready: gen=11 offset=0 rows=1 loaded=1/1
+[GooglePhotosLayout] Dispatching 1 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:40,918 [INFO] [GoogleLayout] All pages loaded: 1 rows total
+[GooglePhotosLayout] Grouped into 1 date groups
+[GooglePhotosLayout] Tracking 1 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
+[GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
+[GooglePhotosLayout] Queued 1 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:41,324 [INFO] [GooglePhotosLayout] Accordion person clicked: face_006
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_006]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 12) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 12, page_size=250)
+2026-03-20 01:54:41,377 [INFO] [GoogleLayout] Page count ready: gen=12 total=1 (threshold=3000)
+2026-03-20 01:54:41,377 [INFO] [GoogleLayout] Page ready: gen=12 offset=0 rows=1 loaded=1/1
+[GooglePhotosLayout] Dispatching 1 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:41,377 [INFO] [GoogleLayout] All pages loaded: 1 rows total
+[GooglePhotosLayout] Grouped into 1 date groups
+[GooglePhotosLayout] Tracking 1 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
+[GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
+[GooglePhotosLayout] Queued 1 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-03-20 01:54:41,863 [INFO] [GooglePhotosLayout] Accordion person clicked: face_007
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=face_007]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 13) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 13, page_size=250)
+2026-03-20 01:54:41,928 [INFO] [GoogleLayout] Page count ready: gen=13 total=1 (threshold=3000)
+2026-03-20 01:54:41,928 [INFO] [GoogleLayout] Page ready: gen=13 offset=0 rows=1 loaded=1/1
+[GooglePhotosLayout] Dispatching 1 assets (photos+videos) to background grouping worker...
+2026-03-20 01:54:41,928 [INFO] [GoogleLayout] All pages loaded: 1 rows total
+[GooglePhotosLayout] Grouped into 1 date groups
+[GooglePhotosLayout] Tracking 1 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
+[GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
+[GooglePhotosLayout] Queued 1 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+[UI] Generation bumped 0 -> 1: shutdown barrier
+[Shutdown] _closing flag set, ui_generation=1, beginning teardown...
+2026-03-20 01:54:48,828 [INFO] [Store] ShutdownRequested src=main_window deltas={'ui_epoch': '0→1'}  →  3 subscriber(s)
+2026-03-20 01:54:48,828 [INFO] [JobManager] Canceled 0 jobs
+[Shutdown] JobManager barrier complete (drained=True).
+2026-03-20 01:54:48,828 [INFO] Scan cancellation requested
+2026-03-20 01:54:48,828 [INFO] Scan stop requested via adapter
+2026-03-20 01:54:48,831 [INFO] [ScanController] DBWriter shut down
+2026-03-20 01:54:48,831 [INFO] [ScanController] Shutdown barrier complete (drained=True)
+[Shutdown] ScanController barrier complete.
+[Shutdown] Grid threads shut down.
+[ThumbnailManager] Thread pool shut down.
+[Shutdown] ThumbnailManager threads shut down.
+[Shutdown] Thumbnail cache cleared.
+[ReferenceDB] Closed connection for thread 33652
+[Shutdown] Database connections closed.
+[Shutdown] Teardown complete.
+[Main] Qt event loop exited with code: 0
+[ThumbCacheDB] Closing cache gracefully...
+2026-03-20 01:54:49,261 [INFO] [FaceDetection] Cleaning up resources...
+2026-03-20 01:54:49,262 [INFO] [FaceDetection] ✓ Cleanup complete

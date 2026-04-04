@@ -1,0 +1,170 @@
+{
+  "app": {
+    "name": "MemoryMate PhotoFlow",
+    "version": "2.0.0",
+    "description": "Intelligent photo and video management system"
+  },
+  "menu": {
+    "file": "File",
+    "new_project": "New Project",
+    "open_project": "Open Project",
+    "save": "Save",
+    "preferences": "Preferences",
+    "exit": "Exit",
+    "edit": "Edit",
+    "view": "View",
+    "tools": "Tools",
+    "help": "Help",
+    "about": "About"
+  },
+  "preferences": {
+    "title": "Preferences",
+    "save": "Save",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "reset": "Reset to Defaults",
+    "nav": {
+      "general": "General",
+      "appearance": "Appearance",
+      "scanning": "Scanning",
+      "gps_location": "GPS & Location",
+      "face_detection": "Face Detection",
+      "visual_embeddings": "Visual Embeddings",
+      "search_discovery": "Search & Discovery",
+      "video": "Video",
+      "groups": "Groups",
+      "advanced": "Advanced"
+    },
+    "sections": {
+      "general": "General",
+      "face_detection": "Face Detection",
+      "video_settings": "Video Settings",
+      "ffmpeg": "FFmpeg",
+      "advanced": "Advanced",
+      "about": "About"
+    },
+    "general": {
+      "title": "General Settings",
+      "interface": "Interface",
+      "auto_refresh": "Auto-refresh thumbnails",
+      "refresh_interval": "Refresh interval (seconds)",
+      "default_view": "Default view mode",
+      "theme": "Theme",
+      "language": "Language",
+      "startup": "Startup",
+      "restore_project": "Restore last project on startup",
+      "show_welcome": "Show welcome screen"
+    },
+    "face_detection": {
+      "title": "Face Detection Settings",
+      "models": "Models",
+      "model_path": "Model path",
+      "browse": "Browse...",
+      "test": "Test",
+      "clustering": "Clustering",
+      "clustering_threshold": "Clustering threshold (eps)",
+      "min_samples": "Minimum samples",
+      "auto_cluster": "Auto-cluster after scan",
+      "performance": "Performance",
+      "batch_size": "Batch size",
+      "max_workers": "Max workers"
+    },
+    "video": {
+      "title": "Video Settings",
+      "playback": "Playback",
+      "auto_play": "Auto-play videos",
+      "loop": "Loop videos",
+      "volume": "Default volume",
+      "thumbnails": "Thumbnails",
+      "thumbnail_time": "Thumbnail time (seconds)",
+      "thumbnail_quality": "Thumbnail quality"
+    },
+    "ffmpeg": {
+      "title": "FFmpeg Configuration",
+      "detection": "Detection",
+      "ffmpeg_path": "FFmpeg path",
+      "ffprobe_path": "FFprobe path",
+      "auto_detect": "Auto-detect",
+      "status": "Status",
+      "detected": "Detected",
+      "not_found": "Not found"
+    }
+  },
+  "messages": {
+    "success": {
+      "settings_saved": "Settings saved successfully",
+      "project_created": "Project created successfully",
+      "scan_complete": "Scan complete: {count} files processed"
+    },
+    "error": {
+      "settings_save_failed": "Failed to save settings: {error}",
+      "project_load_failed": "Failed to load project: {error}",
+      "scan_failed": "Scan failed: {error}"
+    },
+    "confirm": {
+      "delete_project": "Delete project '{name}'?",
+      "delete_faces": "Delete {count} face clusters?",
+      "reset_settings": "Reset all settings to defaults?"
+    }
+  },
+  "face_detection": {
+    "scanning": "Scanning for faces...",
+    "clustering": "Clustering faces...",
+    "complete": "Face detection complete",
+    "faces_found": "{count} faces detected",
+    "people_found": "{count} people identified",
+    "unidentified": "Unidentified Faces",
+    "unidentified_count": "⚠️ Unidentified ({count} faces)",
+    "review_needed": "Review Needed",
+    "actions": {
+      "merge_to_person": "Merge to Person...",
+      "create_new_person": "Create New Person",
+      "mark_false_detection": "Mark as False Detection",
+      "keep_unidentified": "Keep Unidentified"
+    },
+    "suggestions": {
+      "possibly_matches": "Possibly matches: {person} ({confidence}% confidence)",
+      "confirm": "Confirm",
+      "reject": "Reject"
+    }
+  },
+  "video": {
+    "filters": {
+      "size": "File Size",
+      "small": "Small (< 100MB)",
+      "medium": "Medium (100MB - 1GB)",
+      "large": "Large (1GB - 5GB)",
+      "xlarge": "Extra Large (> 5GB)",
+      "duration": "Duration",
+      "codec": "Codec",
+      "resolution": "Resolution"
+    }
+  },
+  "sidebar": {
+    "all_photos": "All Photos",
+    "folders": "Folders",
+    "dates": "Dates",
+    "people": "People",
+    "videos": "Videos",
+    "tags": "Tags",
+    "search": "Search..."
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "apply": "Apply",
+    "browse": "Browse...",
+    "test": "Test",
+    "delete": "Delete",
+    "rename": "Rename",
+    "merge": "Merge",
+    "loading": "Loading...",
+    "processing": "Processing...",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information"
+  }
+}
