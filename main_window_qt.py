@@ -3117,11 +3117,134 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(1500, self._maybe_prompt_clip_upgrade)
 
             # Breadcrumb auto-updates via gridReloaded signal
+
+            # Phase 5: refresh People shell after project switch
+            if hasattr(self, "_refresh_people_quick_section"):
+                self._refresh_people_quick_section()
+
             print(f"[MainWindow] ========== _on_project_changed_by_id({project_id}) COMPLETED ==========\n")
         except Exception as e:
             print(f"[MainWindow] ERROR switching project: {e}")
             import traceback
             traceback.print_exc()
+
+    # ── Phase 5: People shell helpers ─────────────────────────────
+
+    def _refresh_people_quick_section(self):
+        """
+        Populate the passive People shell from legacy People section data.
+        """
+        try:
+            payload = {
+                "top_people": [],
+                "merge_candidates": 0,
+                "unnamed_count": 0,
+            }
+
+            people_section = None
+
+            if hasattr(self, "layout_manager"):
+                layout = self.layout_manager.get_current_layout()
+                if layout and hasattr(layout, "accordion_sidebar"):
+                    if hasattr(layout.accordion_sidebar, "section_logic"):
+                        people_section = layout.accordion_sidebar.section_logic.get("people")
+
+            if not people_section and hasattr(self, "sidebar") and hasattr(self.sidebar, "accordion"):
+                if hasattr(self.sidebar.accordion, "section_logic"):
+                    people_section = self.sidebar.accordion.section_logic.get("people")
+
+            if people_section:
+                if hasattr(people_section, "get_people_quick_payload"):
+                    raw = people_section.get_people_quick_payload() or {}
+                    payload["top_people"] = raw.get("top_people", []) or []
+                    payload["merge_candidates"] = raw.get("merge_candidates", 0) or 0
+                    payload["unnamed_count"] = raw.get("unnamed_count", 0) or 0
+
+                if not payload["top_people"] and hasattr(people_section, "get_merge_suggestions"):
+                    try:
+                        suggestions = people_section.get_merge_suggestions() or []
+                        payload["merge_candidates"] = len(suggestions)
+                    except Exception:
+                        pass
+
+                if hasattr(people_section, "get_unnamed_clusters"):
+                    try:
+                        unnamed = people_section.get_unnamed_clusters() or []
+                        payload["unnamed_count"] = len(unnamed)
+                    except Exception:
+                        pass
+
+            layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+            if layout and hasattr(layout, "google_shell_sidebar"):
+                sidebar = layout.google_shell_sidebar
+                if hasattr(sidebar, "set_people_quick_payload"):
+                    sidebar.set_people_quick_payload(payload)
+
+        except Exception as e:
+            print(f"[MainWindow] _refresh_people_quick_section failed: {e}")
+
+    def _handle_people_branch(self, branch: str):
+        """
+        Phase 5: Handle People branch requests from the passive shell.
+        Delegates to the legacy People section handlers.
+        """
+        try:
+            layout = self.layout_manager.get_current_layout() if hasattr(self, "layout_manager") else None
+            people_section = None
+            if layout and hasattr(layout, "accordion_sidebar"):
+                if hasattr(layout.accordion_sidebar, "section_logic"):
+                    people_section = layout.accordion_sidebar.section_logic.get("people")
+
+            if branch == "people_merge_review":
+                if people_section and hasattr(people_section, "mergeReviewRequested"):
+                    people_section.mergeReviewRequested.emit()
+                return
+
+            if branch == "people_unnamed":
+                if people_section and hasattr(people_section, "unnamedRequested"):
+                    people_section.unnamedRequested.emit()
+                return
+
+            if branch == "people_show_all":
+                if people_section and hasattr(people_section, "_on_expand_clicked"):
+                    people_section._on_expand_clicked()
+                return
+
+            if branch == "people_tools":
+                if people_section and hasattr(people_section, "peopleToolsRequested"):
+                    people_section.peopleToolsRequested.emit()
+                return
+
+            if branch == "people_merge_history":
+                if people_section and hasattr(people_section, "mergeHistoryRequested"):
+                    people_section.mergeHistoryRequested.emit()
+                return
+
+            if branch == "people_undo_merge":
+                if people_section and hasattr(people_section, "undoLastMergeRequested"):
+                    people_section.undoLastMergeRequested.emit()
+                return
+
+            if branch == "people_redo_merge":
+                if people_section and hasattr(people_section, "redoLastUndoRequested"):
+                    people_section.redoLastUndoRequested.emit()
+                return
+
+            if branch == "people_expand":
+                if people_section and hasattr(people_section, "_on_expand_clicked"):
+                    people_section._on_expand_clicked()
+                return
+
+            if branch.startswith("people_person:"):
+                person_id = branch.split(":", 1)[1]
+                if layout and hasattr(layout, "_on_accordion_person_clicked"):
+                    layout._on_accordion_person_clicked(person_id)
+                return
+
+        except Exception as e:
+            print(f"[MainWindow] _handle_people_branch failed: {branch} → {e}")
+
+    # ── end Phase 5 ──────────────────────────────────────────────────
 
     def _on_ux1_search_requested(self, payload: dict):
         """

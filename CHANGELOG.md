@@ -4,6 +4,50 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-04
 
+### Phase 5 — People Migration (Passive Parity)
+
+Full People domain representation in the new shell, with all legacy People actions accessible via bridge delegation. Still passive — legacy People section remains the action owner.
+
+#### People Section (`ui/search/sections/people_quick_section.py`)
+- Complete rewrite with top-people list (QListWidget, max 10 items), merge review/unnamed cluster buttons with counts, Show All/Tools buttons, and Legacy Actions (History/Undo/Redo/Expand)
+- Signals: `mergeReviewRequested`, `unnamedRequested`, `showAllPeopleRequested`, `peopleToolsRequested`, `mergeHistoryRequested`, `undoMergeRequested`, `redoMergeRequested`, `expandPeopleRequested`, `personRequested(str)`
+- `set_people_rows()`, `set_counts()`, `set_legacy_actions_enabled()` payload methods
+
+#### Search Sidebar (`ui/search/search_sidebar.py`)
+- Replaced People placeholder with real `PeopleQuickSection` widget
+- Wired all 9 People signals → `selectBranch` forwarding
+- Added `set_people_quick_payload()` method for count/row updates
+- People enabled/disabled follows project state
+
+#### Layout Bridge (`layouts/google_layout.py`)
+- Expanded `_on_passive_shell_branch_clicked()` legacy map: added `people_tools`, `people_merge_history`, `people_undo_merge`, `people_redo_merge`, `people_expand`
+- Added `people_person:<id>` branch handling → expands People accordion section
+- People branches delegate to `main_window._handle_people_branch()` for legacy handler access
+
+#### MainWindow (`main_window_qt.py`)
+- Added `_refresh_people_quick_section()`: populates passive People shell from legacy People section data (top_people, merge_candidates, unnamed_count)
+- Added `_handle_people_branch()`: routes 9 People branch keys to legacy section handlers (merge review, unnamed clusters, show all, tools, history, undo, redo, expand, person selection)
+- People refresh called after project switch in `_on_project_changed_by_id()`
+
+#### Acceptance Checklist
+- [x] People panel populated (counts start at zero)
+- [x] Review Possible Merges → legacy merge review path
+- [x] Show Unnamed Clusters → legacy unnamed cluster review path
+- [x] Show All People → legacy People expand
+- [x] People Tools → legacy People tools
+- [x] History/Undo/Redo/Expand → legacy handlers
+- [x] Legacy People section remains underneath as fallback
+- [x] `google_legacy` remains untouched
+
+### Files Changed
+- `ui/search/sections/people_quick_section.py`
+- `ui/search/search_sidebar.py`
+- `layouts/google_layout.py`
+- `main_window_qt.py`
+- `CHANGELOG.md`
+
+---
+
 ### Phase 4 — Browse Migration (Passive Parity)
 
 Full Browse domain representation in the new shell, with all legacy Browse categories now accessible. Still passive — legacy accordion remains the action owner.

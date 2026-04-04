@@ -1261,8 +1261,8 @@ class GooglePhotosLayout(BaseLayout):
 
     def _on_passive_shell_branch_clicked(self, branch: str):
         """
-        Phase 4:
-        Browse migration remains passive.
+        Phase 5:
+        Browse + People migration remains passive.
         Expand matching legacy accordion section or delegate to stable handler.
         """
         try:
@@ -1293,13 +1293,23 @@ class GooglePhotosLayout(BaseLayout):
                 "people_merge_review": "people",
                 "people_unnamed": "people",
                 "people_show_all": "people",
+                "people_tools": "people",
+                "people_merge_history": "people",
+                "people_undo_merge": "people",
+                "people_redo_merge": "people",
+                "people_expand": "people",
                 "find": "find",
                 "discover_beach": "find",
                 "discover_mountains": "find",
                 "discover_city": "find",
             }
 
-            target = legacy_map.get(branch)
+            # Handle people_person:<id> branches
+            if branch.startswith("people_person:"):
+                target = "people"
+            else:
+                target = legacy_map.get(branch)
+
             if target and hasattr(self.accordion_sidebar, "_expand_section"):
                 self.accordion_sidebar._expand_section(target)
 
@@ -1307,6 +1317,11 @@ class GooglePhotosLayout(BaseLayout):
             if branch == "all":
                 if hasattr(self, "request_reload") and getattr(self, "project_id", None):
                     self.request_reload(reason="browse_all", project_id=self.project_id)
+
+            # Delegate People branches to MainWindow if available
+            if branch.startswith("people_") and hasattr(self, "main_window") and self.main_window:
+                if hasattr(self.main_window, "_handle_people_branch"):
+                    self.main_window._handle_people_branch(branch)
 
         except Exception as e:
             print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")
