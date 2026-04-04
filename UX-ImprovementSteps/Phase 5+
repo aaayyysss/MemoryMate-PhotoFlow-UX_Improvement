@@ -1,0 +1,321 @@
+Audit verdict:
+
+**Do not proceed to Phase 6 yet. Phase 5 is only partially complete.**
+
+The good news is that the app is still stable:
+
+* startup still forces `google`, not `current`, 
+* no-project initial load is still suppressed, 
+* switching between `google`, `google_legacy`, and even `current` is stable, 
+* project creation on `google` is still clean, with one debounced reload after `set_project()`. 
+
+So the foundation is fine.
+
+But Phase 5 itself is **not fully wired end to end**.
+
+## What passed
+
+### 1. The People shell widget exists and has the right controls
+
+`PeopleQuickSection` now includes:
+
+* top people list
+* Review Possible Merges
+* Show Unnamed Clusters
+* Show All People
+* People Tools
+* History / Undo / Redo / Expand. 
+
+### 2. The search sidebar has a People payload setter
+
+`SearchSidebar.set_people_quick_payload()` is present and updates:
+
+* rows
+* merge count
+* unnamed count
+* legacy action enablement.
+
+### 3. The legacy People section already has the backend and legacy actions you need
+
+The legacy `PeopleSection` already exposes:
+
+* merge history / undo / redo / people tools UI actions, 
+* merge accept / reject persistence,
+* unnamed cluster payloads, assign / promote / ignore flows,
+* full-screen expand handler via `_on_expand_clicked()`.
+
+So the legacy side is strong enough to support a bridge-first migration.
+
+## What failed
+
+### 1. Branch names are still inconsistent
+
+In `SearchSidebar`, the People section emits:
+
+* `people_review_merges`
+* `people_review_unnamed`
+* `people_show_all`
+* `people_tools`
+* `people_merge_history`
+* `people_undo_merge`
+* `people_redo_merge`
+* `people_expand`
+* `person_<id>` for selected people.
+
+But `MainWindow._handle_search_sidebar_branch_request()` is still stale. It only handles:
+
+* `people_merge_review`
+* `people_unnamed`
+
+and then falls back to `self.sidebar.selectBranch.emit(branch)`.
+
+That is the main blocker.
+
+### 2. The new People actions are not actually wired to the legacy handlers in `main_window_qt.py`
+
+Because of the stale router above, these are **not yet proven wired**:
+
+* People Tools
+* History
+* Undo
+* Redo
+* Expand
+* person-click delegation
+
+The code you intended in Phase 5 is not reflected in the current `main_window_qt.py` search results.
+
+### 3. Runtime evidence still shows passive expansion behavior, not true People action bridging
+
+The logs show:
+
+* `people_show_all → people`
+* `people_unnamed → people`
+* `people_merge_review → people`
+
+which means the shell is still basically using the old passive expand path into the legacy People section.
+
+That is okay for Phase 2B and early Phase 4, but for Phase 5 the requirement was stronger:
+
+* People panel populated
+* buttons wired
+* legacy actions bridged
+
+The logs do not show evidence that History / Undo / Redo / Expand / People Tools are now bridged through `MainWindow` and routed intentionally.
+
+### 4. Person selection branch format is also inconsistent
+
+`PeopleQuickSection` emits `personSelected`, and `SearchSidebar` maps that to `person_<id>`.
+
+But your planned Phase 5 pack expected a routed format like `people_person:<id>`. That mismatch means person-click behavior is not guaranteed to work the way intended.
+
+## Decision
+
+So the correct next step is:
+
+**Phase 5 correction pack first, then Phase 6.**
+
+Not because the app is unstable, but because the People migration is still only **half-complete**:
+
+* UI exists
+* payload setter exists
+* legacy backend exists
+* router wiring is still stale
+
+---
+
+# Phase 5 correction pack
+
+## `ui/search/search_sidebar.py`
+
+### Replace the People signal wiring block
+
+```python
+self.people_section.personSelected.connect(
+    lambda person_id: self.selectBranch.emit(f"people_person:{person_id}")
+)
+self.people_section.mergeReviewRequested.connect(
+    lambda: self.selectBranch.emit("people_merge_review")
+)
+self.people_section.unnamedRequested.connect(
+    lambda: self.selectBranch.emit("people_unnamed")
+)
+self.people_section.showAllPeopleRequested.connect(
+    lambda: self.selectBranch.emit("people_show_all")
+)
+self.people_section.peopleToolsRequested.connect(
+    lambda: self.selectBranch.emit("people_tools")
+)
+
+self.people_section.mergeHistoryRequested.connect(
+    lambda: self.selectBranch.emit("people_merge_history")
+)
+self.people_section.undoMergeRequested.connect(
+    lambda: self.selectBranch.emit("people_undo_merge")
+)
+self.people_section.redoMergeRequested.connect(
+    lambda: self.selectBranch.emit("people_redo_merge")
+)
+self.people_section.expandPeopleRequested.connect(
+    lambda: self.selectBranch.emit("people_expand")
+)
+```
+
+This aligns the emitted branch names with the intended router.
+
+---
+
+## `main_window_qt.py`
+
+### Replace `_handle_search_sidebar_branch_request()` with this
+
+```python
+def _handle_search_sidebar_branch_request(self, branch: str):
+    if branch == "people_merge_review":
+        self._open_people_merge_review()
+        return
+
+    if branch == "people_unnamed":
+        self._open_unnamed_cluster_review()
+        return
+
+    layout = None
+    try:
+        if hasattr(self, "layout_manager") and self.layout_manager:
+            layout = self.layout_manager.get_current_layout()
+    except Exception:
+        layout = None
+
+    if branch == "people_show_all":
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "_on_expand_clicked"):
+                    ps._on_expand_clicked()
+                    return
+        except Exception as e:
+            print(f"[Routing] people_show_all failed: {e}")
+
+    if branch == "people_tools":
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "peopleToolsRequested"):
+                    ps.peopleToolsRequested.emit()
+                    return
+        except Exception as e:
+            print(f"[Routing] people_tools failed: {e}")
+
+    if branch == "people_merge_history":
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "mergeHistoryRequested"):
+                    ps.mergeHistoryRequested.emit()
+                    return
+        except Exception as e:
+            print(f"[Routing] people_merge_history failed: {e}")
+
+    if branch == "people_undo_merge":
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "undoMergeRequested"):
+                    ps.undoMergeRequested.emit()
+                    return
+        except Exception as e:
+            print(f"[Routing] people_undo_merge failed: {e}")
+
+    if branch == "people_redo_merge":
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "redoMergeRequested"):
+                    ps.redoMergeRequested.emit()
+                    return
+        except Exception as e:
+            print(f"[Routing] people_redo_merge failed: {e}")
+
+    if branch == "people_expand":
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "_on_expand_clicked"):
+                    ps._on_expand_clicked()
+                    return
+        except Exception as e:
+            print(f"[Routing] people_expand failed: {e}")
+
+    if branch.startswith("people_person:"):
+        person_id = branch.split(":", 1)[1]
+        try:
+            if layout and hasattr(layout, "accordion_sidebar"):
+                ps = layout.accordion_sidebar.section_logic.get("people")
+                if ps and hasattr(ps, "personSelected"):
+                    ps.personSelected.emit(person_id)
+                    return
+        except Exception as e:
+            print(f"[Routing] people_person failed: {e}")
+
+    if hasattr(self, "sidebar"):
+        try:
+            self.sidebar.selectBranch.emit(branch)
+        except Exception:
+            pass
+```
+
+This is the missing bridge.
+
+---
+
+## `main_window_qt.py`
+
+### Keep `_refresh_people_quick_section()` as the payload source
+
+You do **not** need to redesign it now. It already gathers:
+
+* top people
+* merge suggestions
+* unnamed clusters
+* named identity choices
+
+and pushes them into the search controller. 
+
+But after the router fix above, verify that this method is still called:
+
+* after `_on_project_changed_by_id(...)`
+* after merge accept/reject/skip
+* after unnamed assign/promote/ignore
+* after people review events
+
+That refresh pattern is already largely present.
+
+---
+
+# Acceptance gate before Phase 6
+
+Only proceed to Phase 6 if all of these are now true:
+
+* People panel renders in the new shell
+* Review Possible Merges opens the merge review path
+* Show Unnamed Clusters opens unnamed review
+* Show All People opens or expands legacy People manager
+* People Tools delegates correctly
+* History delegates correctly
+* Undo delegates correctly
+* Redo delegates correctly
+* Expand opens the full People manager
+* person click delegates correctly
+* no regression in merge / undo / review flows
+* `google_legacy` remains untouched
+
+---
+
+# Final answer
+
+So the honest answer is:
+
+**Phase 5 is not fully complete yet.
+Do not move to Phase 6 yet.
+Apply the small Phase 5 correction pack above first.**
+
+This keeps us aligned with the plan and avoids the same repo drift problem as before. The current logs prove the app is stable, but the current code proves the People routing is still stale.
