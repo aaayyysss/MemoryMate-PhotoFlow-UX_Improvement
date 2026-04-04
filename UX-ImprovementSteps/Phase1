@@ -1,0 +1,361 @@
+Here is the **exact Phase 1 implementation pack**, file by file, with the safest copy/rename/register sequence.
+
+This Phase 1 is intentionally narrow:
+
+* preserve the current stable Google layout as `google_legacy`
+* keep `google` as the future improvement track
+* make `google` the default startup layout
+* do not start sidebar redesign yet
+
+The current repo is a good baseline for this split because the existing Google layout is still the stable, old accordion-based implementation, and the log confirms the app currently starts in `current` then switches to `google`, which is exactly what Phase 1 will clean up.
+
+---
+
+# Phase 1 implementation pack
+
+## File 1, create `layouts/google_layout_legacy.py`
+
+### Action
+
+Copy the current stable file:
+
+`layouts/google_layout.py`
+
+to:
+
+`layouts/google_layout_legacy.py`
+
+### Then edit the new file only.
+
+---
+
+## File 2, `layouts/google_layout_legacy.py`
+
+### Change 1, rename the class
+
+### Find
+
+```python
+class GooglePhotosLayout(BaseLayout):
+```
+
+### Replace with
+
+```python
+class GooglePhotosLayoutLegacy(BaseLayout):
+```
+
+---
+
+### Change 2, change layout display name
+
+### Find
+
+```python
+def get_name(self) -> str:
+    return "Google Photos Style"
+```
+
+### Replace with
+
+```python
+def get_name(self) -> str:
+    return "Google Photos Legacy"
+```
+
+---
+
+### Change 3, change layout id
+
+### Find
+
+```python
+def get_id(self) -> str:
+    return "google"
+```
+
+### Replace with
+
+```python
+def get_id(self) -> str:
+    return "google_legacy"
+```
+
+---
+
+### Change 4, optional log clarity
+
+This is not required, but it helps later when reading logs.
+
+### Find any log/print labels like:
+
+```python
+[GooglePhotosLayout]
+```
+
+### Replace gradually with:
+
+```python
+[GooglePhotosLayoutLegacy]
+```
+
+You do not need to do all of them now if that is tedious, but it helps a lot later.
+
+---
+
+## File 3, `layouts/google_layout.py`
+
+### Goal
+
+Keep this file as the active future improvement track.
+
+### Action
+
+Do **not** redesign it yet.
+
+Only make sure it still contains:
+
+```python
+class GooglePhotosLayout(BaseLayout):
+```
+
+and:
+
+```python
+def get_name(self) -> str:
+    return "Google Photos Style"
+```
+
+and:
+
+```python
+def get_id(self) -> str:
+    return "google"
+```
+
+That is already the case in the current file. 
+
+So for Phase 1, `google_layout.py` stays functionally unchanged.
+
+---
+
+## File 4, `layouts/layout_manager.py`
+
+### Change 1, import the legacy layout
+
+### Add this import
+
+```python
+from .google_layout_legacy import GooglePhotosLayoutLegacy
+```
+
+### Keep existing import
+
+```python
+from .google_layout import GooglePhotosLayout
+```
+
+So the import section becomes:
+
+```python
+from .base_layout import BaseLayout
+from .current_layout import CurrentLayout
+from .google_layout import GooglePhotosLayout
+from .google_layout_legacy import GooglePhotosLayoutLegacy
+from .apple_layout import ApplePhotosLayout
+from .lightroom_layout import LightroomLayout
+```
+
+---
+
+### Change 2, register both layouts
+
+### Find
+
+```python
+def _register_builtin_layouts(self):
+    """Register all built-in layout classes."""
+    self.register_layout(CurrentLayout)
+    self.register_layout(GooglePhotosLayout)
+    self.register_layout(ApplePhotosLayout)
+    self.register_layout(LightroomLayout)
+```
+
+### Replace with
+
+```python
+def _register_builtin_layouts(self):
+    """Register all built-in layout classes."""
+    self.register_layout(CurrentLayout)
+    self.register_layout(GooglePhotosLayout)
+    self.register_layout(GooglePhotosLayoutLegacy)
+    self.register_layout(ApplePhotosLayout)
+    self.register_layout(LightroomLayout)
+```
+
+---
+
+### Change 3, make `google` the default startup layout
+
+### Find in `initialize_default_layout()`
+
+You likely have something like:
+
+```python
+preferred_layout = "current"
+if self.settings:
+    preferred_layout = self.settings.get("current_layout", "current")
+
+if preferred_layout not in self._layouts:
+    preferred_layout = "current"
+```
+
+### Replace with
+
+```python
+preferred_layout = "google"
+if self.settings:
+    preferred_layout = self.settings.get("current_layout", "google")
+
+if preferred_layout not in self._layouts:
+    preferred_layout = "google"
+```
+
+---
+
+### Change 4, keep `current` hidden from normal users if that logic already exists
+
+Your current `layout_manager.py` already contains:
+
+```python
+def get_user_visible_layouts(self, power_user_mode: bool = False) -> Dict[str, str]:
+    all_layouts = self.get_available_layouts()
+    if not power_user_mode:
+        all_layouts.pop("current", None)
+    return all_layouts
+```
+
+Leave that as-is for now. It is fine for Phase 1. 
+
+---
+
+## File 5, wherever layout menu entries are built in `main_window_qt.py`
+
+### Goal
+
+Ensure `google_legacy` appears in the menu.
+
+If the menu already uses:
+
+```python
+available_layouts = self.layout_manager.get_available_layouts()
+```
+
+or:
+
+```python
+available_layouts = self.layout_manager.get_user_visible_layouts(...)
+```
+
+then no structural change is needed, because once `google_legacy` is registered it should appear automatically.
+
+### Only verify
+
+That the menu is not filtering out `google_legacy` by name or id anywhere.
+
+If there is any custom filtering like:
+
+```python
+if layout_id == "google":
+    ...
+```
+
+update it so both:
+
+* `google`
+* `google_legacy`
+
+are allowed.
+
+---
+
+# Safe implementation order
+
+Do it in exactly this order.
+
+## Step 1
+
+Create:
+
+`layouts/google_layout_legacy.py`
+
+by copying the current stable:
+
+`layouts/google_layout.py`
+
+## Step 2
+
+Inside `google_layout_legacy.py`, change only:
+
+* class name
+* `get_name()`
+* `get_id()`
+
+## Step 3
+
+In `layout_manager.py`:
+
+* import `GooglePhotosLayoutLegacy`
+* register it
+* change default startup fallback to `google`
+
+## Step 4
+
+Run the app without any other changes.
+
+---
+
+# What you should expect after Phase 1
+
+On startup:
+
+* app should go directly to `google`
+* no later forced `current → google` handoff should be needed
+
+In layout selection:
+
+* `Google Photos Style`
+* `Google Photos Legacy`
+
+should both appear
+
+Behavior:
+
+* `Google Photos Legacy` should behave exactly like the old stable Google layout
+* `Google Photos Style` should also still behave like the current stable Google layout for now, because no improvement work has started yet
+
+---
+
+# Phase 1 acceptance checklist
+
+Do not proceed to Phase 2 unless all of these are true:
+
+* `google_legacy` exists and is selectable
+* `Google Photos Legacy` behaves exactly like the stable baseline
+* `google` exists and is selectable
+* app starts directly into `google`
+* switching between `google`, `google_legacy`, `apple`, `lightroom`, and `current` does not crash
+* no project switching regression appears
+* no sidebar redesign has started yet
+
+---
+
+# Why this is the safest sequence
+
+Because your current stable `google_layout.py` is already the known-good accordion-based layout, and the log confirms it is functioning as the baseline reference. Duplicating that exact file first gives you a true rollback target before any future shell work begins.
+
+When you finish this, the next step should be **Phase 2A only**, which is:
+
+* stabilize project-load ownership in `GoogleLayout`
+* do not touch `GoogleLayoutLegacy`
+* do not start shell redesign yet
