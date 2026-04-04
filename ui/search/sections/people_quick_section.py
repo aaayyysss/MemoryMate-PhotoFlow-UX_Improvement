@@ -1,96 +1,94 @@
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton, QLabel, QWidget, QHBoxLayout
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QListWidgetItem, QFrame
 
 
-class PeopleQuickSection(QGroupBox):
-    personSelected = Signal(str)
-    showAllPeopleRequested = Signal()
+class PeopleQuickSection(QWidget):
     mergeReviewRequested = Signal()
     unnamedRequested = Signal()
+    showAllPeopleRequested = Signal()
+    peopleToolsRequested = Signal()
+
+    mergeHistoryRequested = Signal()
+    undoMergeRequested = Signal()
+    redoMergeRequested = Signal()
+    expandPeopleRequested = Signal()
+
+    personRequested = Signal(str)
 
     def __init__(self, parent=None):
-        super().__init__("People", parent)
+        super().__init__(parent)
+        self._rows = []
 
-        self.layout = QVBoxLayout(self)
-        self.layout.setSpacing(8)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(4)
 
-        self.lbl_empty = QLabel("People will appear after face clustering.")
-        self.layout.addWidget(self.lbl_empty)
+        intro = QLabel("Top people and review tools")
+        intro.setWordWrap(True)
+        root.addWidget(intro)
 
-        self.people_host = QWidget()
-        self.people_layout = QVBoxLayout(self.people_host)
-        self.people_layout.setContentsMargins(0, 0, 0, 0)
-        self.people_layout.setSpacing(6)
-        self.layout.addWidget(self.people_host)
+        self.top_people_list = QListWidget()
+        self.top_people_list.setMaximumHeight(120)
+        self.top_people_list.itemClicked.connect(self._on_item_clicked)
+        root.addWidget(self.top_people_list)
 
-        self.btn_merge_review = QPushButton("Review Possible Merges")
-        self.btn_merge_review.setStyleSheet("""
-            QPushButton {
-                background: #e8f0fe; color: #1a73e8;
-                border: 1px solid #d2e3fc; border-radius: 6px;
-                padding: 6px 10px; font-weight: 500;
-            }
-            QPushButton:hover { background: #d2e3fc; }
-        """)
-        self.btn_merge_review.clicked.connect(self.mergeReviewRequested.emit)
-        self.layout.addWidget(self.btn_merge_review)
-
-        self.btn_unnamed = QPushButton("Show Unnamed Clusters")
-        self.btn_unnamed.setStyleSheet("""
-            QPushButton {
-                background: #fef7e0; color: #795548;
-                border: 1px solid #f9ab00; border-radius: 6px;
-                padding: 6px 10px; font-weight: 500;
-            }
-            QPushButton:hover { background: #fcefc7; }
-        """)
-        self.btn_unnamed.clicked.connect(self.unnamedRequested.emit)
-        self.layout.addWidget(self.btn_unnamed)
-
+        self.btn_merge_review = QPushButton("Review Possible Merges (0)")
+        self.btn_unnamed = QPushButton("Show Unnamed Clusters (0)")
         self.btn_show_all = QPushButton("Show All People")
+        self.btn_tools = QPushButton("People Tools")
+
+        self.btn_merge_review.clicked.connect(self.mergeReviewRequested.emit)
+        self.btn_unnamed.clicked.connect(self.unnamedRequested.emit)
         self.btn_show_all.clicked.connect(self.showAllPeopleRequested.emit)
-        self.layout.addWidget(self.btn_show_all)
+        self.btn_tools.clicked.connect(self.peopleToolsRequested.emit)
 
-        self.setVisible(False)
+        root.addWidget(self.btn_merge_review)
+        root.addWidget(self.btn_unnamed)
+        root.addWidget(self.btn_show_all)
+        root.addWidget(self.btn_tools)
 
-    def _clear_people(self):
-        while self.people_layout.count():
-            item = self.people_layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+        legacy_label = QLabel("Legacy Actions")
+        root.addWidget(legacy_label)
 
-    def set_people(self, payload):
-        self._clear_people()
+        self.btn_history = QPushButton("History")
+        self.btn_undo = QPushButton("Undo")
+        self.btn_redo = QPushButton("Redo")
+        self.btn_expand = QPushButton("Expand")
 
-        payload = payload or {}
-        people_items = list(payload.get("top_people", []))
-        merge_candidates = int(payload.get("merge_candidates", 0) or 0)
-        unnamed_count = int(payload.get("unnamed_count", 0) or 0)
+        self.btn_history.clicked.connect(self.mergeHistoryRequested.emit)
+        self.btn_undo.clicked.connect(self.undoMergeRequested.emit)
+        self.btn_redo.clicked.connect(self.redoMergeRequested.emit)
+        self.btn_expand.clicked.connect(self.expandPeopleRequested.emit)
 
-        has_any = bool(people_items or merge_candidates or unnamed_count)
+        root.addWidget(self.btn_history)
+        root.addWidget(self.btn_undo)
+        root.addWidget(self.btn_redo)
+        root.addWidget(self.btn_expand)
 
-        self.lbl_empty.setVisible(not has_any)
-        self.people_host.setVisible(bool(people_items))
-        self.btn_merge_review.setVisible(merge_candidates > 0)
-        self.btn_merge_review.setText(f"Review Possible Merges ({merge_candidates})")
-        self.btn_unnamed.setVisible(unnamed_count > 0)
-        self.btn_unnamed.setText(f"Review Unnamed Clusters ({unnamed_count})")
-        self.btn_show_all.setVisible(has_any)
-        self.setVisible(has_any)
+    def _on_item_clicked(self, item: QListWidgetItem):
+        person_id = item.data(Qt.UserRole)
+        if person_id:
+            self.personRequested.emit(str(person_id))
 
-        for item in people_items[:8]:
-            person_id = item.get("id")
-            label = item.get("label", str(person_id))
-            count = item.get("count", 0)
+    def set_people_rows(self, rows):
+        self._rows = list(rows or [])
+        self.top_people_list.clear()
 
-            row = QWidget()
-            row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(6)
+        for row in self._rows[:10]:
+            label = row.get("label") or row.get("display_name") or row.get("id") or "Unknown"
+            count = int(row.get("count", 0) or 0)
+            text = f"{label} ({count})" if count else str(label)
 
-            btn = QPushButton(f"{label} ({count})")
-            btn.clicked.connect(lambda checked=False, pid=person_id: self.personSelected.emit(str(pid)))
-            row_layout.addWidget(btn)
+            item = QListWidgetItem(text)
+            item.setData(Qt.UserRole, row.get("id") or row.get("branch_key") or row.get("person_id"))
+            self.top_people_list.addItem(item)
 
-            self.people_layout.addWidget(row)
+    def set_counts(self, merge_count: int = 0, unnamed_count: int = 0):
+        self.btn_merge_review.setText(f"Review Possible Merges ({int(merge_count or 0)})")
+        self.btn_unnamed.setText(f"Show Unnamed Clusters ({int(unnamed_count or 0)})")
+
+    def set_legacy_actions_enabled(self, enabled: bool):
+        self.btn_history.setEnabled(enabled)
+        self.btn_undo.setEnabled(enabled)
+        self.btn_redo.setEnabled(enabled)
+        self.btn_expand.setEnabled(enabled)

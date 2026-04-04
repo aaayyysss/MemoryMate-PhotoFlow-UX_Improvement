@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea, QFrame, QGroupB
 
 from ui.search.sections.browse_section import BrowseSection
 from ui.search.sections.discover_section import DiscoverSection
+from ui.search.sections.people_quick_section import PeopleQuickSection
 
 
 class SearchSidebar(QWidget):
@@ -20,9 +21,9 @@ class SearchSidebar(QWidget):
 
         self.discover_section = DiscoverSection()
         self.browse_section = BrowseSection()
+        self.people_section = PeopleQuickSection()
         self.placeholder_search = self._make_placeholder_group("Search Hub", "UX-2")
         self.placeholder_filters = self._make_placeholder_group("Filters", "UX-3")
-        self.placeholder_people = self._make_placeholder_group("People", "UX-4")
 
         self._build_ui()
         self._wire_signals()
@@ -34,7 +35,7 @@ class SearchSidebar(QWidget):
         enabled = state.has_active_project
         self.discover_section.setEnabled(enabled)
         self.browse_section.setEnabled(enabled)
-        self.placeholder_people.setEnabled(enabled)
+        self.people_section.setEnabled(enabled)
         self.placeholder_filters.setEnabled(enabled)
 
     def _make_placeholder_group(self, title: str, subtitle: str):
@@ -58,7 +59,7 @@ class SearchSidebar(QWidget):
         self.content_layout.addWidget(self.placeholder_search)
         self.content_layout.addWidget(self.discover_section)
         self.content_layout.addWidget(self.browse_section)
-        self.content_layout.addWidget(self.placeholder_people)
+        self.content_layout.addWidget(self.people_section)
         self.content_layout.addWidget(self.placeholder_filters)
         self.content_layout.addStretch(1)
 
@@ -91,9 +92,53 @@ class SearchSidebar(QWidget):
         if hasattr(self, "browse_section") and hasattr(self.browse_section, "set_counts"):
             self.browse_section.set_counts(counts)
 
+    def set_people_quick_payload(self, payload: dict | None):
+        payload = payload or {}
+
+        rows = payload.get("top_people", []) or []
+        merge_count = payload.get("merge_candidates", 0) or 0
+        unnamed_count = payload.get("unnamed_count", 0) or 0
+
+        if hasattr(self, "people_section"):
+            self.people_section.set_people_rows(rows)
+            self.people_section.set_counts(merge_count, unnamed_count)
+            self.people_section.set_legacy_actions_enabled(True)
+
     def _wire_signals(self):
+        # Browse signals
         self.browse_section.browseNodeSelected.connect(
             lambda key, payload=None: self.selectBranch.emit(key)
         )
+
+        # People signals
+        self.people_section.mergeReviewRequested.connect(
+            lambda: self.selectBranch.emit("people_merge_review")
+        )
+        self.people_section.unnamedRequested.connect(
+            lambda: self.selectBranch.emit("people_unnamed")
+        )
+        self.people_section.showAllPeopleRequested.connect(
+            lambda: self.selectBranch.emit("people_show_all")
+        )
+        self.people_section.peopleToolsRequested.connect(
+            lambda: self.selectBranch.emit("people_tools")
+        )
+        self.people_section.mergeHistoryRequested.connect(
+            lambda: self.selectBranch.emit("people_merge_history")
+        )
+        self.people_section.undoMergeRequested.connect(
+            lambda: self.selectBranch.emit("people_undo_merge")
+        )
+        self.people_section.redoMergeRequested.connect(
+            lambda: self.selectBranch.emit("people_redo_merge")
+        )
+        self.people_section.expandPeopleRequested.connect(
+            lambda: self.selectBranch.emit("people_expand")
+        )
+        self.people_section.personRequested.connect(
+            lambda person_id: self.selectBranch.emit(f"people_person:{person_id}")
+        )
+
+        # Discover signals
         if self.controller:
             self.discover_section.presetSelected.connect(self.controller.set_preset)
