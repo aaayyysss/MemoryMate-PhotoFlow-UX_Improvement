@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget
 from .base_layout import BaseLayout
 from .current_layout import CurrentLayout
 from .google_layout import GooglePhotosLayout
+from .google_layout_legacy import GooglePhotosLayoutLegacy
 from .apple_layout import ApplePhotosLayout
 from .lightroom_layout import LightroomLayout
 
@@ -47,6 +48,7 @@ class LayoutManager:
         """Register all built-in layout classes."""
         self.register_layout(CurrentLayout)
         self.register_layout(GooglePhotosLayout)
+        self.register_layout(GooglePhotosLayoutLegacy)
         self.register_layout(ApplePhotosLayout)
         self.register_layout(LightroomLayout)
 
@@ -209,14 +211,14 @@ class LayoutManager:
         Falls back to "current" layout if no preference is saved.
         """
         # Get saved preference
-        preferred_layout = "current"
+        preferred_layout = "google"
         if self.settings:
-            preferred_layout = self.settings.get("current_layout", "current")
+            preferred_layout = self.settings.get("current_layout", "google")
 
         # Validate preference
         if preferred_layout not in self._layouts:
-            print(f"[LayoutManager] Invalid saved layout '{preferred_layout}', using 'current'")
-            preferred_layout = "current"
+            print(f"[LayoutManager] Invalid saved layout '{preferred_layout}', using 'google'")
+            preferred_layout = "google"
 
         # Initialize layout
         print(f"[LayoutManager] Initializing default layout: {preferred_layout}")

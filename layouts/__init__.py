@@ -5,6 +5,7 @@
 from .base_layout import BaseLayout
 from .current_layout import CurrentLayout
 from .google_layout import GooglePhotosLayout
+from .google_layout_legacy import GooglePhotosLayoutLegacy
 from .apple_layout import ApplePhotosLayout
 from .lightroom_layout import LightroomLayout
 
@@ -12,6 +13,7 @@ __all__ = [
     'BaseLayout',
     'CurrentLayout',
     'GooglePhotosLayout',
+    'GooglePhotosLayoutLegacy',
     'ApplePhotosLayout',
     'LightroomLayout',
 ]

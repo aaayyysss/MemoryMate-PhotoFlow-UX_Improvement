@@ -563,11 +563,11 @@ class MainWindow(QMainWindow):
         # Get available layouts from manager and create menu actions
         available_layouts = self.layout_manager.get_available_layouts()
 
-        preferred_layout = "current"
+        preferred_layout = "google"
         if hasattr(self, "settings") and self.settings:
-            preferred_layout = self.settings.get("current_layout", "current")
+            preferred_layout = self.settings.get("current_layout", "google")
         if preferred_layout not in available_layouts:
-            preferred_layout = "current"
+            preferred_layout = "google"
 
         for layout_id, layout_name in available_layouts.items():
             action = QAction(layout_name, self)
