@@ -1,0 +1,857 @@
+Yes, the revised plan is sound, and it is materially safer than the path that caused the previous repo to drift.
+
+The log supports the core premise of the revised plan: the new clean repo is back on a stable baseline where the app starts in `current`, then switches to `google`, onboarding is clean with no project, and the existing Google layout still operates with the old accordion sidebar intact. That means you have a workable control baseline again, which is exactly what you need before restarting the UX improvement track. 
+
+What follows is the **full revised enhanced plan**, tightened into an implementation-safe program.
+
+---
+
+# Revised master strategy
+
+## Principle
+
+Split the Google layout track into two clearly separated assets:
+
+* **`GoogleLayoutLegacy`**, frozen, stable, reference implementation
+* **`GoogleLayout`**, active improvement implementation
+
+## Why this is the right decision
+
+This removes the biggest source of risk from the earlier effort:
+
+* you were improving and destabilizing the same layout at once
+* once regressions appeared, you lost the clean reference point
+* debugging became ambiguous because “baseline” and “experimental” were mixed
+
+With the revised structure:
+
+* `google_legacy` becomes the known-good fallback
+* `google` becomes the controlled improvement track
+* every change can be compared against a stable operational reference
+
+This is the correct engineering pattern for UI migration.
+
+---
+
+# Core rules for the repo
+
+## Rule 1
+
+`GoogleLayoutLegacy` is frozen after creation.
+
+No UX work there.
+No routing experiments there.
+No shell redesign there.
+Only critical bug fixes if absolutely unavoidable.
+
+## Rule 2
+
+`GoogleLayout` is the only improvement surface.
+
+All UX work, shell work, parity migration, routing work, polish work happen there only.
+
+## Rule 3
+
+One phase, one intent.
+
+Do not combine:
+
+* load ownership changes
+* shell rendering changes
+* routing changes
+* styling changes
+
+inside one phase unless explicitly planned.
+
+## Rule 4
+
+Legacy stays until parity is proven.
+
+The legacy Google sidebar remains available until the new shell has verified parity for the migrated area.
+
+## Rule 5
+
+Every phase ends with a run-log verification.
+
+No phase is considered complete based on code only.
+Completion requires:
+
+* runtime test
+* log audit
+* visible UI verification
+
+---
+
+# Revised phase plan
+
+## Phase 0, freeze the baseline
+
+### Goal
+
+Preserve the current working Google implementation as the stable reference.
+
+### What happens
+
+* no changes to behavior
+* no sidebar replacement
+* no shell redesign
+* no routing change
+* no project-load optimization yet
+
+### Deliverable
+
+A clean branch or repo state that reproduces current stable behavior.
+
+### Acceptance criteria
+
+* baseline app runs exactly like the current clean repo
+* existing Google layout opens and works
+* old accordion sidebar remains the operational owner
+* no improvement work has started yet
+
+### Why this matters
+
+The current log proves this baseline is usable and stable enough to act as the control reference. 
+
+---
+
+## Phase 1, create `GoogleLayoutLegacy`, make `GoogleLayout` default startup, only that
+
+### Goal
+
+Establish a permanent stable fallback before improvement begins.
+
+### Scope
+
+Only these changes:
+
+* duplicate the current stable Google layout into `google_layout_legacy.py`
+* rename the class to `GooglePhotosLayoutLegacy`
+* register both layouts:
+
+  * `google`
+  * `google_legacy`
+* make `google` the default startup layout
+* do not change sidebar behavior yet
+* do not change shell rendering yet
+* do not change routing yet
+
+### Intended result
+
+You now have:
+
+* `google_legacy` = exact stable fallback
+* `google` = active future improvement target
+
+### Acceptance criteria
+
+* `Google Photos Legacy` appears as a selectable layout
+* it behaves exactly like the stable baseline
+* `Google Photos Style` appears separately
+* startup goes directly to `google`
+* switching between `google` and `google_legacy` works
+* no crash or broken project switching
+* no sidebar redesign has started yet
+
+### Risk note
+
+This is intentionally narrow. If anything else changes in this phase, the phase is too broad.
+
+---
+
+## Phase 2, stabilize Google layout load ownership
+
+### Goal
+
+Make `GoogleLayout` load only when it should, and only once per project switch.
+
+### Why this comes early
+
+The current and recent logs show the layout has historically performed unnecessary loads:
+
+* startup load while no project exists
+* repeated loads around `set_project(None -> 1)`
+* post-create refresh churn
+
+Even in the clean baseline, this is the first technical debt that should be removed before UX layering continues. 
+
+### Scope
+
+Only in `GoogleLayout`:
+
+* suppress no-project loads
+* make `set_project()` the owner of project-bound loading
+* remove duplicate pre-load and post-create load patterns
+* add a simple reload gate or debounce
+* do not touch `GoogleLayoutLegacy`
+
+### Acceptance criteria
+
+* no “No project selected” load before a real project is set
+* one clean load after project creation or project switch
+* no generation storms during project creation
+* photo grid remains stable
+
+### Deliverable
+
+A technically quieter `GoogleLayout` that is safe to improve visually later.
+
+---
+
+## Phase 3, add the new shell visually above the legacy block
+
+### Goal
+
+Introduce the future shell without making it the action owner yet.
+
+### Scope
+
+Only in `GoogleLayout`:
+
+* add a new top shell above the legacy accordion
+* keep legacy accordion below
+* do not replace the old sidebar
+* do not route clicks from the new shell into core behavior yet
+* new shell is mostly visual containers
+
+### New shell structure
+
+* Search Hub
+* Discover
+* People
+* Browse
+* Filters
+* Activity
+
+### Acceptance criteria
+
+* `GoogleLayout` shows:
+
+  * new shell on top
+  * legacy accordion below
+* legacy accordion still does all real work
+* no regression in grid behavior
+* `GoogleLayoutLegacy` remains unchanged
+
+### Why this ordering is correct
+
+You gain visible progress without risking operational regressions.
+
+---
+
+## Phase 4, migrate Browse first
+
+### Goal
+
+Make the new shell useful in the least risky area.
+
+### Why Browse first
+
+Browse is easier to verify and less stateful than People.
+
+### Browse parity target
+
+* All Photos
+* Years
+* Months
+* Days
+* Folders
+* Devices
+* Favorites
+* Videos
+* Documents
+* Screenshots
+* Duplicates
+* Locations
+* Quick Access dates
+
+### Scope
+
+Only in `GoogleLayout`:
+
+* `ui/search/sections/browse_section.py`
+* `ui/search/search_sidebar.py`
+* light bridge in `google_layout.py`
+
+### Migration behavior
+
+At first, new Browse clicks should:
+
+* expand the matching legacy accordion section, or
+* delegate to the matching stable handler
+
+Not fully reimplement everything immediately.
+
+### Acceptance criteria
+
+* every old browse domain is represented in the new shell
+* clicking new Browse items gives correct visible reaction
+* legacy Browse remains underneath as fallback
+* no grid regressions
+
+---
+
+## Phase 5, migrate People second
+
+### Goal
+
+Bring People into the new shell without disturbing working People tools.
+
+### People parity target
+
+* top people
+* Review Possible Merges
+* Show Unnamed Clusters
+* Show All People
+* People Tools
+* legacy actions like history, undo, redo, expand
+
+### Scope
+
+Only in `GoogleLayout`:
+
+* `ui/search/sections/people_quick_section.py`
+* `main_window_qt.py`
+* reuse legacy People handlers first
+
+### Migration behavior
+
+No backend rebuild in this phase.
+Only bridge the new shell to existing People logic.
+
+### Acceptance criteria
+
+* People panel is populated
+* People buttons are wired
+* legacy People section remains underneath as fallback
+* no regressions in merge/undo/review workflows
+
+### Why it is Phase 5
+
+People is more fragile and stateful than Browse, so it should follow after Browse parity is established.
+
+---
+
+## Phase 6, visual polish
+
+### Goal
+
+Only once functionality exists, make the new shell look like the intended product.
+
+### Target style direction
+
+* Google Photos for discovery and calm grouping
+* Apple Photos for clean browsing hierarchy
+* Lightroom density only in advanced/power-user areas
+
+### Visual rules
+
+* narrow shell, around 280 to 300 px
+* soft section headers
+* minimal borders
+* top-level sections expandable
+* Browse subsections expandable
+* Filters and Activity collapsed by default
+* legacy block collapsed by default once the new shell is usable
+
+### Scope
+
+Only in:
+
+* `ui/search/search_sidebar.py`
+* section widgets
+
+No routing changes in this phase.
+
+### Acceptance criteria
+
+* shell looks clean in onboarding and non-empty project states
+* no giant blank panels
+* no developer-style heavy framing
+* visual hierarchy is calm and product-like
+
+### Why this phase is late
+
+Pretty dead widgets are still dead widgets.
+Functionality first, polish second.
+
+---
+
+## Phase 7, make the new shell the action owner
+
+### Goal
+
+Only after Browse and People parity is proven, let the new shell take control.
+
+### Scope
+
+Only in `GoogleLayout`:
+
+* `main_window_qt.py`
+* `layouts/google_layout.py`
+
+### What changes here
+
+* new shell branch routing goes to Google layout first
+* legacy accordion becomes fallback only
+* duplicate routing through old sidebar is removed
+
+### Acceptance criteria
+
+* clicking in the new shell updates the grid correctly
+* no need to use legacy block for normal work
+* legacy block still available for recovery
+* performance remains stable
+
+### Why this is deliberately late
+
+You lost control of the previous effort because ownership moved too early.
+This phase must not come before parity and stability.
+
+---
+
+## Phase 8, collapse and retire legacy sections gradually
+
+### Goal
+
+Remove the old sidebar section by section, not all at once.
+
+### Preconditions
+
+Only start this phase if all are true:
+
+* Browse parity proven
+* People parity proven
+* shell stable
+* performance stable
+* project switching stable
+
+### Retirement order
+
+1. Browse-related legacy sections
+2. People legacy section
+3. Search/find legacy section
+4. leftovers like locations/devices if still needed
+
+### Acceptance criteria
+
+* each removed legacy section has full parity in the new shell
+* no regressions in grid behavior
+* no regressions in People workflows
+* `google` stands on its own
+
+### Final result
+
+
+* keep `google` as the finished improved layout
+
+---
+
+# Naming convention
+
+Use explicit names throughout.
+
+## Class names
+
+* `GooglePhotosLayoutLegacy`
+* `GooglePhotosLayout`
+
+## Layout ids
+
+* `google_legacy`
+* `google`
+
+## Display names
+
+* `Google Photos Legacy`
+* `Google Photos Style`
+
+This prevents confusion later in logs, menus, code, and debugging.
+
+---
+
+# Phase dependencies, explicitly
+
+## You must not start:
+
+* Phase 3 before Phase 2 is stable
+* Phase 5 before Phase 4 is stable
+* Phase 7 before Phase 4 and 5 are both stable
+* Phase 8 before Phase 7 is stable
+
+This is critical.
+The earlier repo drift happened because migration, ownership, and polish were happening in parallel.
+
+---
+
+# Revised immediate next steps
+
+## Step 1
+
+Duplicate current stable Google layout into legacy:
+
+* keep `layouts/google_layout.py` as the future improvement target
+* create `layouts/google_layout_legacy.py`
+
+## Step 2
+
+Rename class inside the legacy file to:
+
+* `GooglePhotosLayoutLegacy`
+
+## Step 3
+
+Register both layouts in `layout_manager.py`:
+
+* `google`
+* `google_legacy`
+
+## Step 4
+
+Make `google` the default startup layout
+
+## Step 5
+
+Run and verify both layouts before any further sidebar work
+
+---
+
+# Phase 1 acceptance checklist
+
+Phase 1 is complete only if all are true:
+
+* `Google Photos Legacy` appears as a selectable layout
+* it behaves exactly like the current stable baseline
+* `Google Photos Style` appears separately
+* startup goes directly to `google`
+* switching between `google` and `google_legacy` works
+* no crash or broken project switching
+* no sidebar redesign has started yet
+
+---
+
+# Engineering recommendation
+
+Your revised plan is not just acceptable, it is the right correction.
+
+The current clean baseline log shows you have regained a usable control state. The safest way forward is now to preserve that state as `GoogleLayoutLegacy` and do all future work only in `GoogleLayout`. That directly addresses the failure mode from the previous repo, where the working layout and the experimental layout were the same artifact. 
+
+The best implementation order for Phase 1 remains:
+
+1. create `google_layout_legacy.py`
+2. rename class inside it to `GooglePhotosLayoutLegacy`
+3. register it in `layout_manager.py`
+4. keep current `google_layout.py` as the active future-improvement target
+5. make `google` default startup
+6. run and verify both
+
+The sidebar is still below target quality, but the reasons are now narrower and clearer.
+
+The latest log shows two positive changes first. Google is now being forced as the startup layout even when the saved setting is `current`, so the old startup-layout problem is improved. It also shows a healthy 7-column Google photogrid with a 1517 px viewport in this clean repo, which is much better than the earlier 2-column, 640 px viewport runs.
+
+So the main problem is no longer “Google layout is unstable.”
+The main problem is that the **sidebar still feels functionally and visually unfinished**.
+
+## What the log says is still wrong
+
+### 1. Google layout still performs pre-project loads
+
+Even in the clean repo, during project creation the layout still does:
+
+* a load before the project is actually set,
+* then `set_project(None -> 1)`,
+* then another load after the project creation refresh.
+
+That means the shell still feels noisy and half-controlled during onboarding/project creation.
+
+### 2. The new sidebar quality problem is now mostly a product-design problem
+
+Because the grid is now reasonably wide and the layout is stable, the screenshot issue is no longer mainly about performance. It is about the sidebar still lacking:
+
+* a strong top section hierarchy,
+* a compact and elegant empty-state presentation,
+* clear separation between discovery, browse, and tools,
+* and a refined relationship between the new shell and the legacy accordion.
+
+### 3. The current repo still starts from a baseline where Google layout is old-style functional
+
+The baseline `google_layout.py` still represents the stable, old Google-style layout with the accordion sidebar and timeline-based design. That is actually good for Phase 1, because it gives you a stable parent to clone into legacy and then improve safely.
+
+So the correct reading is:
+
+* **stability is good enough now**
+* **startup layout forcing is good enough**
+* **sidebar quality is not yet a visual or interaction product shell**
+* **Phase 1 separation into `google_legacy` and `google` is still the right next move**
+
+## Audit of the revised plan
+
+The revised plan is correct, and I would strengthen it in four ways.
+
+### A. Make Phase 1 explicitly a “layout split only” phase
+
+No sidebar enhancement work should be mixed into Phase 1.
+
+That means Phase 1 should do exactly:
+
+* create `GooglePhotosLayoutLegacy`
+* register `google_legacy`
+* keep `google` as the active improvement track
+* make `google` the default startup
+* verify switching between both
+
+Nothing else.
+
+This matters because the current log already shows the baseline is usable, and you do not want to contaminate the split phase with behavior changes.
+
+### B. Add a Phase 2A before shell work
+
+Your current plan says “stabilize Google layout load ownership” in Phase 2. That is right, but I would explicitly split it into:
+
+* **Phase 2A, project-load stabilization**
+* **Phase 2B, shell insertion**
+
+Reason: the logs repeatedly show project creation churn around `set_project(None -> 1)`. That should be cleaned before any new shell is added above the layout.
+
+### C. Add a shell quality checkpoint before Browse migration
+
+Before migrating Browse, require that the new shell visually satisfies:
+
+* proper width,
+* proper top-level expansion defaults,
+* empty-state calmness,
+* collapsed legacy block by default.
+
+Otherwise you risk migrating functionality into a shell that still feels wrong.
+
+### D. Make legacy retirement conditional per domain
+
+Do not retire the legacy sidebar globally.
+Retire it section by section:
+
+* Browse legacy sections only after Browse parity,
+* People legacy only after People parity,
+* Search/find legacy only after discovery/search shell is proven.
+
+That is safer than a single “collapse legacy” milestone.
+
+---
+
+# Enhanced revised plan
+
+## Phase 0, freeze the baseline
+
+No change.
+
+This remains correct and necessary.
+
+---
+
+## Phase 1, split the layout into legacy and improvement track
+
+No change in goal, but stricter scope.
+
+### Goal
+
+Preserve the stable Google layout exactly and create a safe improvement surface.
+
+### Scope
+
+Only:
+
+* create `layouts/google_layout_legacy.py`
+* copy the current stable `GooglePhotosLayout`
+* rename class to `GooglePhotosLayoutLegacy`
+* register:
+
+  * `google`
+  * `google_legacy`
+* make `google` the default startup layout
+* verify both run
+
+### No-go items in Phase 1
+
+* no sidebar redesign
+* no shell insertion
+* no routing change
+* no load optimization
+* no polish
+
+### Acceptance criteria
+
+* `Google Photos Legacy` is selectable
+* `Google Photos Style` is selectable
+* startup goes directly to `google`
+* both switch correctly
+* no project-switch regressions
+* baseline behavior preserved in `google_legacy`
+
+---
+
+## Phase 2A, stabilize project-load ownership in `GoogleLayout`
+
+### Goal
+
+Remove unnecessary loads around onboarding and project creation.
+
+### Scope
+
+Only in `google`:
+
+* suppress loads when `project_id is None`
+* ensure `set_project()` is the owner of project-bound loading
+* remove pre-project and post-create redundant loads
+* add one simple reload gate
+
+### Acceptance criteria
+
+* no “No project selected” load before valid project assignment
+* one clean load after project creation
+* no duplicate generation storm around `set_project(None -> 1)`
+
+This is the first real technical improvement phase.
+
+---
+
+## Phase 2B, insert the new shell visually, but passive
+
+### Goal
+
+Add the shell without changing ownership.
+
+### Scope
+
+Only in `google`:
+
+* new shell above
+* legacy accordion below
+* legacy still owns actions
+
+### Acceptance criteria
+
+* shell visible
+* legacy visible
+* no regressions
+* no routing change yet
+
+---
+
+## Phase 3, shell quality checkpoint
+
+### Goal
+
+Make the shell itself worthy before filling it with behavior.
+
+### Required before moving on
+
+* shell width approximately 280 to 300 px
+* Search Hub and Discover expanded
+* People collapsed by default
+* Browse expanded
+* Filters and Activity collapsed
+* legacy block collapsed by default
+* no giant blank areas
+* onboarding state looks intentional
+
+This phase is where the product feel starts.
+
+---
+
+## Phase 4, migrate Browse first
+
+Unchanged in principle, but now it starts only after shell quality checkpoint passes.
+
+---
+
+## Phase 5, migrate People second
+
+Unchanged in principle.
+
+---
+
+## Phase 6, visual polish
+
+This phase becomes lighter because some shell quality will already have been addressed in Phase 3.
+
+Use this phase for:
+
+* typography refinement
+* icon refinement
+* hover/selection states
+* spacing consistency
+* section header quality
+* compact empty-state visuals
+
+---
+
+## Phase 7, make new shell the action owner
+
+Unchanged in principle.
+
+---
+
+## Phase 8, retire legacy sections gradually
+
+Unchanged in principle, but explicitly domain-based.
+
+---
+
+# What is missing to reach the planned sidebar quality
+
+From the latest log and your description, the missing items are:
+
+### 1. Better shell staging
+
+You need a shell that feels like:
+
+* Search / discovery first
+* browse second
+* tools last
+
+Right now the baseline Google layout is still “functional old Google/accordion,” which is why the future shell must be introduced carefully, not blended immediately.
+
+### 2. Cleaner onboarding presentation
+
+The log still shows onboarding with no project and the classic “Please create a project first” flow. That is fine technically, but the future improved shell must present empty state more elegantly and compactly. 
+
+### 3. Better control of shell width
+
+In this clean repo, width is much better than the worst earlier runs, but it still needs to be intentionally fixed as part of the shell design rather than left to accidental layout behavior.
+
+### 4. Elimination of pre-project loads
+
+You still have the project creation churn problem in the stable baseline flow. That is Phase 2A’s job.
+
+---
+
+# Final recommendation
+
+Your revised plan is correct, and the enhanced version above is the one I would follow.
+
+The most important improvement is this:
+
+**Do not treat Phase 1 as the start of UX work.
+Treat Phase 1 purely as an engineering split.**
+
+That is what will keep the repo under control this time.
+
+The current log supports that discipline:
+
+* baseline is stable enough,
+* Google can be defaulted later,
+* the current Google layout is still a valid frozen reference,
+* and the shell-quality work should come only after the layout split and load stabilization.
+
+So yes, proceed with Phase 1, but keep it strictly limited to:
+
+* copy
+* rename
+* register
+* default startup
+* verify both layouts
+
+Next:
+1: either Proceed and implement the **exact Phase 1 implementation pack**, file by file, with the safest copy/rename/register sequence here or propose a better plan: "https://github.com/aaayyysss/MemoryMate-PhotoFlow-UX_Improvement/blob/main/UX-ImprovementSteps/Phase1"
+2: Update teh ChangeLog
+
+
