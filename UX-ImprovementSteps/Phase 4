@@ -1,0 +1,434 @@
+Proceeding with **Phase 4, Browse first**, is the right next step. The current build is stable enough for it: startup is correctly forced to `google`, no-project initial loads are suppressed, switching between `google` and `google_legacy` works, and project creation on `google` now collapses to one debounced reload instead of the earlier multi-load churn. That gives you a stable enough base to start the least risky functional migration area, Browse. 
+
+Below is the **exact Phase 4 implementation pack**, strictly limited to:
+
+* `ui/search/sections/browse_section.py`
+* `ui/search/search_sidebar.py`
+* a light bridge in `layouts/google_layout.py`
+
+No People work.
+No new shell ownership.
+Legacy accordion remains fallback.
+
+---
+
+# `ui/search/sections/browse_section.py`
+
+## Replace file content with:
+
+```python
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QFrame, QToolButton
+
+
+class _ExpandableSubsection(QFrame):
+    def __init__(self, title: str, expanded: bool = False, parent=None):
+        super().__init__(parent)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(2)
+
+        self.toggle_btn = QToolButton()
+        self.toggle_btn.setText(title)
+        self.toggle_btn.setCheckable(True)
+        self.toggle_btn.setChecked(expanded)
+        self.toggle_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.toggle_btn.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
+        self.toggle_btn.clicked.connect(self._on_toggled)
+
+        self.content = QWidget(self)
+        self.content_layout = QVBoxLayout(self.content)
+        self.content_layout.setContentsMargins(12, 2, 0, 2)
+        self.content_layout.setSpacing(2)
+        self.content.setVisible(expanded)
+
+        root.addWidget(self.toggle_btn)
+        root.addWidget(self.content)
+
+    def _on_toggled(self):
+        expanded = self.toggle_btn.isChecked()
+        self.toggle_btn.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
+        self.content.setVisible(expanded)
+
+    def addWidget(self, widget: QWidget):
+        self.content_layout.addWidget(widget)
+
+
+class BrowseSection(QWidget):
+    browseNodeSelected = Signal(str, object)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._counts = {}
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(4)
+
+        intro = QLabel("Library, sources, collections")
+        intro.setWordWrap(True)
+        root.addWidget(intro)
+
+        self.library_group = _ExpandableSubsection("Library", expanded=True)
+        self.sources_group = _ExpandableSubsection("Sources", expanded=True)
+        self.collections_group = _ExpandableSubsection("Collections", expanded=False)
+        self.places_group = _ExpandableSubsection("Places", expanded=False)
+        self.quick_group = _ExpandableSubsection("Quick Access", expanded=False)
+
+        # Library
+        self.btn_all = self._make_button("All Photos", "all")
+        self.btn_years = self._make_button("Years", "years")
+        self.btn_months = self._make_button("Months", "months")
+        self.btn_days = self._make_button("Days", "days")
+        self.library_group.addWidget(self.btn_all)
+        self.library_group.addWidget(self.btn_years)
+        self.library_group.addWidget(self.btn_months)
+        self.library_group.addWidget(self.btn_days)
+
+        # Sources
+        self.btn_folders = self._make_button("Folders", "folders")
+        self.btn_devices = self._make_button("Devices", "devices")
+        self.sources_group.addWidget(self.btn_folders)
+        self.sources_group.addWidget(self.btn_devices)
+
+        # Collections
+        self.btn_favorites = self._make_button("Favorites", "favorites")
+        self.btn_videos = self._make_button("Videos", "videos")
+        self.btn_documents = self._make_button("Documents", "documents")
+        self.btn_screenshots = self._make_button("Screenshots", "screenshots")
+        self.btn_duplicates = self._make_button("Duplicates", "duplicates")
+        self.collections_group.addWidget(self.btn_favorites)
+        self.collections_group.addWidget(self.btn_videos)
+        self.collections_group.addWidget(self.btn_documents)
+        self.collections_group.addWidget(self.btn_screenshots)
+        self.collections_group.addWidget(self.btn_duplicates)
+
+        # Places
+        self.btn_locations = self._make_button("Locations", "locations")
+        self.places_group.addWidget(self.btn_locations)
+
+        # Quick Access
+        self.btn_today = self._make_button("Today", "today")
+        self.btn_yesterday = self._make_button("Yesterday", "yesterday")
+        self.btn_last7 = self._make_button("Last 7 days", "last_7_days")
+        self.btn_last30 = self._make_button("Last 30 days", "last_30_days")
+        self.btn_this_month = self._make_button("This month", "this_month")
+        self.btn_last_month = self._make_button("Last month", "last_month")
+        self.btn_this_year = self._make_button("This year", "this_year")
+        self.btn_last_year = self._make_button("Last year", "last_year")
+        self.quick_group.addWidget(self.btn_today)
+        self.quick_group.addWidget(self.btn_yesterday)
+        self.quick_group.addWidget(self.btn_last7)
+        self.quick_group.addWidget(self.btn_last30)
+        self.quick_group.addWidget(self.btn_this_month)
+        self.quick_group.addWidget(self.btn_last_month)
+        self.quick_group.addWidget(self.btn_this_year)
+        self.quick_group.addWidget(self.btn_last_year)
+
+        root.addWidget(self.library_group)
+        root.addWidget(self.sources_group)
+        root.addWidget(self.collections_group)
+        root.addWidget(self.places_group)
+        root.addWidget(self.quick_group)
+
+    def _make_button(self, text: str, key: str) -> QPushButton:
+        btn = QPushButton(text)
+        btn.clicked.connect(lambda: self.browseNodeSelected.emit(key, None))
+        return btn
+
+    def set_counts(self, counts: dict | None):
+        self._counts = counts or {}
+
+        def fmt(label: str, key: str) -> str:
+            val = self._counts.get(key)
+            return f"{label} ({val})" if val is not None else label
+
+        self.btn_all.setText(fmt("All Photos", "all"))
+        self.btn_years.setText(fmt("Years", "years"))
+        self.btn_months.setText(fmt("Months", "months"))
+        self.btn_days.setText(fmt("Days", "days"))
+        self.btn_folders.setText(fmt("Folders", "folders"))
+        self.btn_devices.setText(fmt("Devices", "devices"))
+        self.btn_favorites.setText(fmt("Favorites", "favorites"))
+        self.btn_videos.setText(fmt("Videos", "videos"))
+        self.btn_documents.setText(fmt("Documents", "documents"))
+        self.btn_screenshots.setText(fmt("Screenshots", "screenshots"))
+        self.btn_duplicates.setText(fmt("Duplicates", "duplicates"))
+        self.btn_locations.setText(fmt("Locations", "locations"))
+```
+
+---
+
+# `ui/search/search_sidebar.py`
+
+## 1. Add import near section imports
+
+```python
+from ui.search.sections.browse_section import BrowseSection
+```
+
+---
+
+## 2. Replace placeholder Browse section creation
+
+### Find:
+
+```python
+self.browse_section = QWidget()
+```
+
+or any placeholder-style Browse construction block.
+
+### Replace with:
+
+```python
+self.browse_section = BrowseSection()
+```
+
+---
+
+## 3. Replace Browse placeholder content block
+
+If you currently have any placeholder lines like:
+
+```python
+self.browse.addWidget(self._muted_label("Library, sources, collections"))
+self.browse.addWidget(self._placeholder_button("All Photos", "all"))
+self.browse.addWidget(self._placeholder_button("Folders", "folders"))
+self.browse.addWidget(self._placeholder_button("Dates", "dates"))
+self.browse.addWidget(self._placeholder_button("Videos", "videos"))
+self.browse.addWidget(self._placeholder_button("Locations", "locations"))
+```
+
+remove them completely, because `BrowseSection()` now owns that content.
+
+---
+
+## 4. Keep wrapper creation, but ensure Browse uses the real section widget
+
+### Use:
+
+```python
+self.browse_wrap = ExpandableSection("Browse", self.browse_section, expanded=True)
+```
+
+---
+
+## 5. Wire Browse node signal
+
+### Add this to your signal wiring block:
+
+```python
+self.browse_section.browseNodeSelected.connect(
+    lambda key, payload=None: self.selectBranch.emit(key)
+)
+```
+
+---
+
+## 6. Add payload setter to `SearchSidebar`
+
+### Insert this method:
+
+```python
+def set_browse_payload(self, payload: dict | None):
+    payload = payload or {}
+    counts = payload.get("counts", {}) or {}
+    if hasattr(self, "browse_section") and hasattr(self.browse_section, "set_counts"):
+        self.browse_section.set_counts(counts)
+```
+
+---
+
+# `layouts/google_layout.py`
+
+## 1. Expand the passive Browse bridge mapping
+
+### Find `_on_passive_shell_branch_clicked(...)`
+
+### Replace the method with:
+
+```python
+def _on_passive_shell_branch_clicked(self, branch: str):
+    """
+    Phase 4:
+    Browse migration remains passive.
+    Expand matching legacy accordion section or delegate to stable handler.
+    """
+    try:
+        if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
+            return
+
+        legacy_map = {
+            "all": "dates",
+            "years": "dates",
+            "months": "dates",
+            "days": "dates",
+            "folders": "folders",
+            "devices": "devices",
+            "favorites": "find",
+            "videos": "videos",
+            "documents": "find",
+            "screenshots": "find",
+            "duplicates": "duplicates",
+            "locations": "locations",
+            "today": "dates",
+            "yesterday": "dates",
+            "last_7_days": "dates",
+            "last_30_days": "dates",
+            "this_month": "dates",
+            "last_month": "dates",
+            "this_year": "dates",
+            "last_year": "dates",
+            "people_merge_review": "people",
+            "people_unnamed": "people",
+            "people_show_all": "people",
+            "find": "find",
+            "discover_beach": "find",
+            "discover_mountains": "find",
+            "discover_city": "find",
+        }
+
+        target = legacy_map.get(branch)
+        if target and hasattr(self.accordion_sidebar, "_expand_section"):
+            self.accordion_sidebar._expand_section(target)
+
+        # Stable delegate hooks where safe
+        if branch == "all":
+            if hasattr(self, "request_reload") and getattr(self, "project_id", None):
+                self.request_reload(reason="browse_all", project_id=self.project_id)
+
+    except Exception as e:
+        print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")
+```
+
+---
+
+## 2. Add Browse payload seed after shell creation
+
+### In `_build_passive_shell()` after creating `self.search_sidebar`, add:
+
+```python
+try:
+    self.search_sidebar.set_browse_payload({
+        "counts": {
+            "all": 0,
+            "years": None,
+            "months": None,
+            "days": None,
+            "folders": None,
+            "devices": None,
+            "favorites": None,
+            "videos": None,
+            "documents": None,
+            "screenshots": None,
+            "duplicates": None,
+            "locations": None,
+        }
+    })
+except Exception:
+    pass
+```
+
+---
+
+## 3. Add a Browse payload refresh helper
+
+### Insert this method:
+
+```python
+def _refresh_passive_browse_payload(self):
+    """
+    Phase 4:
+    lightweight parity counts only, no ownership changes.
+    """
+    try:
+        if not hasattr(self, "search_sidebar") or self.search_sidebar is None:
+            return
+
+        counts = {
+            "all": 0,
+            "folders": None,
+            "videos": None,
+            "locations": None,
+            "duplicates": None,
+        }
+
+        # Conservative seed values from current project state
+        if getattr(self, "project_id", None):
+            counts["all"] = 0
+
+        self.search_sidebar.set_browse_payload({"counts": counts})
+    except Exception as e:
+        print(f"[{self.__class__.__name__}] Browse payload refresh failed: {e}")
+```
+
+---
+
+## 4. Call Browse payload refresh at safe points
+
+### In `_build_passive_shell()`, near the end, add:
+
+```python
+self._refresh_passive_browse_payload()
+```
+
+### In `set_project(...)`, after successful project assignment and before leaving the method, add:
+
+```python
+self._refresh_passive_browse_payload()
+```
+
+### In the post-project creation refresh area, after:
+
+```python
+print(f"[{self.__class__.__name__}] ✓ Layout refreshed after project creation")
+```
+
+add:
+
+```python
+self._refresh_passive_browse_payload()
+```
+
+---
+
+# Phase 4 acceptance checks
+
+Do not move to Phase 5 unless all of these are true:
+
+* every old Browse domain is represented in the new shell:
+
+  * All Photos
+  * Years
+  * Months
+  * Days
+  * Folders
+  * Devices
+  * Favorites
+  * Videos
+  * Documents
+  * Screenshots
+  * Duplicates
+  * Locations
+  * Quick Access dates
+* clicking new Browse items gives a visible reaction
+* legacy Browse remains underneath as fallback
+* no grid regressions
+* `google_legacy` remains untouched
+
+---
+
+# Scope reminder
+
+This Phase 4 pack still does **not**:
+
+* move ownership to the new shell
+* replace legacy Browse
+* migrate People
+* alter routing in `main_window_qt.py`
+
+It only makes Browse represented and visibly responsive in the new shell, while staying safely delegated to legacy/stable behavior.
+
+The current build is stable enough for this step: the log shows startup and project creation behavior are now controlled and quiet enough that Browse can be migrated without destabilizing the app. 
