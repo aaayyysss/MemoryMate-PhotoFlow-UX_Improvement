@@ -1,0 +1,203 @@
+/* ==========================================================
+   UX-10 Visual Style System — Global Stylesheet
+   Calm surface, strong hierarchy, color = meaning.
+   ========================================================== */
+
+/* --- Base --- */
+QWidget {
+    background-color: #f8f9fa;
+    color: #202124;
+    font-family: Segoe UI, Roboto, Arial;
+    font-size: 13px;
+}
+
+/* --- Sidebar sections --- */
+QGroupBox {
+    border: none;
+    margin-top: 8px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    padding: 0 4px;
+}
+
+/* --- Buttons (base) --- */
+QPushButton {
+    background: transparent;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+QPushButton:hover {
+    background: #f1f3f4;
+}
+
+/* --- Chip variants --- */
+QPushButton#SearchChip {
+    background: #f1f3f4;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipPreset {
+    background: #e8f0fe;
+    color: #1a73e8;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipPreset:hover {
+    background: #d2e3fc;
+}
+
+QPushButton#SearchChipBrowse {
+    background: #e8f0fe;
+    color: #1967d2;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipBrowse:hover {
+    background: #d2e3fc;
+}
+
+QPushButton#SearchChipFilter {
+    background: #f1f3f4;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipFilter:hover {
+    background: #e0e0e0;
+}
+
+QPushButton#SearchChipPerson {
+    background: #e6f4ea;
+    color: #188038;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipPerson:hover {
+    background: #ceead6;
+}
+
+QPushButton#SearchChipQuery {
+    background: #fef7e0;
+    color: #795548;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipQuery:hover {
+    background: #fcefc7;
+}
+
+QPushButton#SearchChipClear {
+    background: transparent;
+    color: #5f6368;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+QPushButton#SearchChipClear:hover {
+    background: #f1f3f4;
+}
+
+/* --- Active facet button --- */
+QPushButton#ActiveFacetButton {
+    background: #e8f0fe;
+    border: 1px solid #8ab4f8;
+    border-radius: 6px;
+}
+
+/* --- Search results header badges --- */
+QLabel#SearchWarningBadge {
+    background: #fff3e0;
+    color: #e65100;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* --- Empty state --- */
+QLabel#EmptyStateLabel {
+    font-size: 20px;
+    font-weight: 600;
+    color: #202124;
+    padding: 12px 24px;
+}
+
+/* --- Scroll areas (remove border) --- */
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+/* --- Combo boxes --- */
+QComboBox {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 4px 8px;
+    background: #ffffff;
+    font-size: 12px;
+}
+
+QComboBox:hover {
+    border: 1px solid #bdbdbd;
+}
+
+QComboBox::drop-down {
+    border: none;
+}
+
+/* --- Progress bars --- */
+QProgressBar {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #f1f3f4;
+    text-align: center;
+    font-size: 11px;
+    height: 14px;
+}
+
+QProgressBar::chunk {
+    background: #1a73e8;
+    border-radius: 3px;
+}
+
+/* --- Line edits (search input) --- */
+QLineEdit {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    background: #ffffff;
+    color: #202124;
+}
+
+QLineEdit:focus {
+    border: 2px solid #1a73e8;
+}
+
+/* --- Tooltips --- */
+QToolTip {
+    background-color: #333333;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+}
