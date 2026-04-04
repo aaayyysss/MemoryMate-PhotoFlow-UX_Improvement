@@ -1,0 +1,36 @@
+# MemoryMate-PhotoFlow Requirements
+# Updated: 2026-01-11 - Added PyTorch & Transformers for semantic search + comprehensive packaging dependencies
+
+# Core UI Framework
+PySide6>=6.5.0
+
+# Image Processing
+Pillow>=10.0.0
+pillow-heif>=1.1.0     # HEIC/HEIF image support (for iPhone photos) - v1.1.0+ auto-registers
+opencv-python>=4.8.0   # cv2 - Image processing and video handling
+rawpy>=0.18.0          # RAW photo support (CR2, NEF, ARW, DNG, etc.)
+piexif>=1.1.3          # EXIF writing (for GPS location persistence)
+
+# Database
+# SQLite is built-in to Python
+
+# Windows COM Support (for MTP device access)
+pywin32>=305           # Windows only
+
+# Face Detection & ML/AI - Core
+insightface>=0.7.3     # CRITICAL: Face detection using buffalo_l model
+onnxruntime>=1.16.0    # CRITICAL: ONNX model inference engine
+scikit-learn>=1.3.0    # CRITICAL: Clustering algorithms for face grouping
+numpy>=1.24.0,<2.0.0   # Numerical operations — MUST stay <2.0 (onnxruntime/torch binary compat)
+matplotlib>=3.7.0      # CRITICAL: Required by InsightFace for visualization
+
+# Deep Learning & Semantic Search (CRITICAL for CLIP-based semantic search)
+torch>=2.0.0           # PyTorch deep learning framework
+transformers>=4.30.0   # HuggingFace transformers (CLIP models for semantic search)
+tokenizers>=0.13.0     # Fast tokenizers for transformers
+
+# Caching & Utilities
+cachetools>=5.3.0      # Result caching for semantic search
+
+# Video Processing (optional - graceful fallback if not installed)
+# ffmpeg-python>=0.2.0  # Uncomment if you want video metadata extraction

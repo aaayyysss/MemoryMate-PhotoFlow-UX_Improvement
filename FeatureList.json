@@ -1,0 +1,380 @@
+{
+  "project": "MemoryMate-PhotoFlow-Refactored",
+  "description": "Photo management application with AI-powered face detection and organization",
+  "features": [
+    {
+      "id": "accordion-sidebar-people-context-menu",
+      "name": "People Section: Context Menu Support",
+      "description": "Right-click context menu on person cards with rename/merge/delete/details actions",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Right-click on person card shows context menu",
+        "Rename action updates person name in database",
+        "Delete action removes person and reloads section",
+        "Details action shows person information dialog"
+      ]
+    },
+    {
+      "id": "accordion-sidebar-people-drag-merge",
+      "name": "People Section: Drag-and-Drop Face Merging",
+      "description": "Drag one person card onto another to merge face clusters",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": ["accordion-sidebar-people-context-menu"],
+      "tests": [
+        "Drag person card starts drag operation",
+        "Drop on another person card triggers merge",
+        "Merge combines face clusters using ReferenceDB.merge_face_clusters",
+        "Merge shows comprehensive feedback (duplicates, unique moved, faces reassigned)",
+        "Section reloads after successful merge"
+      ]
+    },
+    {
+      "id": "accordion-sidebar-people-circular-thumbnails",
+      "name": "People Section: Circular Face Thumbnails",
+      "description": "Display face thumbnails in circular format like Google Photos",
+      "status": "passing",
+      "priority": "medium",
+      "dependencies": [],
+      "tests": [
+        "Face thumbnails are displayed as circles",
+        "Thumbnails load from BLOB or file path",
+        "Fallback to emoji icon if no thumbnail available"
+      ]
+    },
+    {
+      "id": "accordion-sidebar-people-multi-row-grid",
+      "name": "People Section: Multi-Row Grid Layout",
+      "description": "Flow layout that wraps person cards across multiple rows",
+      "status": "passing",
+      "priority": "medium",
+      "dependencies": [],
+      "tests": [
+        "Person cards wrap to new rows when container width is exceeded",
+        "Grid adjusts dynamically to window resize",
+        "Scrolling works smoothly with many people"
+      ]
+    },
+    {
+      "id": "accordion-sidebar-people-selection",
+      "name": "People Section: Person Selection for Filtering",
+      "description": "Click person card to filter main grid by that person",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Clicking person card emits personSelected signal",
+        "Main photo grid filters to show only photos of selected person",
+        "Selection state is maintained during session"
+      ]
+    },
+    {
+      "id": "accordion-sidebar-modular-architecture",
+      "name": "Modular Accordion Sidebar Architecture",
+      "description": "Refactored accordion sidebar into separate section modules",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "AccordionSidebar orchestrates section modules",
+        "Each section (People, Dates, Folders, etc.) is in separate file",
+        "Signals propagate correctly from sections to sidebar to layout",
+        "Section loading is thread-safe with generation tracking"
+      ]
+    },
+    {
+      "id": "face-detection-scanning",
+      "name": "Face Detection and Scanning",
+      "description": "Background face detection on imported photos",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Face detection runs automatically on photo import",
+        "Face clusters are stored in face_branch_reps table",
+        "Representative face thumbnails are saved as BLOB"
+      ]
+    },
+    {
+      "id": "photo-import-scanning",
+      "name": "Photo Import and Folder Scanning",
+      "description": "Import photos from folders and scan for metadata",
+      "status": "passing",
+      "priority": "critical",
+      "dependencies": [],
+      "tests": [
+        "User can select folder to import photos",
+        "Photos are added to database with metadata",
+        "Thumbnails are generated and cached",
+        "Progress is shown during import"
+      ]
+    },
+    {
+      "id": "photo-grid-display",
+      "name": "Main Photo Grid Display",
+      "description": "Display photos in grid layout with lazy loading",
+      "status": "passing",
+      "priority": "critical",
+      "dependencies": [],
+      "tests": [
+        "Photos displayed in grid with thumbnails",
+        "Lazy loading loads visible photos first",
+        "Grid scrolls smoothly with many photos",
+        "Selection and multi-select work correctly"
+      ]
+    },
+    {
+      "id": "date-filtering",
+      "name": "Date-Based Filtering",
+      "description": "Filter photos by year, month, or day from dates section",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Dates section shows hierarchical year > month > day tree",
+        "Clicking date filter updates main grid",
+        "Date counts are accurate",
+        "Clear filter returns to all photos"
+      ]
+    },
+    {
+      "id": "folder-filtering",
+      "name": "Folder-Based Filtering",
+      "description": "Filter photos by source folder from folders section",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Folders section shows folder hierarchy",
+        "Clicking folder filters main grid",
+        "Folder photo counts are accurate",
+        "Clear filter returns to all photos"
+      ]
+    },
+    {
+      "id": "video-section",
+      "name": "Videos Section",
+      "description": "Separate section for video files with filtering",
+      "status": "passing",
+      "priority": "medium",
+      "dependencies": [],
+      "tests": [
+        "Videos section shows video files separately",
+        "Video thumbnails display correctly",
+        "Video filtering works (all, short, long, HD, etc.)",
+        "Video playback works from grid"
+      ]
+    },
+    {
+      "id": "accordion-sidebar-quick-dates",
+      "name": "Quick Dates Section",
+      "description": "Quick access to common date filters (Today, Yesterday, Last 7 days, etc.) without navigating the date hierarchy",
+      "status": "passing",
+      "priority": "medium",
+      "dependencies": ["date-filtering"],
+      "tests": [
+        "Quick dates section displays all 8 quick date options",
+        "Today button filters to current day (YYYY-MM-DD format)",
+        "Yesterday button filters to previous day",
+        "Last 7 days button filters to rolling 7-day window",
+        "Last 30 days button filters to rolling 30-day window",
+        "This month button filters to current calendar month",
+        "Last month button filters to previous calendar month",
+        "This year button filters to current calendar year",
+        "Last year button filters to previous calendar year",
+        "Date calculations handle year/month rollovers correctly",
+        "Quick date selection emits quickDateSelected signal",
+        "Photo grid filters correctly when quick date selected",
+        "Button styling matches Google Photos design"
+      ]
+    },
+    {
+      "id": "people-tools-representative-face-selection",
+      "name": "People Tools: Representative Face Selection",
+      "description": "Allow users to choose which face crop represents each person cluster in the sidebar, with quality-based sorting and metrics",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": ["accordion-sidebar-people-multi-row-grid"],
+      "tests": [
+        "Bulk review shows 'Choose Face' button on each cluster card",
+        "Choose Face button opens ClusterFaceSelector dialog",
+        "Dialog shows all faces in cluster sorted by quality score",
+        "Quality scores calculated using sharpness, size, brightness, frontality, recency",
+        "Current representative face is highlighted in dialog",
+        "User can select new representative face with radio buttons",
+        "Saving updates face_crops.is_representative flag in database",
+        "Saving updates face_branch_reps.rep_path and rep_thumb_png",
+        "Bulk review grid refreshes to show new representative after selection",
+        "Quality score stored in face_crops.quality_score column",
+        "Missing quality scores calculated automatically on first view",
+        "FaceQualityScorer weights sum to 1.0",
+        "Quality badges show ✅ (high ≥75%), ⚠️ (medium ≥50%), ❓ (low <50%)"
+      ]
+    },
+    {
+      "id": "people-tools-name-autocomplete",
+      "name": "People Tools: Name Autocomplete",
+      "description": "Autocomplete suggestions for existing person names when naming unnamed clusters in bulk review",
+      "status": "passing",
+      "priority": "medium",
+      "dependencies": ["people-tools-representative-face-selection"],
+      "tests": [
+        "Name input fields have QCompleter attached",
+        "Completer loads existing person names from database",
+        "Completer is case insensitive (Qt.CaseInsensitive)",
+        "Completer uses MatchContains filter mode for partial matching",
+        "Completer uses PopupCompletion mode for dropdown suggestions",
+        "Typing in name field shows matching suggestions",
+        "Empty name list doesn't break autocomplete",
+        "Autocomplete works correctly with multiple name inputs in grid"
+      ]
+    },
+    {
+      "id": "people-tools-multiple-face-preview",
+      "name": "People Tools: Multiple Face Preview",
+      "description": "Show 3-4 face thumbnails per cluster in bulk review instead of single representative, sorted by quality",
+      "status": "passing",
+      "priority": "medium",
+      "dependencies": ["people-tools-representative-face-selection"],
+      "tests": [
+        "Bulk review shows up to 4 faces per cluster",
+        "Faces sorted by quality_score DESC",
+        "Single face shows large (200x200) thumbnail",
+        "Multiple faces show small (48x48) thumbnails in horizontal row",
+        "Fallback to representative face if quality scores missing",
+        "Thumbnails have border styling",
+        "Error handling falls back to original single preview",
+        "Users can see variety in cluster before naming"
+      ]
+    },
+    {
+      "id": "people-tools-merge-suggestions",
+      "name": "People Tools: Smart Merge Suggestions",
+      "description": "After naming clusters, suggest similar unnamed clusters for automatic merging based on centroid similarity",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": ["people-tools-representative-face-selection"],
+      "tests": [
+        "After naming, calculate similarity between named and unnamed clusters",
+        "Uses cosine similarity on face embedding centroids",
+        "Default similarity threshold ≥75% (configurable)",
+        "Shows merge suggestions dialog with top 5 matches per person",
+        "Dialog displays thumbnails and similarity percentages",
+        "Checkboxes pre-selected for high-similarity matches",
+        "User can select/deselect clusters to merge",
+        "Merge updates face_branch_reps and branches tables",
+        "People tree refreshes after merge",
+        "Skip button allows dismissing suggestions"
+      ]
+    },
+    {
+      "id": "people-section-search-filter",
+      "name": "People Section: Search/Filter",
+      "description": "Real-time search and filtering in People section with count display (X of Y people)",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Search input widget appears at top of People section",
+        "Search is case-insensitive and supports partial matching",
+        "People cards filter in real-time as user types",
+        "Count label shows 'X of Y people' when filtering",
+        "Clear button resets search and shows all people",
+        "Search state persists during section visibility"
+      ]
+    },
+    {
+      "id": "face-quality-dashboard",
+      "name": "Face Quality Dashboard",
+      "description": "Analytics dashboard showing face detection coverage, quality distribution, and review tools",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "tests": [
+        "Dashboard accessible from People Tools menu",
+        "Overview tab shows total photos, coverage %, quality distribution",
+        "Quality Review tab lists low-quality faces (<40%)",
+        "Missing Faces tab lists photos with no faces detected",
+        "Action buttons open Manual Face Crop Editor for specific photos",
+        "Works with or without quality_score column (backward compatible)",
+        "Statistics are accurate and update when database changes"
+      ]
+    },
+    {
+      "id": "manual-face-crop-editor",
+      "name": "Manual Face Crop Editor",
+      "description": "Visual tool for reviewing and manually adding face detections to photos",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": [],
+      "issues_resolved": [
+        {
+          "id": "bbox-column-error",
+          "description": "face_crops table doesn't have bbox column - editor queries for non-existent column",
+          "status": "fixed",
+          "severity": "high",
+          "error": "no such column: fc.bbox",
+          "resolution": "Removed bbox dependency - editor now only shows count of detected faces and allows drawing manual rectangles"
+        },
+        {
+          "id": "missing-face-service",
+          "description": "services.face_service module doesn't exist - import fails when saving",
+          "status": "fixed",
+          "severity": "high",
+          "error": "No module named 'services.face_service'",
+          "resolution": "Removed unused import - using direct DB operations with ReferenceDB instead"
+        },
+        {
+          "id": "needs-visual-browser",
+          "description": "Text dropdown for photo selection is not user-friendly - needs visual thumbnail grid",
+          "status": "completed",
+          "severity": "medium",
+          "improvement": "Implemented PhotoBrowserDialog with visual thumbnails"
+        }
+      ],
+      "tests": [
+        "Editor accessible from People Tools menu",
+        "Editor shows photo with detected face rectangles (green)",
+        "User can draw new rectangles for manual faces (red)",
+        "Manual faces save to database and create new clusters",
+        "People section refreshes after manual face addition",
+        "Drawing mode works with mouse drag",
+        "Coordinates scale correctly to image dimensions"
+      ]
+    },
+    {
+      "id": "visual-photo-browser",
+      "name": "Visual Photo Browser for Face Crop Editor",
+      "description": "Visual grid browser with thumbnails for selecting photos to manually edit face detections",
+      "status": "passing",
+      "priority": "high",
+      "dependencies": ["manual-face-crop-editor"],
+      "files": [
+        "ui/visual_photo_browser.py",
+        "layouts/google_layout.py"
+      ],
+      "tests": [
+        "Browser shows photos in thumbnail grid",
+        "Photos sorted by date (most recent first)",
+        "Clicking photo opens Face Crop Editor for that photo",
+        "Shows photo metadata (date, existing face count)",
+        "Filter options: all photos, photos without faces, photos with low-quality faces",
+        "Keyboard navigation (arrow keys, Enter to select)",
+        "Search/filter by photo name or date",
+        "Pagination or infinite scroll for large libraries"
+      ]
+    }
+  ],
+  "metadata": {
+    "created": "2025-12-15",
+    "last_updated": "2025-12-17",
+    "version": "1.1",
+    "current_session": {
+      "branch": "claude/audit-accordion-sidebar-BXWgy",
+      "focus": "Fix face crop editor errors + add visual photo browser",
+      "issues_fixing": ["bbox-column-error", "missing-face-service", "needs-visual-browser"]
+    }
+  }
+}
