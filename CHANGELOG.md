@@ -28,9 +28,29 @@ visible, functional, and available as fallback. No legacy routing removed.
   shell-first router: Google layout gets first chance, legacy fallback remains alive
 - People branches stay delegated through dedicated `_handle_people_branch()`
 
+#### Routing Unit Tests (`tests/test_phase6b_routing.py`) — NEW
+- 115 tests covering all Phase 6B routing paths, no PySide6/Qt required
+- **TestAllPhotosRouting** (12 tests): filter clearing for each filter field,
+  skip-when-clean, reload-when-never-loaded, no-op-without-project
+- **TestQuickDatesRouting** (24 tests): all 8 quick-date branches call handler,
+  expand legacy section, don't fall through to legacy map
+- **TestShellQuickDateClicked** (10 tests): today/yesterday/this_year/last_year/
+  this_month synthesize to date-click, range dates use _request_load,
+  prefers quick-section API, invalid key no-op
+- **TestPeopleBranchRouting** (27 tests): all 9 People branches delegate to
+  MainWindow, no accordion expand, no grid reload
+- **TestLegacySectionRouting** (35 tests): 16 legacy branches expand correct
+  accordion section, no grid reload, unknown branch no-op, dedupe guard
+- **TestNoAccordionGuard** (1 test): graceful no-op when accordion is None
+- **TestMainWindowSearchBranchRouter** (6 tests): People→people handler,
+  non-People→Google layout, non-Google→sidebar fallback
+- Uses lazy-mock import strategy (auto-mocks missing deps like PySide6/numpy)
+  and AST extraction for MainWindow method (avoids QMainWindow subclass issue)
+
 ### Files Changed
 - `layouts/google_layout.py`
 - `main_window_qt.py`
+- `tests/test_phase6b_routing.py` (new)
 - `CHANGELOG.md`
 
 ---
