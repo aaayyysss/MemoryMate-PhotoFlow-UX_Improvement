@@ -1,0 +1,515 @@
+Yes. Phase 7B is the right next step.
+
+The current state supports a **shell-primary normal-use refinement** phase, not removal. The changelog already shows Phase 7A correctly as shell-primary with legacy retained, and the runtime log confirms the remaining rough edge is mainly onboarding and normal-use clarity, not core routing correctness anymore.
+
+Below is the **exact Phase 7B patch pack**, file by file, with these rules preserved:
+
+* legacy block still visible
+* legacy routing still alive
+* legacy Dates still detailed owner
+* shell becomes the clear preferred normal-use path
+* onboarding/no-project shell actions get cleaned up
+* no removals yet
+
+---
+
+# `ui/search/google_shell_sidebar.py`
+
+## 1. Replace the `GoogleShellSidebar` signal declarations
+
+Find:
+
+```python
+    selectBranch = Signal(str)
+    openActivityCenterRequested = Signal()
+```
+
+Replace with:
+
+```python
+    selectBranch = Signal(str)
+    openActivityCenterRequested = Signal()
+    disabledBranchRequested = Signal(str)
+```
+
+---
+
+## 2. In `__init__`, insert onboarding state fields immediately after:
+
+```python
+        self._branch_buttons = {}
+        self._active_branch = None
+```
+
+Insert:
+
+```python
+        self._project_available = False
+        self._project_required_branches = {
+            "all",
+            "dates",
+            "today",
+            "yesterday",
+            "last_7_days",
+            "last_30_days",
+            "this_month",
+            "last_month",
+            "this_year",
+            "last_year",
+            "folders",
+            "devices",
+            "favorites",
+            "videos",
+            "documents",
+            "screenshots",
+            "duplicates",
+            "locations",
+            "discover_beach",
+            "discover_mountains",
+            "discover_city",
+            "find",
+            "people_merge_review",
+            "people_unnamed",
+            "people_show_all",
+        }
+```
+
+---
+
+## 3. Replace the entire `_nav` method
+
+Find:
+
+```python
+    def _nav(self, label: str, branch: str) -> QPushButton:
+        btn = QPushButton(label)
+        btn.setObjectName("ShellNavBtn")
+        btn.setProperty("active", False)
+        btn.clicked.connect(lambda _, b=branch: self.selectBranch.emit(b))
+        self._branch_buttons[branch] = btn
+        return btn
+```
+
+Replace with:
+
+```python
+    def _nav(self, label: str, branch: str) -> QPushButton:
+        btn = QPushButton(label)
+        btn.setObjectName("ShellNavBtn")
+        btn.setProperty("active", False)
+        btn.setProperty("disabledShell", False)
+        btn.clicked.connect(lambda _, b=branch: self._emit_branch(b))
+        self._branch_buttons[branch] = btn
+        return btn
+```
+
+---
+
+## 4. Insert this method directly below `_nav`
+
+```python
+    def _emit_branch(self, branch: str):
+        if not self._project_available and branch in self._project_required_branches:
+            self.disabledBranchRequested.emit(branch)
+            return
+        self.selectBranch.emit(branch)
+```
+
+---
+
+## 5. Insert these methods directly below `clear_active_branch`
+
+```python
+    def set_project_available(self, available: bool):
+        self._project_available = bool(available)
+
+        for branch, btn in self._branch_buttons.items():
+            disabled_shell = (not self._project_available and branch in self._project_required_branches)
+            btn.setProperty("disabledShell", disabled_shell)
+            btn.setEnabled(True)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            btn.update()
+
+    def set_legacy_emphasis(self, emphasized: bool):
+        self.setProperty("legacySoft", not emphasized)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+```
+
+---
+
+## 6. Replace the entire `_SHELL_STYLE` block
+
+Find the full `_SHELL_STYLE = """ ... """` block and replace it with:
+
+```python
+_SHELL_STYLE = """
+QWidget#GoogleShellSidebar {
+    background: transparent;
+}
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QFrame#ShellSection {
+    background: #ffffff;
+    border: 1px solid #e7eaee;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader {
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 9px 12px 7px 12px;
+}
+QPushButton#ShellSectionHeader:hover {
+    background: #f6f8fb;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader:checked {
+    color: #1a73e8;
+}
+QLabel#ShellHint {
+    color: #80868b;
+    font-size: 11px;
+    padding: 0 2px 4px 2px;
+}
+QLabel#ShellSubhead {
+    color: #5f6368;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px 2px 2px;
+}
+QPushButton#ShellNavBtn {
+    text-align: left;
+    font-size: 12px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 6px 8px;
+    border-radius: 8px;
+}
+QPushButton#ShellNavBtn:hover {
+    background: #eef3ff;
+}
+QPushButton#ShellNavBtn[active="true"] {
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-weight: 600;
+}
+QPushButton#ShellNavBtn[disabledShell="true"] {
+    color: #a0a4ab;
+}
+QPushButton#ShellNavBtn[disabledShell="true"]:hover {
+    background: #f8f9fb;
+}
+"""
+```
+
+---
+
+# `layouts/google_layout.py`
+
+## 7. In the method where `GoogleShellSidebar` is created and connected, add disabled-branch and project-availability wiring
+
+Find the block that connects the shell, likely containing:
+
+```python
+        self.google_shell_sidebar = GoogleShellSidebar()
+        self.google_shell_sidebar.selectBranch.connect(self._on_passive_shell_branch_clicked)
+        self.google_shell_sidebar.openActivityCenterRequested.connect(self._on_toggle_activity_center)
+```
+
+Replace with:
+
+```python
+        self.google_shell_sidebar = GoogleShellSidebar()
+        self.google_shell_sidebar.selectBranch.connect(self._on_passive_shell_branch_clicked)
+        self.google_shell_sidebar.disabledBranchRequested.connect(self._on_disabled_shell_branch_requested)
+        self.google_shell_sidebar.openActivityCenterRequested.connect(self._on_toggle_activity_center)
+        self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
+        self.google_shell_sidebar.set_legacy_emphasis(False)
+```
+
+---
+
+## 8. Insert this method directly below `_clear_shell_active_branch`
+
+```python
+    def _on_disabled_shell_branch_requested(self, branch: str):
+        """
+        Phase 7B:
+        Shell item clicked while no project exists.
+        Keep shell primary, but soften behavior and guide the user.
+        """
+        try:
+            if branch in {"all", "dates", "folders", "devices", "videos", "locations", "duplicates", "find"}:
+                logger.info("[GooglePhotosLayout] Ignoring shell branch without project: %s", branch)
+
+            if hasattr(self, "main_window") and self.main_window:
+                try:
+                    from PySide6.QtWidgets import QMessageBox
+                    QMessageBox.information(
+                        self.main_window,
+                        "Create or select a project",
+                        "This action becomes available after you create or select a project."
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+```
+
+---
+
+## 9. In `set_project(self, project_id)`, add shell project-availability sync
+
+Find:
+
+```python
+        self.project_id = project_id
+```
+
+Keep it, then insert immediately after:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_project_available(bool(project_id))
+```
+
+---
+
+## 10. In `_clear_filter(self)`, add legacy de-emphasis reset
+
+Find the line already inserted in Phase 7A:
+
+```python
+        self._set_shell_active_branch("all")
+```
+
+Immediately after it, insert:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(False)
+```
+
+---
+
+## 11. In `_on_passive_shell_branch_clicked(self, branch: str)`, add shell-primary emphasis for direct actions
+
+Find this block near the top:
+
+```python
+            self._set_shell_active_branch(shell_active_map.get(branch))
+```
+
+Replace with:
+
+```python
+            self._set_shell_active_branch(shell_active_map.get(branch))
+
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if branch in {
+                    "all",
+                    "today",
+                    "yesterday",
+                    "last_7_days",
+                    "last_30_days",
+                    "this_month",
+                    "last_month",
+                    "this_year",
+                    "last_year",
+                    "people_merge_review",
+                    "people_unnamed",
+                    "people_show_all",
+                }:
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                else:
+                    self.google_shell_sidebar.set_legacy_emphasis(True)
+```
+
+---
+
+## 12. In `_on_accordion_date_clicked(self, date_key: str)`, add legacy emphasis
+
+Find:
+
+```python
+        self._set_shell_active_branch("dates")
+```
+
+Immediately after it, insert:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(True)
+```
+
+---
+
+## 13. In `_execute_folder_click(self)`, add legacy emphasis
+
+Find:
+
+```python
+                    self._set_shell_active_branch("folders")
+```
+
+Immediately after it, insert:
+
+```python
+                    if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                        self.google_shell_sidebar.set_legacy_emphasis(True)
+```
+
+---
+
+## 14. In `_on_accordion_location_clicked(self, location_data: dict)`, add legacy emphasis
+
+Find:
+
+```python
+        self._set_shell_active_branch("locations")
+```
+
+Immediately after it, insert:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(True)
+```
+
+---
+
+## 15. In `_on_accordion_person_clicked(self, person_branch_key: str)`, add shell-primary emphasis for person usage
+
+Find:
+
+```python
+        self._set_shell_active_branch("people_show_all")
+```
+
+Immediately after it, insert:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(False)
+```
+
+---
+
+## 16. In `_on_shell_quick_date_clicked(self, key: str)`, add shell-primary emphasis
+
+Find:
+
+```python
+            self._set_shell_active_branch(key)
+```
+
+Immediately after it, insert:
+
+```python
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+```
+
+---
+
+## 17. If there is any layout activation method that runs after construction, sync shell availability again
+
+Find or add in `on_activated`, `activate_layout`, or equivalent activation method:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
+```
+
+Add only once in the main activation path.
+
+---
+
+# `main_window_qt.py`
+
+## 18. Replace `_handle_search_sidebar_branch_request()` docstring only
+
+Find:
+
+```python
+    """
+    Phase 7A:
+    Shell-primary routing, legacy retained, no removals yet.
+    Google layout gets first chance, legacy fallback remains alive.
+    """
+```
+
+Replace with:
+
+```python
+    """
+    Phase 7B:
+    Shell-primary normal-use refinement.
+    Google layout gets first chance, legacy fallback remains alive,
+    and onboarding/no-project shell actions remain safe.
+    """
+```
+
+No logic change here if Phase 7A router is already correct.
+
+---
+
+# `CHANGELOG.md`
+
+## 19. Insert this new section at the top of `[Unreleased] - 2026-04-05`
+
+```markdown
+### Phase 7B — Shell-Primary Normal-Use Refinement
+
+Shell remains the preferred normal-use surface, while the legacy accordion stays
+visible, functional, and available for recovery. No routing removed.
+
+#### Shell Refinement (`ui/search/google_shell_sidebar.py`)
+- Added `disabledBranchRequested` signal for no-project shell clicks
+- Added `_project_available` state and project-required branch set
+- Shell nav buttons now visually soften when clicked before a project exists
+- Added `set_project_available()` for onboarding/no-project cleanup
+- Added `set_legacy_emphasis()` hook for visual separation between shell-primary use and legacy fallback use
+
+#### Google Layout (`layouts/google_layout.py`)
+- Wired shell project-availability state to layout project lifecycle
+- Added `_on_disabled_shell_branch_requested()` to gracefully handle no-project shell actions
+- Added legacy-emphasis toggling:
+  - shell-first actions keep shell visually primary
+  - legacy-detailed actions softly indicate fallback mode
+- Kept legacy Dates as detailed owner for years/months/days/quick-date drilldown
+- Kept legacy block visible and functional
+
+#### MainWindow (`main_window_qt.py`)
+- Router documentation updated to Phase 7B shell-primary refinement model
+- No removals, fallback remains alive
+
+#### Explicit Retentions
+- Legacy Tools block remains visible
+- Legacy routing remains active
+- Legacy Dates remains the detailed owner
+- No removals yet
+```
+
+---
+
+# What this phase gives you
+
+After this patch:
+
+* shell stays the preferred path for normal use
+* onboarding/no-project clicks are no longer confusing
+* legacy block still works
+* legacy Dates still owns detailed drilldown
+* the app communicates more clearly when the shell is primary and when legacy is acting as fallback
+
+If you want, next I can turn this into a **strict replacement-only patch pack** with no explanatory text.
