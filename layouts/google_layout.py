@@ -1240,13 +1240,13 @@ class GooglePhotosLayout(BaseLayout):
         container.setStyleSheet("""
             QWidget#GoogleLeftShell {
                 background: #f8f9fb;
-                border-right: 1px solid #e6e8eb;
+                border-right: 1px solid #e7eaee;
             }
             QGroupBox#LegacyToolsGroup {
                 font-weight: 600;
                 font-size: 11px;
-                border: 1px solid #e6e8eb;
-                border-radius: 10px;
+                border: 1px solid #e7eaee;
+                border-radius: 12px;
                 margin: 6px 6px 6px 6px;
                 padding-top: 10px;
                 background: #ffffff;
