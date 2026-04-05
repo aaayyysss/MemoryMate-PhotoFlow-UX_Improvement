@@ -37,6 +37,8 @@ class FoldersSection(BaseSection):
         self.signals = FoldersSectionSignals()
         self.signals.loaded.connect(self._on_data_loaded)
         self.signals.error.connect(self._on_error)
+        self._loaded_project_id = None
+        self._tree_built = False
 
         # Store DB reference for recursive queries (main thread only)
         self.db: Optional[ReferenceDB] = None
@@ -58,6 +60,11 @@ class FoldersSection(BaseSection):
         """Load folders from database in background thread."""
         if not self.project_id:
             logger.warning("[FoldersSection] No project_id set")
+            return
+
+        # Skip rebuild if already current for this project
+        if self._loaded_project_id == self.project_id and self._tree_built and not self._loading:
+            logger.info("[FoldersSection] Skipping reload, already current for project %s", self.project_id)
             return
 
         # Increment generation
@@ -247,6 +254,9 @@ class FoldersSection(BaseSection):
         if generation != self._generation:
             logger.debug(f"[FoldersSection] Discarding stale data (gen {generation} vs {self._generation})")
             return
+
+        self._loaded_project_id = self.project_id
+        self._tree_built = True
 
         # NOTE: Do NOT call create_content_widget here - AccordionSidebar._on_section_loaded
         # handles widget creation when it receives the loaded signal. Calling it here

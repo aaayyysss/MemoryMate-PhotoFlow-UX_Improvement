@@ -368,6 +368,10 @@ class GooglePhotosLayout(BaseLayout):
         self._last_reload_signature = None
         self._reload_in_progress = False
 
+        # ── Phase 5 perf: Passive section-expand dedupe ──────────────────
+        self._last_passive_section = None
+        self._last_passive_section_ts = 0.0
+
         # Defer initial photo load until MainWindow signals first paint is done.
         # Previously _load_photos() fired here during __init__(), before show(),
         # so the DB query + grouping + widget creation competed with first paint.
@@ -1261,27 +1265,36 @@ class GooglePhotosLayout(BaseLayout):
 
     def _on_passive_shell_branch_clicked(self, branch: str):
         """
-        Phase 5:
-        Browse + People migration remains passive.
-        Expand matching legacy accordion section or delegate to stable handler.
+        Phase 5 perf:
+        One-action-path-per-item Browse routing.
+        Section-expand dedupe to prevent repeated accordion rebuilds.
+        People branches delegate to MainWindow handler.
         """
+        import time
+
         try:
             if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
                 return
 
-            legacy_map = {
-                "all": "dates",
+            # ── People branches: delegate to MainWindow, no accordion expand ──
+            if branch.startswith("people_"):
+                if hasattr(self, "main_window") and self.main_window:
+                    if hasattr(self.main_window, "_handle_people_branch"):
+                        self.main_window._handle_people_branch(branch)
+                return
+
+            # ── Browse routing: ONE action path per item ──────────────────
+            # "all" → grid reload only, no accordion expand
+            if branch == "all":
+                if hasattr(self, "request_reload") and getattr(self, "project_id", None):
+                    self.request_reload(reason="browse_all", project_id=self.project_id)
+                return
+
+            # Map branch → accordion section (expand only, no grid reload)
+            section_only_map = {
                 "years": "dates",
                 "months": "dates",
                 "days": "dates",
-                "folders": "folders",
-                "devices": "devices",
-                "favorites": "find",
-                "videos": "videos",
-                "documents": "find",
-                "screenshots": "find",
-                "duplicates": "duplicates",
-                "locations": "locations",
                 "today": "dates",
                 "yesterday": "dates",
                 "last_7_days": "dates",
@@ -1290,38 +1303,35 @@ class GooglePhotosLayout(BaseLayout):
                 "last_month": "dates",
                 "this_year": "dates",
                 "last_year": "dates",
-                "people_merge_review": "people",
-                "people_unnamed": "people",
-                "people_show_all": "people",
-                "people_tools": "people",
-                "people_merge_history": "people",
-                "people_undo_merge": "people",
-                "people_redo_merge": "people",
-                "people_expand": "people",
+                "folders": "folders",
+                "devices": "devices",
+                "videos": "videos",
+                "locations": "locations",
+                "duplicates": "duplicates",
+                "favorites": "find",
+                "documents": "find",
+                "screenshots": "find",
                 "find": "find",
                 "discover_beach": "find",
                 "discover_mountains": "find",
                 "discover_city": "find",
             }
 
-            # Handle people_person:<id> branches
-            if branch.startswith("people_person:"):
-                target = "people"
-            else:
-                target = legacy_map.get(branch)
+            target = section_only_map.get(branch)
+            if not target:
+                return
 
-            if target and hasattr(self.accordion_sidebar, "_expand_section"):
+            # ── Section-expand dedupe guard ────────────────────────────────
+            now = time.time()
+            if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
+                print(f"[{self.__class__.__name__}] Skipping duplicate passive section expand: {target}")
+                return
+
+            self._last_passive_section = target
+            self._last_passive_section_ts = now
+
+            if hasattr(self.accordion_sidebar, "_expand_section"):
                 self.accordion_sidebar._expand_section(target)
-
-            # Stable delegate hooks where safe
-            if branch == "all":
-                if hasattr(self, "request_reload") and getattr(self, "project_id", None):
-                    self.request_reload(reason="browse_all", project_id=self.project_id)
-
-            # Delegate People branches to MainWindow if available
-            if branch.startswith("people_") and hasattr(self, "main_window") and self.main_window:
-                if hasattr(self.main_window, "_handle_people_branch"):
-                    self.main_window._handle_people_branch(branch)
 
         except Exception as e:
             print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")

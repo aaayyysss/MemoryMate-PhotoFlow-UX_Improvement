@@ -8,6 +8,35 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 Full People domain representation in the new shell, with all legacy People actions accessible via bridge delegation. Still passive — legacy People section remains the action owner.
 
+#### Phase 5 Performance Correction — Interaction Churn Fix
+
+Addressed repeated accordion section rebuilds and mixed Browse action ownership that caused excessive DatesSection/FoldersSection reloads (generation 3–19 churn).
+
+**`layouts/google_layout.py`**
+- Added `_last_passive_section` / `_last_passive_section_ts` dedupe: skips duplicate section expand within 1 second
+- Rewrote `_on_passive_shell_branch_clicked()` with one-action-path-per-item routing:
+  - `all` → grid reload only, no accordion expand
+  - `years/months/days/today/...` → expand Dates accordion only
+  - `folders` → expand Folders only
+  - `videos` → expand Videos only
+  - `locations` → expand Locations only
+  - `documents/screenshots/favorites` → expand Find only
+  - People branches → delegate to MainWindow only, no accordion expand
+- Removed double-action paths (expand + reload) that caused duplicate work
+
+**`ui/accordion_sidebar/__init__.py`**
+- Added no-op guard in `_expand_section()`: skips if section is already expanded and not loading
+
+**`ui/accordion_sidebar/dates_section.py`**
+- Added `_loaded_project_id` / `_tree_built` freshness cache
+- `load_section()` skips rebuild if already current for same project
+- Flags set on successful `_on_data_loaded()`
+
+**`ui/accordion_sidebar/folders_section.py`**
+- Same `_loaded_project_id` / `_tree_built` freshness cache pattern
+- `load_section()` skips rebuild if already current for same project
+- Flags set on successful `_on_data_loaded()`
+
 #### Phase 5 Correction (pass 2)
 - Restructured `_handle_people_branch()` with individual try/except per branch for isolated error handling
 - Extracted `_open_people_merge_review()`: gathers merge suggestions via `_suggest_cluster_merges` → `_show_merge_suggestions_dialog`, falls back to accordion expand

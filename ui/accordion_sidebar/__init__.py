@@ -420,6 +420,13 @@ class AccordionSidebar(QWidget):
             logger.warning(f"[AccordionSidebar] Unknown section: {section_id}")
             return
 
+        # No-op guard: skip if already expanded and section is not loading
+        if section_id == self.expanded_section_id:
+            section_logic = self.section_logic.get(section_id)
+            if section_logic and not section_logic.is_loading():
+                logger.debug(f"[AccordionSidebar] Section '{section_id}' already expanded and current, skipping")
+                return
+
         logger.info(f"[AccordionSidebar] Expanding section: {section_id}")
 
         # PHASE 2: Save expanded section to session state
