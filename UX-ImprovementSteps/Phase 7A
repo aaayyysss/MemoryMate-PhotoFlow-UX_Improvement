@@ -1,0 +1,579 @@
+Below is the **Phase 7A patch pack**, aligned to the current state:
+
+* shell-first routing already exists,
+* legacy block remains visible and functional,
+* legacy Dates remains the detailed owner,
+* and no legacy routing is removed yet.
+
+---
+
+## `ui/search/google_shell_sidebar.py`
+
+### 1. Replace the import block
+
+```python
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton,
+    QFrame, QScrollArea, QSizePolicy,
+)
+```
+
+with:
+
+```python
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton,
+    QFrame, QScrollArea, QSizePolicy,
+)
+```
+
+---
+
+### 2. Inside `GoogleShellSidebar.__init__`, insert this line immediately after `super().__init__(parent)`
+
+```python
+        self._branch_buttons = {}
+        self._active_branch = None
+```
+
+---
+
+### 3. Replace the entire `_nav` method
+
+```python
+    def _nav(self, label: str, branch: str) -> QPushButton:
+        btn = QPushButton(label)
+        btn.setObjectName("ShellNavBtn")
+        btn.clicked.connect(lambda _, b=branch: self.selectBranch.emit(b))
+        return btn
+```
+
+with:
+
+```python
+    def _nav(self, label: str, branch: str) -> QPushButton:
+        btn = QPushButton(label)
+        btn.setObjectName("ShellNavBtn")
+        btn.setProperty("active", False)
+        btn.clicked.connect(lambda _, b=branch: self.selectBranch.emit(b))
+        self._branch_buttons[branch] = btn
+        return btn
+```
+
+---
+
+### 4. Insert these methods directly below `_nav`
+
+```python
+    def set_active_branch(self, branch: str | None):
+        self._active_branch = branch
+
+        for key, btn in self._branch_buttons.items():
+            btn.setProperty("active", key == branch)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            btn.update()
+
+    def clear_active_branch(self):
+        self.set_active_branch(None)
+```
+
+---
+
+### 5. Replace the entire `_SHELL_STYLE` block
+
+```python
+_SHELL_STYLE = """
+QWidget#GoogleShellSidebar {
+    background: transparent;
+}
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QFrame#ShellSection {
+    background: #ffffff;
+    border: 1px solid #e7eaee;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader {
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 9px 12px 7px 12px;
+}
+QPushButton#ShellSectionHeader:hover {
+    background: #f6f8fb;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader:checked {
+    color: #1a73e8;
+}
+QLabel#ShellHint {
+    color: #80868b;
+    font-size: 11px;
+    padding: 0 2px 4px 2px;
+}
+QLabel#ShellSubhead {
+    color: #5f6368;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px 2px 2px;
+}
+QPushButton#ShellNavBtn {
+    text-align: left;
+    font-size: 12px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 6px 8px;
+    border-radius: 8px;
+}
+QPushButton#ShellNavBtn:hover {
+    background: #eef3ff;
+}
+"""
+```
+
+with:
+
+```python
+_SHELL_STYLE = """
+QWidget#GoogleShellSidebar {
+    background: transparent;
+}
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QFrame#ShellSection {
+    background: #ffffff;
+    border: 1px solid #e7eaee;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader {
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 9px 12px 7px 12px;
+}
+QPushButton#ShellSectionHeader:hover {
+    background: #f6f8fb;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader:checked {
+    color: #1a73e8;
+}
+QLabel#ShellHint {
+    color: #80868b;
+    font-size: 11px;
+    padding: 0 2px 4px 2px;
+}
+QLabel#ShellSubhead {
+    color: #5f6368;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px 2px 2px;
+}
+QPushButton#ShellNavBtn {
+    text-align: left;
+    font-size: 12px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 6px 8px;
+    border-radius: 8px;
+}
+QPushButton#ShellNavBtn:hover {
+    background: #eef3ff;
+}
+QPushButton#ShellNavBtn[active="true"] {
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-weight: 600;
+}
+"""
+```
+
+---
+
+## `layouts/google_layout.py`
+
+### 6. Insert these helper methods directly below `_build_left_panel_with_shell(...)`
+
+```python
+    def _set_shell_active_branch(self, branch: str | None):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "set_active_branch"):
+                    self.google_shell_sidebar.set_active_branch(branch)
+        except Exception:
+            pass
+
+    def _clear_shell_active_branch(self):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "clear_active_branch"):
+                    self.google_shell_sidebar.clear_active_branch()
+        except Exception:
+            pass
+```
+
+---
+
+### 7. In `_on_passive_shell_branch_clicked(self, branch: str)`, insert this block immediately after the initial accordion guard
+
+Find:
+
+```python
+        try:
+            if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
+                return
+```
+
+replace with:
+
+```python
+        try:
+            if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
+                return
+
+            shell_active_map = {
+                "all": "all",
+                "dates": "dates",
+                "years": "dates",
+                "months": "dates",
+                "days": "dates",
+                "today": "today",
+                "yesterday": "yesterday",
+                "last_7_days": "last_7_days",
+                "last_30_days": "last_30_days",
+                "this_month": "this_month",
+                "last_month": "last_month",
+                "this_year": "this_year",
+                "last_year": "last_year",
+                "folders": "folders",
+                "devices": "devices",
+                "favorites": "favorites",
+                "videos": "videos",
+                "documents": "documents",
+                "screenshots": "screenshots",
+                "duplicates": "duplicates",
+                "locations": "locations",
+                "discover_beach": "discover_beach",
+                "discover_mountains": "discover_mountains",
+                "discover_city": "discover_city",
+                "find": "find",
+                "people_merge_review": "people_merge_review",
+                "people_unnamed": "people_unnamed",
+                "people_show_all": "people_show_all",
+            }
+            self._set_shell_active_branch(shell_active_map.get(branch))
+```
+
+---
+
+### 8. In `_on_accordion_date_clicked(self, date_key: str)`, insert this line immediately after the existing `print(...)`
+
+Find:
+
+```python
+        print(f"[GooglePhotosLayout] Accordion date clicked: {date_key}")
+```
+
+replace with:
+
+```python
+        print(f"[GooglePhotosLayout] Accordion date clicked: {date_key}")
+
+        self._set_shell_active_branch("dates")
+```
+
+---
+
+### 9. In `_execute_folder_click(self)`, insert this line immediately before the `_load_photos(` call
+
+Find:
+
+```python
+                    print(f"[GooglePhotosLayout] Calling _load_photos with filter_folder={folder_path}")
+                    self._load_photos(
+```
+
+replace with:
+
+```python
+                    print(f"[GooglePhotosLayout] Calling _load_photos with filter_folder={folder_path}")
+                    self._set_shell_active_branch("folders")
+                    self._load_photos(
+```
+
+---
+
+### 10. In `_on_accordion_branch_clicked(self, branch_key: str)`, insert this line immediately after the existing `print(...)`
+
+Find:
+
+```python
+        print(f"[GooglePhotosLayout] Accordion branch clicked: {branch_key}")
+```
+
+replace with:
+
+```python
+        print(f"[GooglePhotosLayout] Accordion branch clicked: {branch_key}")
+
+        self._set_shell_active_branch("people_show_all")
+```
+
+---
+
+### 11. In `_on_accordion_person_clicked(self, person_branch_key: str)`, insert these lines
+
+Find:
+
+```python
+        # Empty string signals clearing the active person filter (toggle off)
+        if person_branch_key == "":
+```
+
+replace with:
+
+```python
+        self._set_shell_active_branch("people_show_all")
+
+        # Empty string signals clearing the active person filter (toggle off)
+        if person_branch_key == "":
+```
+
+Then inside that same method, find:
+
+```python
+            logger.info("[GooglePhotosLayout] Clearing person filter from accordion toggle")
+            self._request_load(
+```
+
+replace with:
+
+```python
+            logger.info("[GooglePhotosLayout] Clearing person filter from accordion toggle")
+            self._set_shell_active_branch("all")
+            self._request_load(
+```
+
+---
+
+### 12. In `_on_accordion_location_clicked(self, location_data: dict)`, insert this line immediately after the existing logger block
+
+Find:
+
+```python
+        logger.info(
+            "[GooglePhotosLayout] Accordion location clicked: %s (%d photos)",
+            location_data.get('name', 'Unknown'),
+            location_data.get('count', 0)
+        )
+```
+
+replace with:
+
+```python
+        logger.info(
+            "[GooglePhotosLayout] Accordion location clicked: %s (%d photos)",
+            location_data.get('name', 'Unknown'),
+            location_data.get('count', 0)
+        )
+
+        self._set_shell_active_branch("locations")
+```
+
+---
+
+### 13. In `_on_shell_quick_date_clicked(self, key: str)`, insert this line at the top of the method body
+
+Find:
+
+```python
+    def _on_shell_quick_date_clicked(self, key: str):
+        """
+        Phase 6B:
+        Direct grid action for shell quick-date clicks, while legacy Dates/Quick
+        remains the detailed subsection owner.
+        """
+        try:
+```
+
+replace with:
+
+```python
+    def _on_shell_quick_date_clicked(self, key: str):
+        """
+        Phase 6B:
+        Direct grid action for shell quick-date clicks, while legacy Dates/Quick
+        remains the detailed subsection owner.
+        """
+        try:
+            self._set_shell_active_branch(key)
+```
+
+---
+
+### 14. In `_clear_filter(self)`, insert this line at the top of the method body
+
+Find:
+
+```python
+    def _clear_filter(self):
+```
+
+replace with:
+
+```python
+    def _clear_filter(self):
+```
+
+Then insert immediately under it:
+
+```python
+        self._set_shell_active_branch("all")
+```
+
+---
+
+### 15. In `_on_passive_shell_branch_clicked(self, branch: str)`, inside the `"all"` branch, replace the active-filter block so group filters remain included
+
+Replace this block:
+
+```python
+            has_active_filters = (
+                getattr(self, "current_filter_year", None) is not None
+                or getattr(self, "current_filter_month", None) is not None
+                or getattr(self, "current_filter_day", None) is not None
+                or getattr(self, "current_filter_folder", None) is not None
+                or getattr(self, "current_filter_person", None) is not None
+                or getattr(self, "current_filter_paths", None) is not None
+            )
+```
+
+with:
+
+```python
+            has_active_filters = (
+                getattr(self, "current_filter_year", None) is not None
+                or getattr(self, "current_filter_month", None) is not None
+                or getattr(self, "current_filter_day", None) is not None
+                or getattr(self, "current_filter_folder", None) is not None
+                or getattr(self, "current_filter_person", None) is not None
+                or getattr(self, "current_filter_paths", None) is not None
+                or getattr(self, "current_filter_group_id", None) is not None
+                or getattr(self, "current_filter_group_mode", None) is not None
+            )
+```
+
+---
+
+## `main_window_qt.py`
+
+### 16. Replace the entire `_handle_search_sidebar_branch_request()` method
+
+```python
+def _handle_search_sidebar_branch_request(self, branch: str):
+    """
+    Phase 7A:
+    Shell-primary routing, legacy retained, no removals yet.
+    Google layout gets first chance, legacy fallback remains alive.
+    """
+    try:
+        if branch.startswith("people_"):
+            if hasattr(self, "_handle_people_branch"):
+                self._handle_people_branch(branch)
+                return
+
+        layout = None
+        try:
+            if hasattr(self, "layout_manager") and self.layout_manager:
+                layout = self.layout_manager.get_current_layout()
+        except Exception:
+            layout = None
+
+        if layout and hasattr(layout, "_on_passive_shell_branch_clicked"):
+            layout._on_passive_shell_branch_clicked(branch)
+            return
+
+        if hasattr(self, "sidebar"):
+            try:
+                self.sidebar.selectBranch.emit(branch)
+            except Exception:
+                pass
+
+    except Exception as e:
+        print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
+```
+
+---
+
+## `CHANGELOG.md`
+
+### 17. Insert this new section at the top of `[Unreleased] - 2026-04-05`
+
+```markdown
+### Phase 7A — Shell-Primary Usage (Legacy Retained)
+
+Shell becomes the primary normal-use surface, while the legacy accordion remains
+visible, functional, and available for recovery. No legacy routing removed.
+
+#### Shell Primary UX (`ui/search/google_shell_sidebar.py`)
+- Added active-branch visual state for shell nav buttons
+- Shell buttons now visually reflect the current active branch/filter
+- Browse and People actions remain shell-first, with legacy fallback retained
+
+#### Google Layout Sync (`layouts/google_layout.py`)
+- Added `_set_shell_active_branch()` / `_clear_shell_active_branch()` helpers
+- Shell active state now syncs from:
+  - shell clicks
+  - accordion date selection
+  - accordion folder selection
+  - accordion person selection
+  - accordion location selection
+  - quick-date actions
+  - clear-filter / All Photos reset
+- `All Photos` active-filter detection now includes:
+  - `current_filter_group_id`
+  - `current_filter_group_mode`
+
+#### MainWindow Router (`main_window_qt.py`)
+- `_handle_search_sidebar_branch_request()` upgraded to Phase 7A shell-primary router
+- Google layout gets first chance for non-People branches
+- legacy sidebar fallback remains alive
+
+#### Explicit Retentions
+- Legacy Tools block remains visible
+- Legacy routing remains active
+- Legacy Dates remains the detailed owner for years/months/days/quick-date drilldown
+- No removals yet
+```
+
+---
+
+## Acceptance checks for this patch
+
+* shell click highlights the active item
+* legacy accordion click updates shell highlight for:
+
+  * Dates
+  * Folders
+  * Locations
+  * People
+* `All Photos` always returns shell highlight to `All Photos`
+* quick dates highlight the selected quick-date item
+* legacy block remains visible and working
+* legacy Dates remains detailed owner
+* no routing is removed yet
