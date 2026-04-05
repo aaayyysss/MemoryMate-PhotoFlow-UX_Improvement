@@ -1,0 +1,528 @@
+No Implement next the  **Phase 6B, not full Phase 7 yet**.
+
+We are right to update the rule to **keep the legacy block routing alive until the end and until everything is stable**. That is the correct correction. Moving to full Phase 7 now would be premature.
+
+## Why it is not Phase 7 yet
+
+Your current Google shell still declares itself as **visual-only** and says the legacy accordion remains the action owner. That is not just documentation drift, it matches the runtime behavior you are seeing. 
+
+The runtime log also confirms that many shell clicks still primarily drive:
+
+* legacy section expansion,
+* passive dedupe,
+* and only limited direct grid reload behavior.
+  For example, Dates, Folders, Devices, Videos, Locations, People, and Quick dates are still going through legacy section activity, while `browse_all` is only now being stabilized. 
+
+Also, your `all` fix is better, but still not fully complete because group filters are part of the actual grid state too. The layout initializes `current_filter_group_id` and `current_filter_group_mode`, so Phase 7 would still be too early until that state is included in the ownership logic. 
+
+## So the correct next phase is
+
+# Phase 6B, shell routing hardening with legacy kept alive
+
+### Goal
+
+Make the new shell the **first routing surface** for the stable subset of actions, while the legacy accordion remains:
+
+* visible,
+* functional,
+* and available as fallback and recovery.
+
+### This is not full Phase 7
+
+Because:
+
+* duplicate routing through old sidebar is **not removed yet**
+* legacy remains active
+* date subsections remain legacy-owned
+* you are still proving parity and stability
+
+---
+
+# Recommended updated phase definition
+
+## Phase 6B, shell-first routing, legacy-backed
+
+### Scope
+
+Only in:
+
+* `layouts/google_layout.py`
+* `main_window_qt.py`
+
+### What changes here
+
+* new shell branch routing goes to Google layout first
+* Google layout decides whether action is:
+
+  * direct grid action,
+  * direct dialog/action,
+  * or legacy-section delegation
+* legacy accordion remains visible and usable
+* duplicate old routing is **not removed yet**
+* legacy Dates remains detailed owner
+
+### What should become shell-first now
+
+These are the right candidates:
+
+### Direct grid or explicit action
+
+* `all`
+* quick dates like:
+
+  * `today`
+  * `yesterday`
+  * `last_7_days`
+  * `last_30_days`
+  * `this_month`
+  * `last_month`
+  * `this_year`
+  * `last_year`
+* person actions already bridged enough to keep hardening
+* merge review / unnamed clusters / show all people
+
+### Legacy delegated but shell-first initiated
+
+* `dates`
+* `folders`
+* `devices`
+* `videos`
+* `locations`
+* `duplicates`
+* `documents`
+* `screenshots`
+* `favorites`
+
+This means the user clicks the shell first, but the Google layout may still delegate to legacy for the actual content owner.
+
+---
+
+# Why this is the correct next step
+
+Because the shell is now visually present and operationally much calmer, but it is still not true that “clicking any shell item updates the grid correctly” in a self-sufficient way. Your own observation proved that. The logs support it too.
+
+So the honest maturity level is:
+
+* **not passive mock anymore**
+* **not full action owner yet**
+* **ready for shell-first routing hardening**
+
+That is Phase 6B.
+
+---
+
+# Updated acceptance criteria for Phase 6B
+
+You should only move to full Phase 7 after all of these are true:
+
+* clicking `All Photos` always restores the unfiltered grid correctly
+* clicking quick dates always updates the grid correctly
+* clicking People actions always opens the correct workflow
+* clicking Browse actions always gives the correct visible result, whether by direct grid action or legacy delegation
+* legacy block remains available for recovery
+* no duplicate reload storms return
+* performance remains stable
+* Dates detailed hierarchy still works in legacy
+* users do not need to guess whether a shell click is fake or real
+
+That last point matters. Right now, the interface still teaches ambiguity.
+
+---
+
+# What I would explicitly not do yet
+
+Do **not** do this yet:
+
+* remove legacy routing
+* remove legacy block visibility
+* migrate date subsections into the new shell
+* declare shell fully authoritative for every branch
+
+That would be repeating the old mistake, just more neatly.
+
+---
+
+# The practical sequence from here
+
+## Next
+
+**Phase 6B**
+
+* shell-first routing hardening
+* legacy-backed execution
+* no legacy removal
+
+## After that
+
+**Phase 7**
+
+* new shell becomes primary action owner for normal use
+* legacy remains visible and available for recovery
+* duplicate old routing starts getting reduced selectively, not deleted wholesale
+
+## Much later
+
+retire legacy only when everything is stable
+
+---
+
+# My recommendation
+
+Call the next step exactly this:
+
+## Phase 6B, shell-first routing with legacy fallback retained
+
+That is the accurate name for the maturity you are at.
+
+The next message should be the **exact Phase 6B patch pack**, limited to `google_layout.py` and `main_window_qt.py`, with the explicit rule that the legacy block stays alive and no routing is removed yet.
+
+Yes, the right next step is **Phase 6B, shell-first routing with legacy fallback retained**, not full Phase 7 yet.
+
+Why: the visible Google shell is still explicitly passive in `google_shell_sidebar.py`, and the active Google layout still routes most shell clicks to legacy accordion expansion rather than directly owning the action. Also, `main_window_qt.py` still has a minimal `_handle_search_sidebar_branch_request()` and is not yet the right place to centralize Google-shell browse routing. So the correct move is to harden routing in `google_layout.py` first, keep legacy alive, and leave `main_window_qt.py` changes limited to People/search-branch fallback improvements only.
+
+Below is the **exact Phase 6B patch pack**, limited to:
+
+* `layouts/google_layout.py`
+* `main_window_qt.py`
+
+with the rule:
+
+* **legacy block stays alive**
+* **legacy routing is not removed**
+* **Dates detailed subsections stay legacy-owned**
+
+---
+
+## `layouts/google_layout.py`
+
+### 1. Replace the entire `_on_passive_shell_branch_clicked()` method
+
+```python
+def _on_passive_shell_branch_clicked(self, branch: str):
+    """
+    Phase 6B:
+    Shell-first routing with legacy fallback retained.
+
+    Rules:
+    - People branches delegate to MainWindow people router
+    - All Photos is a true grid reset action
+    - Quick dates are direct grid actions
+    - Legacy-detailed sections (dates/folders/devices/videos/locations/find/etc.)
+      still delegate to accordion fallback
+    - Legacy block remains alive and visible
+    """
+    import time
+
+    try:
+        if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
+            return
+
+        # ── People branches: MainWindow handler first, no removal of legacy fallback ──
+        if branch.startswith("people_"):
+            if hasattr(self, "main_window") and self.main_window:
+                if hasattr(self.main_window, "_handle_people_branch"):
+                    self.main_window._handle_people_branch(branch)
+            return
+
+        # ── All Photos: shell-first direct grid reset ─────────────────────────────
+        if branch == "all":
+            if not getattr(self, "project_id", None):
+                return
+
+            has_active_filters = (
+                getattr(self, "current_filter_year", None) is not None
+                or getattr(self, "current_filter_month", None) is not None
+                or getattr(self, "current_filter_day", None) is not None
+                or getattr(self, "current_filter_folder", None) is not None
+                or getattr(self, "current_filter_person", None) is not None
+                or getattr(self, "current_filter_paths", None) is not None
+                or getattr(self, "current_filter_group_id", None) is not None
+                or getattr(self, "current_filter_group_mode", None) is not None
+            )
+
+            if has_active_filters:
+                print(f"[{self.__class__.__name__}] browse_all: clearing filters and reloading grid")
+                if hasattr(self, "_clear_filter"):
+                    self._clear_filter()
+                else:
+                    self.request_reload(reason="browse_all")
+                return
+
+            last_sig = getattr(self, "_last_reload_signature", None)
+            if last_sig is None:
+                self.request_reload(reason="browse_all")
+            else:
+                print(f"[{self.__class__.__name__}] browse_all: grid already at all-photos view, skipping")
+            return
+
+        # ── Quick dates: shell-first direct grid actions, legacy Dates remains owner ──
+        quick_map = {
+            "today": "today",
+            "yesterday": "yesterday",
+            "last_7_days": "last_7_days",
+            "last_30_days": "last_30_days",
+            "this_month": "this_month",
+            "last_month": "last_month",
+            "this_year": "this_year",
+            "last_year": "last_year",
+        }
+        if branch in quick_map:
+            # First expand legacy Quick/Date area for visual continuity
+            now = time.time()
+            target = "dates"
+            if target != self._last_passive_section or (now - self._last_passive_section_ts) >= 1.0:
+                self._last_passive_section = target
+                self._last_passive_section_ts = now
+                if hasattr(self.accordion_sidebar, "_expand_section"):
+                    # Prefer quick if available, else dates
+                    try:
+                        self.accordion_sidebar._expand_section("quick")
+                    except Exception:
+                        self.accordion_sidebar._expand_section("dates")
+
+            # Then execute the actual direct grid action
+            if hasattr(self, "_on_shell_quick_date_clicked"):
+                self._on_shell_quick_date_clicked(branch)
+            return
+
+        # ── Legacy-detailed sections: accordion fallback retained ─────────────────
+        section_only_map = {
+            "dates": "dates",
+            "years": "dates",
+            "months": "dates",
+            "days": "dates",
+            "folders": "folders",
+            "devices": "devices",
+            "videos": "videos",
+            "locations": "locations",
+            "duplicates": "duplicates",
+            "favorites": "find",
+            "documents": "find",
+            "screenshots": "find",
+            "find": "find",
+            "discover_beach": "find",
+            "discover_mountains": "find",
+            "discover_city": "find",
+        }
+
+        target = section_only_map.get(branch)
+        if not target:
+            return
+
+        now = time.time()
+        if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
+            print(f"[{self.__class__.__name__}] Skipping duplicate passive section expand: {target}")
+            return
+
+        self._last_passive_section = target
+        self._last_passive_section_ts = now
+
+        if hasattr(self.accordion_sidebar, "_expand_section"):
+            self.accordion_sidebar._expand_section(target)
+
+    except Exception as e:
+        print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")
+```
+
+---
+
+### 2. Insert this new helper method near the other shell/accordion handlers
+
+```python
+def _on_shell_quick_date_clicked(self, key: str):
+    """
+    Phase 6B:
+    Direct grid action for shell quick-date clicks, while legacy Dates/Quick
+    remains the detailed subsection owner.
+    """
+    try:
+        mapping = {
+            "today": ("quick", "today"),
+            "yesterday": ("quick", "yesterday"),
+            "last_7_days": ("quick", "last_7_days"),
+            "last_30_days": ("quick", "last_30_days"),
+            "this_month": ("quick", "this_month"),
+            "last_month": ("quick", "last_month"),
+            "this_year": ("quick", "this_year"),
+            "last_year": ("quick", "last_year"),
+        }
+
+        token = mapping.get(key)
+        if not token:
+            return
+
+        # Reuse existing date-click path where possible
+        section, quick_value = token
+
+        # If accordion exposes a quick-selection API, prefer it
+        if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+            quick_section = None
+            try:
+                quick_section = self.accordion_sidebar.section_logic.get("quick")
+            except Exception:
+                quick_section = None
+
+            if quick_section and hasattr(quick_section, "_on_quick_date_clicked"):
+                quick_section._on_quick_date_clicked(quick_value)
+                return
+
+        # Fallback: synthesize to existing date-click logic
+        from datetime import datetime, timedelta
+
+        today = datetime.now().date()
+
+        if key == "today":
+            self._on_accordion_date_clicked(today.isoformat())
+            return
+        if key == "yesterday":
+            self._on_accordion_date_clicked((today - timedelta(days=1)).isoformat())
+            return
+        if key == "this_year":
+            self._on_accordion_date_clicked(str(today.year))
+            return
+        if key == "last_year":
+            self._on_accordion_date_clicked(str(today.year - 1))
+            return
+        if key == "this_month":
+            self._on_accordion_date_clicked(f"{today.year:04d}-{today.month:02d}")
+            return
+
+        # For range-style quick dates, use request_load path if needed
+        if hasattr(self, "_request_load"):
+            self._request_load(
+                thumb_size=self.current_thumb_size,
+                quick_date=key,
+                reset=True,
+                view_context=("quick_date", key),
+            )
+    except Exception as e:
+        logger.debug("[GooglePhotosLayout] shell quick date failed: %s", e)
+```
+
+---
+
+### 3. Replace the `"all"` filter-state check inside `_on_passive_shell_branch_clicked()` only if you already patched it separately, so it includes group filters
+
+Use this exact block if you want a minimal targeted replacement:
+
+```python
+has_active_filters = (
+    getattr(self, "current_filter_year", None) is not None
+    or getattr(self, "current_filter_month", None) is not None
+    or getattr(self, "current_filter_day", None) is not None
+    or getattr(self, "current_filter_folder", None) is not None
+    or getattr(self, "current_filter_person", None) is not None
+    or getattr(self, "current_filter_paths", None) is not None
+    or getattr(self, "current_filter_group_id", None) is not None
+    or getattr(self, "current_filter_group_mode", None) is not None
+)
+```
+
+This closes the remaining gap in the real current-grid state. Those group filter fields exist in the layout state and must count as active filters too.
+
+---
+
+### 4. Do not remove or bypass the legacy block
+
+No code removal here. Keep:
+
+* `self.legacy_tools_group`
+* `self.accordion_sidebar`
+* `self._expand_section(...)` fallback path
+
+The current Google layout already has the correct structural setup for this, so do not change it in Phase 6B.
+
+---
+
+## `main_window_qt.py`
+
+### 5. Replace the entire `_handle_search_sidebar_branch_request()` method
+
+This gives you a better shell-first router for non-Google sidebars too, without removing legacy fallback.
+
+```python
+def _handle_search_sidebar_branch_request(self, branch: str):
+    """
+    Phase 6B:
+    Shell-first routing, legacy fallback retained.
+    No old routing removed yet.
+    """
+    try:
+        # People branches stay delegated through the dedicated people router
+        if branch.startswith("people_"):
+            if hasattr(self, "_handle_people_branch"):
+                self._handle_people_branch(branch)
+                return
+
+        layout = None
+        try:
+            if hasattr(self, "layout_manager") and self.layout_manager:
+                layout = self.layout_manager.get_current_layout()
+        except Exception:
+            layout = None
+
+        # If active layout is Google, let Google layout decide shell-first behavior
+        if layout and hasattr(layout, "_on_passive_shell_branch_clicked"):
+            layout._on_passive_shell_branch_clicked(branch)
+            return
+
+        # Legacy fallback for non-Google paths remains alive
+        if hasattr(self, "sidebar"):
+            try:
+                self.sidebar.selectBranch.emit(branch)
+            except Exception:
+                pass
+
+    except Exception as e:
+        print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
+```
+
+This is intentionally conservative:
+
+* Google layout gets first chance
+* legacy fallback remains alive
+* nothing is removed
+
+The current `main_window_qt.py` still has only a minimal version of this router, so this is the correct Phase 6B upgrade.
+
+---
+
+### 6. Do not modify `_handle_people_branch()` yet unless you already have the richer version locally
+
+Your current uploaded `main_window_qt.py` snippets do not prove the full richer People router is in place, but Phase 6B does not require another People rewrite. Keep legacy-backed People handling alive exactly as-is for now.
+
+---
+
+# Acceptance criteria for Phase 6B
+
+Only move past this phase when these are true:
+
+* clicking **All Photos** always restores the unfiltered grid
+* clicking quick dates updates the grid correctly
+* clicking Dates/Folders/Devices/Videos/Locations still works through legacy fallback
+* clicking People actions still works through legacy-backed handlers
+* legacy block remains visible and usable
+* no duplicate reload storms return
+* Dates detailed hierarchy remains in legacy
+* no routing path is removed yet
+
+---
+
+# Important stop rule
+
+Do **not** do any of these in this patch:
+
+* remove `legacy_tools_group`
+* remove `accordion_sidebar`
+* delete old fallback paths
+* migrate year/month/day tree into the shell
+* declare full Phase 7 ownership
+
+That would be too early.
+
+The next step after you apply this should be an audit specifically of:
+
+* `All Photos`
+* one quick date, for example `This year`
+* one legacy-backed shell item, for example `Folders`
+  to confirm Phase 6B is working as intended.
