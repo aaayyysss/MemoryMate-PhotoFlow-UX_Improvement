@@ -60,6 +60,8 @@ class GoogleShellSidebar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._branch_buttons = {}
+        self._active_branch = None
         self.setObjectName("GoogleShellSidebar")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -173,8 +175,22 @@ class GoogleShellSidebar(QWidget):
     def _nav(self, label: str, branch: str) -> QPushButton:
         btn = QPushButton(label)
         btn.setObjectName("ShellNavBtn")
+        btn.setProperty("active", False)
         btn.clicked.connect(lambda _, b=branch: self.selectBranch.emit(b))
+        self._branch_buttons[branch] = btn
         return btn
+
+    def set_active_branch(self, branch: str | None):
+        self._active_branch = branch
+
+        for key, btn in self._branch_buttons.items():
+            btn.setProperty("active", key == branch)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            btn.update()
+
+    def clear_active_branch(self):
+        self.set_active_branch(None)
 
 
 _SHELL_STYLE = """
@@ -228,5 +244,10 @@ QPushButton#ShellNavBtn {
 }
 QPushButton#ShellNavBtn:hover {
     background: #eef3ff;
+}
+QPushButton#ShellNavBtn[active="true"] {
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-weight: 600;
 }
 """

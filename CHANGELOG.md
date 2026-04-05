@@ -4,6 +4,58 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-05
 
+### Phase 7A — Shell-Primary Usage (Legacy Retained)
+
+Shell becomes the primary normal-use surface, while the legacy accordion remains
+visible, functional, and available for recovery. No legacy routing removed.
+
+#### Shell Primary UX (`ui/search/google_shell_sidebar.py`)
+- Added active-branch visual state for shell nav buttons
+- `_nav()` now registers buttons in `_branch_buttons` dict with `active` property
+- `set_active_branch()` / `clear_active_branch()` methods toggle CSS highlight
+- New CSS rule: `QPushButton#ShellNavBtn[active="true"]` — blue background/text
+
+#### Google Layout Sync (`layouts/google_layout.py`)
+- Added `_set_shell_active_branch()` / `_clear_shell_active_branch()` helpers
+- Shell active state now syncs from:
+  - shell clicks (via `shell_active_map` in `_on_passive_shell_branch_clicked`)
+  - accordion date selection (`_on_accordion_date_clicked`)
+  - accordion folder execution (`_execute_folder_click`)
+  - accordion branch/person selection (`_on_accordion_branch_clicked`, `_on_accordion_person_clicked`)
+  - accordion location selection (`_on_accordion_location_clicked`)
+  - quick-date actions (`_on_shell_quick_date_clicked`)
+  - clear-filter / All Photos reset (`_clear_filter`)
+
+#### MainWindow Router (`main_window_qt.py`)
+- `_handle_search_sidebar_branch_request()` upgraded to Phase 7A shell-primary router
+- Google layout gets first chance for non-People branches
+- Legacy sidebar fallback remains alive
+
+#### Active-Branch Sync Tests (`tests/test_phase7a_active_branch.py`) — NEW
+- 52 tests covering all active-branch sync paths, no PySide6/Qt required
+- **TestShellActiveHelpers** (4 tests): set/clear/None/no-sidebar guard
+- **TestShellClickSetsActiveBranch** (32 tests): all 31 mapped branches + unknown→None
+- **TestAccordionSyncsShellHighlight** (5 tests): dates, branch, person, person-clear, location
+- **TestClearFilterSyncsShell** (1 test): _clear_filter → "all"
+- **TestQuickDateSyncsShell** (8 tests): all 8 quick-date keys
+- **TestAllPhotosShellActive** (2 tests): with/without active filters
+- **TestMainWindowPhase7ARouter** (3 tests): docstring, People delegation, layout delegation
+
+#### Explicit Retentions
+- Legacy Tools block remains visible
+- Legacy routing remains active
+- Legacy Dates remains the detailed owner for years/months/days/quick-date drilldown
+- No removals yet
+
+### Files Changed
+- `ui/search/google_shell_sidebar.py`
+- `layouts/google_layout.py`
+- `main_window_qt.py`
+- `tests/test_phase7a_active_branch.py` (new)
+- `CHANGELOG.md`
+
+---
+
 ### Phase 6B — Shell-First Routing (Legacy Fallback Retained)
 
 Shell becomes the first routing surface for stable actions. Legacy accordion remains
