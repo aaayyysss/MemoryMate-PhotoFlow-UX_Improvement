@@ -1263,6 +1263,22 @@ class GooglePhotosLayout(BaseLayout):
 
         return container
 
+    def _set_shell_active_branch(self, branch: str | None):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "set_active_branch"):
+                    self.google_shell_sidebar.set_active_branch(branch)
+        except Exception:
+            pass
+
+    def _clear_shell_active_branch(self):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "clear_active_branch"):
+                    self.google_shell_sidebar.clear_active_branch()
+        except Exception:
+            pass
+
     def _on_passive_shell_branch_clicked(self, branch: str):
         """
         Phase 6B:
@@ -1281,6 +1297,38 @@ class GooglePhotosLayout(BaseLayout):
         try:
             if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
                 return
+
+            shell_active_map = {
+                "all": "all",
+                "dates": "dates",
+                "years": "dates",
+                "months": "dates",
+                "days": "dates",
+                "today": "today",
+                "yesterday": "yesterday",
+                "last_7_days": "last_7_days",
+                "last_30_days": "last_30_days",
+                "this_month": "this_month",
+                "last_month": "last_month",
+                "this_year": "this_year",
+                "last_year": "last_year",
+                "folders": "folders",
+                "devices": "devices",
+                "favorites": "favorites",
+                "videos": "videos",
+                "documents": "documents",
+                "screenshots": "screenshots",
+                "duplicates": "duplicates",
+                "locations": "locations",
+                "discover_beach": "discover_beach",
+                "discover_mountains": "discover_mountains",
+                "discover_city": "discover_city",
+                "find": "find",
+                "people_merge_review": "people_merge_review",
+                "people_unnamed": "people_unnamed",
+                "people_show_all": "people_show_all",
+            }
+            self._set_shell_active_branch(shell_active_map.get(branch))
 
             # ── People branches: MainWindow handler first, no removal of legacy fallback ──
             if branch.startswith("people_"):
@@ -1404,6 +1452,7 @@ class GooglePhotosLayout(BaseLayout):
         remains the detailed subsection owner.
         """
         try:
+            self._set_shell_active_branch(key)
             mapping = {
                 "today": ("quick", "today"),
                 "yesterday": ("quick", "yesterday"),
@@ -2242,6 +2291,8 @@ class GooglePhotosLayout(BaseLayout):
         """
         print(f"[GooglePhotosLayout] Accordion date clicked: {date_key}")
 
+        self._set_shell_active_branch("dates")
+
         # Parse date_key to extract year, month, day
         parts = date_key.split("-")
         year = None
@@ -2324,6 +2375,7 @@ class GooglePhotosLayout(BaseLayout):
                     folder_path = row[0]
                     print(f"[GooglePhotosLayout] Found folder path: {folder_path}")
                     print(f"[GooglePhotosLayout] Calling _load_photos with filter_folder={folder_path}")
+                    self._set_shell_active_branch("folders")
                     self._load_photos(
                         thumb_size=self.current_thumb_size,
                         filter_year=None,
@@ -2360,6 +2412,8 @@ class GooglePhotosLayout(BaseLayout):
         """
         print(f"[GooglePhotosLayout] Accordion branch clicked: {branch_key}")
 
+        self._set_shell_active_branch("people_show_all")
+
         # Remove prefixes if present
         if branch_key.startswith("branch:"):
             branch_key = branch_key[7:]
@@ -2379,9 +2433,12 @@ class GooglePhotosLayout(BaseLayout):
         Args:
             person_branch_key: Identifier for the face cluster to filter by.
         """
+        self._set_shell_active_branch("people_show_all")
+
         # Empty string signals clearing the active person filter (toggle off)
         if person_branch_key == "":
             logger.info("[GooglePhotosLayout] Clearing person filter from accordion toggle")
+            self._set_shell_active_branch("all")
             self._request_load(
                 thumb_size=self.current_thumb_size,
                 year=self.current_filter_year,
@@ -2547,6 +2604,8 @@ class GooglePhotosLayout(BaseLayout):
             location_data.get('name', 'Unknown'),
             location_data.get('count', 0)
         )
+
+        self._set_shell_active_branch("locations")
 
         # Extract paths from location cluster
         paths = location_data.get('paths', [])
@@ -9517,6 +9576,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         """
         Clear all date/folder/person filters and show all photos.
         """
+        self._set_shell_active_branch("all")
         print("[GooglePhotosLayout] Clearing all filters")
 
         # Reload without filters

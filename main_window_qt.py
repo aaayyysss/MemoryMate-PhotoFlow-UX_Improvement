@@ -3309,9 +3309,9 @@ class MainWindow(QMainWindow):
 
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
-        Phase 6B:
-        Shell-first routing, legacy fallback retained.
-        No old routing removed yet.
+        Phase 7A:
+        Shell-primary routing, legacy retained, no removals yet.
+        Google layout gets first chance, legacy fallback remains alive.
         """
         try:
             # People branches stay delegated through the dedicated people router
@@ -3342,7 +3342,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
 
-    # ── end Phase 6B ─────────────────────────────────────────────────
+    # ── end Phase 7A ─────────────────────────────────────────────────
 
     def _on_ux1_search_requested(self, payload: dict):
         """
