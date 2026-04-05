@@ -1284,17 +1284,28 @@ class GooglePhotosLayout(BaseLayout):
                 return
 
             # ── Browse routing: ONE action path per item ──────────────────
-            # "all" → grid reload only, no accordion expand
-            # But skip if grid is already showing unfiltered all-assets view
+            # "all" → clear all filters and reload grid
             if branch == "all":
                 if hasattr(self, "request_reload") and getattr(self, "project_id", None):
-                    # Check if we're already at the unfiltered all-assets view
-                    has_filters = bool(self._pending_reload_kwargs) if hasattr(self, "_pending_reload_kwargs") else False
-                    last_sig = getattr(self, "_last_reload_signature", None)
-                    if last_sig is not None and not has_filters:
-                        print(f"[{self.__class__.__name__}] browse_all: grid already loaded, skipping redundant reload")
+                    # Check actual grid filter state, not debounce buffer
+                    has_active_filters = (
+                        getattr(self, "current_filter_year", None) is not None
+                        or getattr(self, "current_filter_month", None) is not None
+                        or getattr(self, "current_filter_day", None) is not None
+                        or getattr(self, "current_filter_folder", None) is not None
+                        or getattr(self, "current_filter_person", None) is not None
+                        or getattr(self, "current_filter_paths", None) is not None
+                    )
+                    if has_active_filters:
+                        print(f"[{self.__class__.__name__}] browse_all: clearing filters and reloading grid")
+                        self.request_reload(reason="browse_all")
                     else:
-                        self.request_reload(reason="browse_all", project_id=self.project_id)
+                        # No filters active — only reload if grid hasn't loaded yet
+                        last_sig = getattr(self, "_last_reload_signature", None)
+                        if last_sig is None:
+                            self.request_reload(reason="browse_all")
+                        else:
+                            print(f"[{self.__class__.__name__}] browse_all: grid already at all-photos view, skipping")
                 return
 
             # Map branch → accordion section (expand only, no grid reload)
