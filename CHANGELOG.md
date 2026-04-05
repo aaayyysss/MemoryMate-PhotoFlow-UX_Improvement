@@ -4,6 +4,63 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-05
 
+### Phase 7B — Shell-Primary Normal-Use Refinement
+
+Shell remains the preferred normal-use surface, while the legacy accordion stays
+visible, functional, and available for recovery. No routing removed.
+
+#### Shell Refinement (`ui/search/google_shell_sidebar.py`)
+- Added `disabledBranchRequested` signal for no-project shell clicks
+- Added `_project_available` state and project-required branch set (26 branches)
+- Shell nav buttons now visually soften when clicked before a project exists
+- `_nav()` now sets `disabledShell` property and routes through `_emit_branch()`
+- Added `set_project_available()` for onboarding/no-project cleanup
+- Added `set_legacy_emphasis()` hook for visual separation between shell-primary
+  and legacy fallback use
+- New CSS: `QPushButton#ShellNavBtn[disabledShell="true"]` — dimmed text, soft hover
+
+#### Google Layout (`layouts/google_layout.py`)
+- Wired `disabledBranchRequested` signal to `_on_disabled_shell_branch_requested()`
+- Shell project-availability syncs from: `set_project()`, `_build_left_panel_with_shell()`,
+  `on_layout_activated()`
+- `_on_disabled_shell_branch_requested()` shows informational dialog when no project
+- Legacy-emphasis toggling added to all routing paths:
+  - Shell-primary actions (All Photos, quick dates, People) → emphasis=False
+  - Legacy-detailed actions (dates, folders, locations, etc.) → emphasis=True
+  - `_clear_filter()` resets to emphasis=False
+
+#### MainWindow (`main_window_qt.py`)
+- Router documentation updated to Phase 7B shell-primary refinement model
+- No removals, fallback remains alive
+
+#### Refinement Tests (`tests/test_phase7b_refinement.py`) — NEW
+- 44 tests covering all Phase 7B refinement paths, no PySide6/Qt required
+- **TestShellOnboardingGating** (3 tests): disabled handler exists, doesn't raise
+- **TestSetProjectSyncsShell** (2 tests): set_project enables/disables shell
+- **TestLegacyEmphasisFromShellClicks** (28 tests): 12 shell-primary→False,
+  16 legacy-detailed→True
+- **TestLegacyEmphasisFromAccordion** (4 tests): dates/locations→True,
+  person/quick-date→False
+- **TestClearFilterResetsEmphasis** (2 tests): emphasis False, active "all"
+- **TestLayoutActivationSyncsShell** (2 tests): with/without project
+- **TestMainWindowPhase7BRouter** (3 tests): docstring, People, layout delegation
+
+#### Explicit Retentions
+- Legacy Tools block remains visible
+- Legacy routing remains active
+- Legacy Dates remains the detailed owner
+- No removals yet
+
+### Files Changed
+- `ui/search/google_shell_sidebar.py`
+- `layouts/google_layout.py`
+- `main_window_qt.py`
+- `tests/test_phase7a_active_branch.py` (updated docstring check)
+- `tests/test_phase7b_refinement.py` (new)
+- `CHANGELOG.md`
+
+---
+
 ### Phase 7A — Shell-Primary Usage (Legacy Retained)
 
 Shell becomes the primary normal-use surface, while the legacy accordion remains
