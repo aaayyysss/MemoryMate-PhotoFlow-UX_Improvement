@@ -57,11 +57,40 @@ class GoogleShellSidebar(QWidget):
 
     selectBranch = Signal(str)
     openActivityCenterRequested = Signal()
+    disabledBranchRequested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._branch_buttons = {}
         self._active_branch = None
+        self._project_available = False
+        self._project_required_branches = {
+            "all",
+            "dates",
+            "today",
+            "yesterday",
+            "last_7_days",
+            "last_30_days",
+            "this_month",
+            "last_month",
+            "this_year",
+            "last_year",
+            "folders",
+            "devices",
+            "favorites",
+            "videos",
+            "documents",
+            "screenshots",
+            "duplicates",
+            "locations",
+            "discover_beach",
+            "discover_mountains",
+            "discover_city",
+            "find",
+            "people_merge_review",
+            "people_unnamed",
+            "people_show_all",
+        }
         self.setObjectName("GoogleShellSidebar")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -176,9 +205,16 @@ class GoogleShellSidebar(QWidget):
         btn = QPushButton(label)
         btn.setObjectName("ShellNavBtn")
         btn.setProperty("active", False)
-        btn.clicked.connect(lambda _, b=branch: self.selectBranch.emit(b))
+        btn.setProperty("disabledShell", False)
+        btn.clicked.connect(lambda _, b=branch: self._emit_branch(b))
         self._branch_buttons[branch] = btn
         return btn
+
+    def _emit_branch(self, branch: str):
+        if not self._project_available and branch in self._project_required_branches:
+            self.disabledBranchRequested.emit(branch)
+            return
+        self.selectBranch.emit(branch)
 
     def set_active_branch(self, branch: str | None):
         self._active_branch = branch
@@ -191,6 +227,23 @@ class GoogleShellSidebar(QWidget):
 
     def clear_active_branch(self):
         self.set_active_branch(None)
+
+    def set_project_available(self, available: bool):
+        self._project_available = bool(available)
+
+        for branch, btn in self._branch_buttons.items():
+            disabled_shell = (not self._project_available and branch in self._project_required_branches)
+            btn.setProperty("disabledShell", disabled_shell)
+            btn.setEnabled(True)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            btn.update()
+
+    def set_legacy_emphasis(self, emphasized: bool):
+        self.setProperty("legacySoft", not emphasized)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
 
 
 _SHELL_STYLE = """
@@ -249,5 +302,11 @@ QPushButton#ShellNavBtn[active="true"] {
     background: #e8f0fe;
     color: #1a73e8;
     font-weight: 600;
+}
+QPushButton#ShellNavBtn[disabledShell="true"] {
+    color: #a0a4ab;
+}
+QPushButton#ShellNavBtn[disabledShell="true"]:hover {
+    background: #f8f9fb;
 }
 """

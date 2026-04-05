@@ -391,10 +391,10 @@ class TestAllPhotosShellActive:
 class TestMainWindowPhase7ARouter:
     """Verify MainWindow router is Phase 7A labeled."""
 
-    def test_router_has_phase_7a_docstring(self):
+    def test_router_has_phase_7_or_later_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "7A" in doc or "7a" in doc
+        assert "7A" in doc or "7B" in doc or "7a" in doc or "7b" in doc
 
     def test_router_delegates_people_to_handler(self):
         mw = MagicMock()

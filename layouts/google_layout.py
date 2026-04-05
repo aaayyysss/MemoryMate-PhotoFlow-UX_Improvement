@@ -1219,8 +1219,12 @@ class GooglePhotosLayout(BaseLayout):
         self.google_shell_sidebar = GoogleShellSidebar(container)
         self.google_shell_sidebar.selectBranch.connect(
             self._on_passive_shell_branch_clicked)
+        self.google_shell_sidebar.disabledBranchRequested.connect(
+            self._on_disabled_shell_branch_requested)
         self.google_shell_sidebar.openActivityCenterRequested.connect(
             self._on_passive_activity_requested)
+        self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
+        self.google_shell_sidebar.set_legacy_emphasis(False)
 
         # Legacy accordion in collapsible group
         self.legacy_tools_group = QGroupBox("Legacy Tools")
@@ -1279,6 +1283,29 @@ class GooglePhotosLayout(BaseLayout):
         except Exception:
             pass
 
+    def _on_disabled_shell_branch_requested(self, branch: str):
+        """
+        Phase 7B:
+        Shell item clicked while no project exists.
+        Keep shell primary, but soften behavior and guide the user.
+        """
+        try:
+            if branch in {"all", "dates", "folders", "devices", "videos", "locations", "duplicates", "find"}:
+                logger.info("[GooglePhotosLayout] Ignoring shell branch without project: %s", branch)
+
+            if hasattr(self, "main_window") and self.main_window:
+                try:
+                    from PySide6.QtWidgets import QMessageBox
+                    QMessageBox.information(
+                        self.main_window,
+                        "Create or select a project",
+                        "This action becomes available after you create or select a project."
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def _on_passive_shell_branch_clicked(self, branch: str):
         """
         Phase 6B:
@@ -1329,6 +1356,25 @@ class GooglePhotosLayout(BaseLayout):
                 "people_show_all": "people_show_all",
             }
             self._set_shell_active_branch(shell_active_map.get(branch))
+
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if branch in {
+                    "all",
+                    "today",
+                    "yesterday",
+                    "last_7_days",
+                    "last_30_days",
+                    "this_month",
+                    "last_month",
+                    "this_year",
+                    "last_year",
+                    "people_merge_review",
+                    "people_unnamed",
+                    "people_show_all",
+                }:
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                else:
+                    self.google_shell_sidebar.set_legacy_emphasis(True)
 
             # ── People branches: MainWindow handler first, no removal of legacy fallback ──
             if branch.startswith("people_"):
@@ -1453,6 +1499,8 @@ class GooglePhotosLayout(BaseLayout):
         """
         try:
             self._set_shell_active_branch(key)
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                self.google_shell_sidebar.set_legacy_emphasis(False)
             mapping = {
                 "today": ("quick", "today"),
                 "yesterday": ("quick", "yesterday"),
@@ -2292,6 +2340,8 @@ class GooglePhotosLayout(BaseLayout):
         print(f"[GooglePhotosLayout] Accordion date clicked: {date_key}")
 
         self._set_shell_active_branch("dates")
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(True)
 
         # Parse date_key to extract year, month, day
         parts = date_key.split("-")
@@ -2376,6 +2426,8 @@ class GooglePhotosLayout(BaseLayout):
                     print(f"[GooglePhotosLayout] Found folder path: {folder_path}")
                     print(f"[GooglePhotosLayout] Calling _load_photos with filter_folder={folder_path}")
                     self._set_shell_active_branch("folders")
+                    if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                        self.google_shell_sidebar.set_legacy_emphasis(True)
                     self._load_photos(
                         thumb_size=self.current_thumb_size,
                         filter_year=None,
@@ -2434,6 +2486,8 @@ class GooglePhotosLayout(BaseLayout):
             person_branch_key: Identifier for the face cluster to filter by.
         """
         self._set_shell_active_branch("people_show_all")
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(False)
 
         # Empty string signals clearing the active person filter (toggle off)
         if person_branch_key == "":
@@ -2606,6 +2660,8 @@ class GooglePhotosLayout(BaseLayout):
         )
 
         self._set_shell_active_branch("locations")
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(True)
 
         # Extract paths from location cluster
         paths = location_data.get('paths', [])
@@ -9577,6 +9633,8 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         Clear all date/folder/person filters and show all photos.
         """
         self._set_shell_active_branch("all")
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(False)
         print("[GooglePhotosLayout] Clearing all filters")
 
         # Reload without filters
@@ -10165,6 +10223,9 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         """Called when this layout becomes active."""
         print("[GooglePhotosLayout] Layout activated")
 
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
+
         # Store main_window method references for Settings menu
         if hasattr(self.main_window, '_on_scan_repository'):
             self._scan_repository_handler = self.main_window._on_scan_repository
@@ -10595,6 +10656,9 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         try:
             self.project_id = project_id
             self._last_load_signature = None  # invalidate on project change
+
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                self.google_shell_sidebar.set_project_available(bool(project_id))
 
             # Update accordion sidebar with new project
             if hasattr(self, 'accordion_sidebar') and self.accordion_sidebar is not None:
