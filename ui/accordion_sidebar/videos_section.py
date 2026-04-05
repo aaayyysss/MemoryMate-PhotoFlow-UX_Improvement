@@ -37,6 +37,8 @@ class VideosSection(BaseSection):
         self.signals = VideosSectionSignals()
         self.signals.loaded.connect(self._on_data_loaded)
         self.signals.error.connect(self._on_error)
+        self._loaded_project_id = None
+        self._tree_built = False
 
     def get_section_id(self) -> str:
         return "videos"
@@ -51,6 +53,10 @@ class VideosSection(BaseSection):
         """Load videos from database in background thread."""
         if not self.project_id:
             logger.warning("[VideosSection] No project_id set")
+            return
+
+        if self._loaded_project_id == self.project_id and self._tree_built and not self._loading:
+            logger.info("[VideosSection] Skipping reload, already current for project %s", self.project_id)
             return
 
         # Increment generation
@@ -354,6 +360,8 @@ class VideosSection(BaseSection):
         if generation != self._generation:
             logger.debug(f"[VideosSection] Discarding stale data (gen {generation} vs {self._generation})")
             return
+        self._loaded_project_id = self.project_id
+        self._tree_built = True
         logger.info(f"[VideosSection] Data loaded successfully (gen {generation}, {len(videos)} videos)")
 
     def _on_error(self, generation: int, error_msg: str):

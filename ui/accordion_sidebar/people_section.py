@@ -98,6 +98,10 @@ class PeopleSection(BaseSection):
         self._btn_groups = None
         self._groups_loaded_once = False  # lazy-load on first tab switch
 
+        # Freshness cache
+        self._loaded_project_id = None
+        self._tree_built = False
+
     def get_section_id(self) -> str:
         return "people"
 
@@ -189,6 +193,10 @@ class PeopleSection(BaseSection):
         """Load people section data in a background thread."""
         if not self.project_id:
             logger.warning("[PeopleSection] No project_id set")
+            return
+
+        if self._loaded_project_id == self.project_id and self._tree_built and not self._loading:
+            logger.info("[PeopleSection] Skipping reload, already current for project %s", self.project_id)
             return
 
         self._generation += 1
@@ -661,6 +669,9 @@ class PeopleSection(BaseSection):
              # Only log if we have data (empty grid -> empty data is normal)
              if len(self._all_data) > 0:
                  logger.warning("[PEOPLE_UI_MISMATCH] cards=%d data=%d", len(self._cards), len(self._all_data))
+
+        self._loaded_project_id = self.project_id
+        self._tree_built = True
 
         # Note: AccordionSidebar._on_section_loaded also listens to this signal
         # to trigger the UI rebuild. This override is for logging and state reset.
