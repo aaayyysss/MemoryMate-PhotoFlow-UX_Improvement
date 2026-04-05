@@ -1284,10 +1284,10 @@ class GooglePhotosLayout(BaseLayout):
                 return
 
             # ── Browse routing: ONE action path per item ──────────────────
-            # "all" → clear all filters and reload grid
+            # "all" → clear all filters and reload grid via canonical _clear_filter()
             if branch == "all":
-                if hasattr(self, "request_reload") and getattr(self, "project_id", None):
-                    # Check actual grid filter state, not debounce buffer
+                if getattr(self, "project_id", None):
+                    # Check actual grid filter state
                     has_active_filters = (
                         getattr(self, "current_filter_year", None) is not None
                         or getattr(self, "current_filter_month", None) is not None
@@ -1295,15 +1295,17 @@ class GooglePhotosLayout(BaseLayout):
                         or getattr(self, "current_filter_folder", None) is not None
                         or getattr(self, "current_filter_person", None) is not None
                         or getattr(self, "current_filter_paths", None) is not None
+                        or getattr(self, "current_filter_group_id", None) is not None
+                        or getattr(self, "current_filter_group_mode", None) is not None
                     )
                     if has_active_filters:
-                        print(f"[{self.__class__.__name__}] browse_all: clearing filters and reloading grid")
-                        self.request_reload(reason="browse_all")
+                        print(f"[{self.__class__.__name__}] browse_all: clearing filters via _clear_filter()")
+                        self._clear_filter()
                     else:
                         # No filters active — only reload if grid hasn't loaded yet
                         last_sig = getattr(self, "_last_reload_signature", None)
                         if last_sig is None:
-                            self.request_reload(reason="browse_all")
+                            self._clear_filter()
                         else:
                             print(f"[{self.__class__.__name__}] browse_all: grid already at all-photos view, skipping")
                 return
