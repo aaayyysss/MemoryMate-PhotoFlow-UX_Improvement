@@ -2,7 +2,38 @@
 
 All notable changes to the MemoryMate PhotoFlow search pipeline are documented here.
 
-## [Unreleased] - 2026-04-04
+## [Unreleased] - 2026-04-05
+
+### Phase 6B — Shell-First Routing (Legacy Fallback Retained)
+
+Shell becomes the first routing surface for stable actions. Legacy accordion remains
+visible, functional, and available as fallback. No legacy routing removed.
+
+#### Shell-First Direct Actions (`layouts/google_layout.py`)
+- `_on_passive_shell_branch_clicked()` upgraded to Phase 6B shell-first router
+- All Photos: direct grid reset via `_clear_filter()` (shell-first, no accordion)
+- Quick dates (today, yesterday, last 7/30 days, this/last month, this/last year):
+  direct grid action via new `_on_shell_quick_date_clicked()` helper
+- Quick dates also expand legacy Dates/Quick section for visual continuity
+- People branches: continue delegating to MainWindow `_handle_people_branch()`
+- Legacy-detailed sections (dates, folders, devices, videos, locations, find, etc.):
+  accordion fallback retained with dedupe guard
+
+#### New Helper (`layouts/google_layout.py`)
+- `_on_shell_quick_date_clicked()`: synthesizes quick-date clicks to existing
+  date-click logic or accordion quick-section API when available
+
+#### MainWindow Router (`main_window_qt.py`)
+- `_handle_search_sidebar_branch_request()` upgraded to Phase 6B conservative
+  shell-first router: Google layout gets first chance, legacy fallback remains alive
+- People branches stay delegated through dedicated `_handle_people_branch()`
+
+### Files Changed
+- `layouts/google_layout.py`
+- `main_window_qt.py`
+- `CHANGELOG.md`
+
+---
 
 ### Phase 6A — Visual Polish (Shell Sidebar)
 

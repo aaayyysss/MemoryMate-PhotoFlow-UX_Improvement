@@ -1265,10 +1265,16 @@ class GooglePhotosLayout(BaseLayout):
 
     def _on_passive_shell_branch_clicked(self, branch: str):
         """
-        Phase 5 perf:
-        One-action-path-per-item Browse routing.
-        Section-expand dedupe to prevent repeated accordion rebuilds.
-        People branches delegate to MainWindow handler.
+        Phase 6B:
+        Shell-first routing with legacy fallback retained.
+
+        Rules:
+        - People branches delegate to MainWindow people router
+        - All Photos is a true grid reset action
+        - Quick dates are direct grid actions
+        - Legacy-detailed sections (dates/folders/devices/videos/locations/find/etc.)
+          still delegate to accordion fallback
+        - Legacy block remains alive and visible
         """
         import time
 
@@ -1276,53 +1282,80 @@ class GooglePhotosLayout(BaseLayout):
             if not hasattr(self, "accordion_sidebar") or self.accordion_sidebar is None:
                 return
 
-            # ── People branches: delegate to MainWindow, no accordion expand ──
+            # ── People branches: MainWindow handler first, no removal of legacy fallback ──
             if branch.startswith("people_"):
                 if hasattr(self, "main_window") and self.main_window:
                     if hasattr(self.main_window, "_handle_people_branch"):
                         self.main_window._handle_people_branch(branch)
                 return
 
-            # ── Browse routing: ONE action path per item ──────────────────
-            # "all" → clear all filters and reload grid via canonical _clear_filter()
+            # ── All Photos: shell-first direct grid reset ─────────────────────────────
             if branch == "all":
-                if getattr(self, "project_id", None):
-                    # Check actual grid filter state
-                    has_active_filters = (
-                        getattr(self, "current_filter_year", None) is not None
-                        or getattr(self, "current_filter_month", None) is not None
-                        or getattr(self, "current_filter_day", None) is not None
-                        or getattr(self, "current_filter_folder", None) is not None
-                        or getattr(self, "current_filter_person", None) is not None
-                        or getattr(self, "current_filter_paths", None) is not None
-                        or getattr(self, "current_filter_group_id", None) is not None
-                        or getattr(self, "current_filter_group_mode", None) is not None
-                    )
-                    if has_active_filters:
-                        print(f"[{self.__class__.__name__}] browse_all: clearing filters via _clear_filter()")
+                if not getattr(self, "project_id", None):
+                    return
+
+                has_active_filters = (
+                    getattr(self, "current_filter_year", None) is not None
+                    or getattr(self, "current_filter_month", None) is not None
+                    or getattr(self, "current_filter_day", None) is not None
+                    or getattr(self, "current_filter_folder", None) is not None
+                    or getattr(self, "current_filter_person", None) is not None
+                    or getattr(self, "current_filter_paths", None) is not None
+                    or getattr(self, "current_filter_group_id", None) is not None
+                    or getattr(self, "current_filter_group_mode", None) is not None
+                )
+
+                if has_active_filters:
+                    print(f"[{self.__class__.__name__}] browse_all: clearing filters and reloading grid")
+                    if hasattr(self, "_clear_filter"):
                         self._clear_filter()
                     else:
-                        # No filters active — only reload if grid hasn't loaded yet
-                        last_sig = getattr(self, "_last_reload_signature", None)
-                        if last_sig is None:
-                            self._clear_filter()
-                        else:
-                            print(f"[{self.__class__.__name__}] browse_all: grid already at all-photos view, skipping")
+                        self.request_reload(reason="browse_all")
+                    return
+
+                last_sig = getattr(self, "_last_reload_signature", None)
+                if last_sig is None:
+                    self.request_reload(reason="browse_all")
+                else:
+                    print(f"[{self.__class__.__name__}] browse_all: grid already at all-photos view, skipping")
                 return
 
-            # Map branch → accordion section (expand only, no grid reload)
+            # ── Quick dates: shell-first direct grid actions, legacy Dates remains owner ──
+            quick_map = {
+                "today": "today",
+                "yesterday": "yesterday",
+                "last_7_days": "last_7_days",
+                "last_30_days": "last_30_days",
+                "this_month": "this_month",
+                "last_month": "last_month",
+                "this_year": "this_year",
+                "last_year": "last_year",
+            }
+            if branch in quick_map:
+                # First expand legacy Quick/Date area for visual continuity
+                now = time.time()
+                target = "dates"
+                if target != self._last_passive_section or (now - self._last_passive_section_ts) >= 1.0:
+                    self._last_passive_section = target
+                    self._last_passive_section_ts = now
+                    if hasattr(self.accordion_sidebar, "_expand_section"):
+                        # Prefer quick if available, else dates
+                        try:
+                            self.accordion_sidebar._expand_section("quick")
+                        except Exception:
+                            self.accordion_sidebar._expand_section("dates")
+
+                # Then execute the actual direct grid action
+                if hasattr(self, "_on_shell_quick_date_clicked"):
+                    self._on_shell_quick_date_clicked(branch)
+                return
+
+            # ── Legacy-detailed sections: accordion fallback retained ─────────────────
             section_only_map = {
+                "dates": "dates",
                 "years": "dates",
                 "months": "dates",
                 "days": "dates",
-                "today": "dates",
-                "yesterday": "dates",
-                "last_7_days": "dates",
-                "last_30_days": "dates",
-                "this_month": "dates",
-                "last_month": "dates",
-                "this_year": "dates",
-                "last_year": "dates",
                 "folders": "folders",
                 "devices": "devices",
                 "videos": "videos",
@@ -1341,7 +1374,6 @@ class GooglePhotosLayout(BaseLayout):
             if not target:
                 return
 
-            # ── Section-expand dedupe guard ────────────────────────────────
             now = time.time()
             if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
                 print(f"[{self.__class__.__name__}] Skipping duplicate passive section expand: {target}")
@@ -1364,6 +1396,75 @@ class GooglePhotosLayout(BaseLayout):
                     self.main_window._toggle_activity_center()
         except Exception as e:
             print(f"[GooglePhotosLayout] Passive activity request failed: {e}")
+
+    def _on_shell_quick_date_clicked(self, key: str):
+        """
+        Phase 6B:
+        Direct grid action for shell quick-date clicks, while legacy Dates/Quick
+        remains the detailed subsection owner.
+        """
+        try:
+            mapping = {
+                "today": ("quick", "today"),
+                "yesterday": ("quick", "yesterday"),
+                "last_7_days": ("quick", "last_7_days"),
+                "last_30_days": ("quick", "last_30_days"),
+                "this_month": ("quick", "this_month"),
+                "last_month": ("quick", "last_month"),
+                "this_year": ("quick", "this_year"),
+                "last_year": ("quick", "last_year"),
+            }
+
+            token = mapping.get(key)
+            if not token:
+                return
+
+            # Reuse existing date-click path where possible
+            section, quick_value = token
+
+            # If accordion exposes a quick-selection API, prefer it
+            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+                quick_section = None
+                try:
+                    quick_section = self.accordion_sidebar.section_logic.get("quick")
+                except Exception:
+                    quick_section = None
+
+                if quick_section and hasattr(quick_section, "_on_quick_date_clicked"):
+                    quick_section._on_quick_date_clicked(quick_value)
+                    return
+
+            # Fallback: synthesize to existing date-click logic
+            from datetime import datetime, timedelta
+
+            today = datetime.now().date()
+
+            if key == "today":
+                self._on_accordion_date_clicked(today.isoformat())
+                return
+            if key == "yesterday":
+                self._on_accordion_date_clicked((today - timedelta(days=1)).isoformat())
+                return
+            if key == "this_year":
+                self._on_accordion_date_clicked(str(today.year))
+                return
+            if key == "last_year":
+                self._on_accordion_date_clicked(str(today.year - 1))
+                return
+            if key == "this_month":
+                self._on_accordion_date_clicked(f"{today.year:04d}-{today.month:02d}")
+                return
+
+            # For range-style quick dates, use request_load path if needed
+            if hasattr(self, "_request_load"):
+                self._request_load(
+                    thumb_size=self.current_thumb_size,
+                    quick_date=key,
+                    reset=True,
+                    view_context=("quick_date", key),
+                )
+        except Exception as e:
+            logger.debug("[GooglePhotosLayout] shell quick date failed: %s", e)
 
     # ── Phase 4: Browse payload helpers ─────────────────────────────
 

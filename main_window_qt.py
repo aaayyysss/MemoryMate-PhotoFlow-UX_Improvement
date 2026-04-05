@@ -3309,89 +3309,40 @@ class MainWindow(QMainWindow):
 
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
-        Phase 5: Full branch router for People and general sidebar branches.
+        Phase 6B:
+        Shell-first routing, legacy fallback retained.
+        No old routing removed yet.
         """
-        layout = None
         try:
-            if hasattr(self, "layout_manager") and self.layout_manager:
-                layout = self.layout_manager.get_current_layout()
-        except Exception:
+            # People branches stay delegated through the dedicated people router
+            if branch.startswith("people_"):
+                if hasattr(self, "_handle_people_branch"):
+                    self._handle_people_branch(branch)
+                    return
+
             layout = None
-
-        if branch == "people_merge_review":
-            self._open_people_merge_review()
-            return
-
-        if branch == "people_unnamed":
-            self._open_unnamed_cluster_review()
-            return
-
-        if branch == "people_show_all":
             try:
-                if layout and hasattr(layout, "accordion_sidebar"):
-                    if hasattr(layout.accordion_sidebar, "_expand_section"):
-                        layout.accordion_sidebar._expand_section("people")
-                        return
-            except Exception as e:
-                print(f"[Routing] people_show_all failed: {e}")
-
-        if branch == "people_tools":
-            try:
-                if layout and hasattr(layout, "_on_people_tools_requested"):
-                    layout._on_people_tools_requested()
-                    return
-            except Exception as e:
-                print(f"[Routing] people_tools failed: {e}")
-
-        if branch == "people_merge_history":
-            try:
-                if layout and hasattr(layout, "_on_people_merge_history_requested"):
-                    layout._on_people_merge_history_requested()
-                    return
-            except Exception as e:
-                print(f"[Routing] people_merge_history failed: {e}")
-
-        if branch == "people_undo_merge":
-            try:
-                if layout and hasattr(layout, "_on_people_undo_requested"):
-                    layout._on_people_undo_requested()
-                    return
-            except Exception as e:
-                print(f"[Routing] people_undo_merge failed: {e}")
-
-        if branch == "people_redo_merge":
-            try:
-                if layout and hasattr(layout, "_on_people_redo_requested"):
-                    layout._on_people_redo_requested()
-                    return
-            except Exception as e:
-                print(f"[Routing] people_redo_merge failed: {e}")
-
-        if branch == "people_expand":
-            try:
-                if layout and hasattr(layout, "accordion_sidebar"):
-                    if hasattr(layout.accordion_sidebar, "_expand_section"):
-                        layout.accordion_sidebar._expand_section("people")
-                        return
-            except Exception as e:
-                print(f"[Routing] people_expand failed: {e}")
-
-        if branch.startswith("people_person:"):
-            person_id = branch.split(":", 1)[1]
-            try:
-                if layout and hasattr(layout, "_on_accordion_person_clicked"):
-                    layout._on_accordion_person_clicked(person_id)
-                    return
-            except Exception as e:
-                print(f"[Routing] people_person failed: {e}")
-
-        if hasattr(self, "sidebar"):
-            try:
-                self.sidebar.selectBranch.emit(branch)
+                if hasattr(self, "layout_manager") and self.layout_manager:
+                    layout = self.layout_manager.get_current_layout()
             except Exception:
-                pass
+                layout = None
 
-    # ── end Phase 5 ──────────────────────────────────────────────────
+            # If active layout is Google, let Google layout decide shell-first behavior
+            if layout and hasattr(layout, "_on_passive_shell_branch_clicked"):
+                layout._on_passive_shell_branch_clicked(branch)
+                return
+
+            # Legacy fallback for non-Google paths remains alive
+            if hasattr(self, "sidebar"):
+                try:
+                    self.sidebar.selectBranch.emit(branch)
+                except Exception:
+                    pass
+
+        except Exception as e:
+            print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
+
+    # ── end Phase 6B ─────────────────────────────────────────────────
 
     def _on_ux1_search_requested(self, payload: dict):
         """
