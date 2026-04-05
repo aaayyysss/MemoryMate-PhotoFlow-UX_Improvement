@@ -35,6 +35,8 @@ class LocationsSection(BaseSection):
         self.signals = LocationsSectionSignals()
         self.signals.loaded.connect(self._on_data_loaded)
         self.signals.error.connect(self._on_error)
+        self._loaded_project_id = None
+        self._tree_built = False
 
     def get_section_id(self) -> str:
         return "locations"
@@ -49,6 +51,10 @@ class LocationsSection(BaseSection):
         """Load location clusters from database in background thread."""
         if not self.project_id:
             logger.warning("[LocationsSection] No project_id set")
+            return
+
+        if self._loaded_project_id == self.project_id and self._tree_built and not self._loading:
+            logger.info("[LocationsSection] Skipping reload, already current for project %s", self.project_id)
             return
 
         # Increment generation
@@ -182,6 +188,8 @@ class LocationsSection(BaseSection):
         if generation != self._generation:
             logger.debug(f"[LocationsSection] Discarding stale data (gen {generation} vs {self._generation})")
             return
+        self._loaded_project_id = self.project_id
+        self._tree_built = True
         logger.info(f"[LocationsSection] Data loaded successfully (gen {generation})")
 
     def _on_error(self, generation: int, error_msg: str):

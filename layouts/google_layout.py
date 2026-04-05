@@ -1285,9 +1285,16 @@ class GooglePhotosLayout(BaseLayout):
 
             # ── Browse routing: ONE action path per item ──────────────────
             # "all" → grid reload only, no accordion expand
+            # But skip if grid is already showing unfiltered all-assets view
             if branch == "all":
                 if hasattr(self, "request_reload") and getattr(self, "project_id", None):
-                    self.request_reload(reason="browse_all", project_id=self.project_id)
+                    # Check if we're already at the unfiltered all-assets view
+                    has_filters = bool(self._pending_reload_kwargs) if hasattr(self, "_pending_reload_kwargs") else False
+                    last_sig = getattr(self, "_last_reload_signature", None)
+                    if last_sig is not None and not has_filters:
+                        print(f"[{self.__class__.__name__}] browse_all: grid already loaded, skipping redundant reload")
+                    else:
+                        self.request_reload(reason="browse_all", project_id=self.project_id)
                 return
 
             # Map branch → accordion section (expand only, no grid reload)

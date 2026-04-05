@@ -8,7 +8,30 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 Full People domain representation in the new shell, with all legacy People actions accessible via bridge delegation. Still passive — legacy People section remains the action owner.
 
-#### Phase 5 Performance Correction — Interaction Churn Fix
+#### Phase 5 Performance Correction (pass 2) — Remaining Section Guards
+
+**`layouts/google_layout.py`**
+- `browse_all` now checks if grid is already loaded before requesting redundant reload
+- Skips reload when `_last_reload_signature` is set and no active filters
+
+**`ui/accordion_sidebar/locations_section.py`**
+- Added `_loaded_project_id` / `_tree_built` freshness cache
+- `load_section()` skips rebuild when already current for same project
+
+**`ui/accordion_sidebar/videos_section.py`**
+- Added `_loaded_project_id` / `_tree_built` freshness cache
+- `load_section()` skips rebuild when already current for same project
+
+**`ui/accordion_sidebar/people_section.py`**
+- Added `_loaded_project_id` / `_tree_built` freshness cache
+- `load_section()` skips rebuild when already current for same project
+
+**`ui/accordion_sidebar/devices_section.py`**
+- Added `_last_scan_ts` / `_scan_cache_seconds` (60s) cache-age guard
+- `load_section()` skips rescan when last scan is within cache window
+- Timestamp updated on successful `_on_devices_loaded()`
+
+#### Phase 5 Performance Correction (pass 1) — Interaction Churn Fix
 
 Addressed repeated accordion section rebuilds and mixed Browse action ownership that caused excessive DatesSection/FoldersSection reloads (generation 3–19 churn).
 

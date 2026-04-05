@@ -42,6 +42,8 @@ class DevicesSection(BaseSection):
         self.signals.error.connect(lambda *args: None)
         self._scanner = DeviceScanner(register_devices=False)
         self._monitor = None
+        self._last_scan_ts = 0.0
+        self._scan_cache_seconds = 60.0
 
     def get_section_id(self) -> str:
         return "devices"
@@ -53,7 +55,16 @@ class DevicesSection(BaseSection):
         return "📱"
 
     def load_section(self) -> None:
+        import time
+
         self._start_monitor()
+
+        # Cache-age guard: skip rescan if scanned recently
+        now = time.time()
+        if (now - self._last_scan_ts) < self._scan_cache_seconds and not self._loading:
+            logger.info("[DevicesSection] Skipping rescan, last scan %.0fs ago (cache %ds)",
+                        now - self._last_scan_ts, self._scan_cache_seconds)
+            return
 
         self._generation += 1
         current_gen = self._generation
@@ -82,6 +93,8 @@ class DevicesSection(BaseSection):
         threading.Thread(target=on_complete, daemon=True).start()
 
     def _on_devices_loaded(self, generation: int, devices: List[MobileDevice]):
+        import time
+        self._last_scan_ts = time.time()
         self.signals.loaded.emit(generation, devices)
 
     def create_content_widget(self, data):
