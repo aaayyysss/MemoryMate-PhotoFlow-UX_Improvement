@@ -4,6 +4,33 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-04
 
+### Phase 6A — Visual Polish (Shell Sidebar)
+
+Styling-only pass on the Google shell sidebar. No routing or ownership changes.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Body margins tightened: `(10, 2, 10, 6)` → `(10, 0, 10, 8)`, spacing `2` → `4`
+- Content area margins widened: `(6, 6, 6, 6)` → `(8, 8, 8, 8)`, spacing `6` → `8`
+- Browse section reorganized with visual subheadings: Library, Sources, Collections, Places, Quick Dates
+- Years/Months/Days replaced with single "Dates" entry (legacy Dates section remains detailed owner)
+- Added `_subhead()` helper and `ShellSubhead` style: `#5f6368`, 11px, bold, 6px top padding
+- Section header font bumped `12px` → `13px`, padding refined to `9px 12px 7px 12px`
+- Section border-radius `10px` → `12px`, border color `#e6e8eb` → `#e7eaee`
+- Header hover `#f5f7fa` → `#f6f8fb` with `12px` border-radius
+- Hint bottom padding added: `0 2px` → `0 2px 4px 2px`
+- Nav button padding `5px 8px` → `6px 8px`
+
+#### Layout Container (`layouts/google_layout.py`)
+- Legacy Tools group border-radius `10px` → `12px`, border color `#e6e8eb` → `#e7eaee`
+- Container border-right color aligned to `#e7eaee`
+
+### Files Changed
+- `ui/search/google_shell_sidebar.py`
+- `layouts/google_layout.py`
+- `CHANGELOG.md`
+
+---
+
 ### Phase 5 — People Migration (Passive Parity)
 
 Full People domain representation in the new shell, with all legacy People actions accessible via bridge delegation. Still passive — legacy People section remains the action owner.
