@@ -36,6 +36,8 @@ class DatesSection(BaseSection):
         self.signals = DatesSectionSignals()
         self.signals.loaded.connect(self._on_data_loaded)
         self.signals.error.connect(self._on_error)
+        self._loaded_project_id = None
+        self._tree_built = False
 
     def get_section_id(self) -> str:
         return "dates"
@@ -50,6 +52,11 @@ class DatesSection(BaseSection):
         """Load date hierarchy from database in background thread."""
         if not self.project_id:
             logger.warning("[DatesSection] No project_id set")
+            return
+
+        # Skip rebuild if already current for this project
+        if self._loaded_project_id == self.project_id and self._tree_built and not self._loading:
+            logger.info("[DatesSection] Skipping reload, already current for project %s", self.project_id)
             return
 
         # Increment generation
@@ -223,6 +230,8 @@ class DatesSection(BaseSection):
         if generation != self._generation:
             logger.debug(f"[DatesSection] Discarding stale data (gen {generation} vs {self._generation})")
             return
+        self._loaded_project_id = self.project_id
+        self._tree_built = True
         logger.info(f"[DatesSection] Data loaded successfully (gen {generation})")
 
     def _on_error(self, generation: int, error_msg: str):
