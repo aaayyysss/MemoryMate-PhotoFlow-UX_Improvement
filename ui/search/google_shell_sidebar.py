@@ -64,6 +64,7 @@ class GoogleShellSidebar(QWidget):
         self._branch_buttons = {}
         self._active_branch = None
         self._project_available = False
+        self._retired_legacy_sections = set()
         self._project_required_branches = {
             "all",
             "dates",
@@ -238,6 +239,12 @@ class GoogleShellSidebar(QWidget):
             btn.style().unpolish(btn)
             btn.style().polish(btn)
             btn.update()
+
+    def set_retired_legacy_sections(self, sections):
+        self._retired_legacy_sections = set(sections or [])
+
+    def is_legacy_section_retired(self, section_name: str) -> bool:
+        return section_name in self._retired_legacy_sections
 
     def set_legacy_emphasis(self, emphasized: bool):
         self.setProperty("legacySoft", not emphasized)
