@@ -1,0 +1,448 @@
+Based on the current state, **Phase 8 should be a controlled legacy retirement phase, section by section, with Dates explicitly excluded from retirement for now**.
+
+Your current progression already supports that sequencing:
+
+* Phase 7A established shell-primary usage with legacy retained. 
+* Phase 7B refined shell-primary normal use while keeping legacy visible and safe during onboarding/no-project states. 
+* the runtime is stable enough to move forward incrementally, not by removing everything at once. 
+
+So the right Phase 8 is:
+
+# Phase 8, gradual legacy retirement, shell-first production hardening
+
+## Rules
+
+* retire legacy **one section at a time**
+* keep legacy block visible until the end
+* do **not** retire legacy Dates yet
+* do **not** remove fallback routing globally
+* hide or soften only sections that have real parity in the shell
+
+## Retirement order for this phase
+
+Safe first wave:
+
+1. Find
+2. Devices
+3. Videos
+4. Locations
+5. Duplicates
+
+Do **not** retire yet:
+
+* Dates
+* Folders
+* People
+
+Folders and People still need the legacy block as meaningful recovery. Dates must remain the detailed owner.
+
+---
+
+# `ui/search/google_shell_sidebar.py`
+
+## 1. Add retirement-state tracking in `__init__`
+
+Find:
+
+```python
+        self._project_available = False
+        self._project_required_branches = {
+```
+
+Replace with:
+
+```python
+        self._project_available = False
+        self._retired_legacy_sections = set()
+        self._project_required_branches = {
+```
+
+---
+
+## 2. Insert these methods below `set_legacy_emphasis`
+
+```python
+    def set_retired_legacy_sections(self, sections):
+        self._retired_legacy_sections = set(sections or [])
+
+    def is_legacy_section_retired(self, section_name: str) -> bool:
+        return section_name in self._retired_legacy_sections
+```
+
+---
+
+# `layouts/google_layout.py`
+
+## 3. In the method where shell and legacy are built, initialize retired-section state
+
+Find the block where shell is wired, containing:
+
+```python
+        self.google_shell_sidebar = GoogleShellSidebar()
+        self.google_shell_sidebar.selectBranch.connect(self._on_passive_shell_branch_clicked)
+        self.google_shell_sidebar.disabledBranchRequested.connect(self._on_disabled_shell_branch_requested)
+        self.google_shell_sidebar.openActivityCenterRequested.connect(self._on_toggle_activity_center)
+        self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
+        self.google_shell_sidebar.set_legacy_emphasis(False)
+```
+
+Replace with:
+
+```python
+        self.google_shell_sidebar = GoogleShellSidebar()
+        self.google_shell_sidebar.selectBranch.connect(self._on_passive_shell_branch_clicked)
+        self.google_shell_sidebar.disabledBranchRequested.connect(self._on_disabled_shell_branch_requested)
+        self.google_shell_sidebar.openActivityCenterRequested.connect(self._on_toggle_activity_center)
+        self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
+        self.google_shell_sidebar.set_legacy_emphasis(False)
+        self._retired_legacy_sections = {"find", "devices", "videos", "locations", "duplicates"}
+        self.google_shell_sidebar.set_retired_legacy_sections(self._retired_legacy_sections)
+```
+
+---
+
+## 4. Insert this helper directly below `_on_disabled_shell_branch_requested`
+
+```python
+    def _is_legacy_section_retired(self, section_name: str) -> bool:
+        return section_name in getattr(self, "_retired_legacy_sections", set())
+```
+
+---
+
+## 5. Replace the entire legacy-section branch block inside `_on_passive_shell_branch_clicked()`
+
+Find this block:
+
+```python
+        section_only_map = {
+            "dates": "dates",
+            "years": "dates",
+            "months": "dates",
+            "days": "dates",
+            "folders": "folders",
+            "devices": "devices",
+            "videos": "videos",
+            "locations": "locations",
+            "duplicates": "duplicates",
+            "favorites": "find",
+            "documents": "find",
+            "screenshots": "find",
+            "find": "find",
+            "discover_beach": "find",
+            "discover_mountains": "find",
+            "discover_city": "find",
+        }
+
+        target = section_only_map.get(branch)
+        if not target:
+            return
+
+        now = time.time()
+        if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
+            print(f"[{self.__class__.__name__}] Skipping duplicate passive section expand: {target}")
+            return
+
+        self._last_passive_section = target
+        self._last_passive_section_ts = now
+
+        if hasattr(self.accordion_sidebar, "_expand_section"):
+            self.accordion_sidebar._expand_section(target)
+```
+
+Replace with:
+
+```python
+        section_only_map = {
+            "dates": "dates",
+            "years": "dates",
+            "months": "dates",
+            "days": "dates",
+            "folders": "folders",
+            "devices": "devices",
+            "videos": "videos",
+            "locations": "locations",
+            "duplicates": "duplicates",
+            "favorites": "find",
+            "documents": "find",
+            "screenshots": "find",
+            "find": "find",
+            "discover_beach": "find",
+            "discover_mountains": "find",
+            "discover_city": "find",
+        }
+
+        target = section_only_map.get(branch)
+        if not target:
+            return
+
+        # Phase 8: retire selected legacy sections by making shell action sufficient
+        if self._is_legacy_section_retired(target):
+            if branch in {"find", "discover_beach", "discover_mountains", "discover_city", "favorites", "documents", "screenshots"}:
+                self._set_shell_active_branch(branch if branch != "find" else "find")
+                return
+
+            if branch == "videos":
+                self._set_shell_active_branch("videos")
+                try:
+                    if hasattr(self.accordion_sidebar, "section_logic"):
+                        videos_section = self.accordion_sidebar.section_logic.get("videos")
+                        if videos_section and hasattr(videos_section, "_on_video_clicked"):
+                            return
+                except Exception:
+                    pass
+                return
+
+            if branch == "locations":
+                self._set_shell_active_branch("locations")
+                return
+
+            if branch == "duplicates":
+                self._set_shell_active_branch("duplicates")
+                return
+
+            if branch == "devices":
+                self._set_shell_active_branch("devices")
+                return
+
+        now = time.time()
+        if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
+            print(f"[{self.__class__.__name__}] Skipping duplicate passive section expand: {target}")
+            return
+
+        self._last_passive_section = target
+        self._last_passive_section_ts = now
+
+        if hasattr(self.accordion_sidebar, "_expand_section"):
+            self.accordion_sidebar._expand_section(target)
+```
+
+---
+
+## 6. Add legacy block soft-hide behavior in the left-panel builder
+
+Find the code where `self.legacy_container` is configured, containing:
+
+```python
+        self.legacy_container.setChecked(False)
+        self.accordion_sidebar.setMaximumHeight(160)
+```
+
+Replace with:
+
+```python
+        self.legacy_container.setChecked(False)
+        self.accordion_sidebar.setMaximumHeight(160)
+        self._refresh_legacy_visibility_state()
+```
+
+---
+
+## 7. Insert this helper below `_is_legacy_section_retired`
+
+```python
+    def _refresh_legacy_visibility_state(self):
+        """
+        Phase 8:
+        Keep legacy visible, but make it clearly secondary once enough shell
+        paths are stable. Dates/People/Folders remain meaningful fallback.
+        """
+        try:
+            if not hasattr(self, "legacy_container") or self.legacy_container is None:
+                return
+
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                self.google_shell_sidebar.set_legacy_emphasis(True)
+
+            remaining_live_sections = {"dates", "folders", "people"}
+            retired = getattr(self, "_retired_legacy_sections", set())
+
+            if remaining_live_sections - retired:
+                self.legacy_container.setTitle("Legacy Tools, fallback")
+            else:
+                self.legacy_container.setTitle("Legacy Tools")
+        except Exception:
+            pass
+```
+
+---
+
+## 8. In `set_project(self, project_id)`, refresh legacy visibility after shell availability sync
+
+Find:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_project_available(bool(project_id))
+```
+
+Immediately after it, insert:
+
+```python
+        self._refresh_legacy_visibility_state()
+```
+
+---
+
+## 9. In `_clear_filter(self)`, keep shell-primary emphasis and refresh legacy state
+
+Find:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_legacy_emphasis(False)
+```
+
+Immediately after it, insert:
+
+```python
+        self._refresh_legacy_visibility_state()
+```
+
+---
+
+## 10. In `_on_passive_shell_branch_clicked(self, branch: str)`, make shell-primary actions more explicit
+
+Find:
+
+```python
+                if branch in {
+                    "all",
+                    "today",
+                    "yesterday",
+                    "last_7_days",
+                    "last_30_days",
+                    "this_month",
+                    "last_month",
+                    "this_year",
+                    "last_year",
+                    "people_merge_review",
+                    "people_unnamed",
+                    "people_show_all",
+                }:
+```
+
+Replace with:
+
+```python
+                if branch in {
+                    "all",
+                    "today",
+                    "yesterday",
+                    "last_7_days",
+                    "last_30_days",
+                    "this_month",
+                    "last_month",
+                    "this_year",
+                    "last_year",
+                    "people_merge_review",
+                    "people_unnamed",
+                    "people_show_all",
+                    "find",
+                    "discover_beach",
+                    "discover_mountains",
+                    "discover_city",
+                    "favorites",
+                    "documents",
+                    "screenshots",
+                    "duplicates",
+                    "videos",
+                    "locations",
+                    "devices",
+                }:
+```
+
+This makes the shell visually primary for the sections being retired from day-to-day use, while keeping fallback alive.
+
+---
+
+# `main_window_qt.py`
+
+## 11. Replace `_handle_search_sidebar_branch_request()` docstring only
+
+Find:
+
+```python
+    """
+    Phase 7B:
+    Shell-primary normal-use refinement.
+    Google layout gets first chance, legacy fallback remains alive,
+    and onboarding/no-project shell actions remain safe.
+    """
+```
+
+Replace with:
+
+```python
+    """
+    Phase 8:
+    Gradual legacy retirement, section by section.
+    Google layout stays shell-primary, legacy fallback remains alive,
+    and no global routing removal happens yet.
+    """
+```
+
+No logic change.
+
+---
+
+# `CHANGELOG.md`
+
+## 12. Insert this new section at the top of `[Unreleased] - 2026-04-05`
+
+```markdown
+### Phase 8 — Gradual Legacy Retirement (Wave 1)
+
+Shell becomes the preferred production path for stable sections, while the legacy
+accordion remains visible and functional as fallback. No global removals.
+
+#### Retirement Wave 1 (`layouts/google_layout.py`)
+Retired from normal-use reliance, while fallback remains alive:
+- Find
+- Devices
+- Videos
+- Locations
+- Duplicates
+
+#### Explicitly Not Retired Yet
+- Dates
+- Folders
+- People
+
+Legacy Dates remains the detailed owner for years/months/days/quick-date drilldown.
+
+#### Shell / Legacy Coordination
+- Added `_retired_legacy_sections` tracking
+- Added `_is_legacy_section_retired()` helper
+- Added `_refresh_legacy_visibility_state()` helper
+- Shell keeps primary visual emphasis for retired/stable sections
+- Legacy block remains visible and labeled as fallback
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Added retired-legacy-section awareness API
+- No removals in shell structure
+- Shell remains the preferred normal-use surface
+
+#### MainWindow (`main_window_qt.py`)
+- Router docs updated for gradual retirement phase
+- No fallback removal yet
+
+#### Explicit Retentions
+- Legacy block remains visible
+- Legacy routing remains alive
+- Legacy Dates remains detailed owner
+- No global removals yet
+```
+
+---
+
+# What this Phase 8 gives you
+
+After this patch:
+
+* shell becomes the clear preferred path for stable sections
+* legacy remains alive and visible
+* Dates/Folders/People still rely on legacy where appropriate
+* retirement starts safely, in waves
+* nothing irreversible happens yet
+
