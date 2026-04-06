@@ -4,6 +4,60 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-06
 
+### Phase 10 — Shell-Native Result Surfaces & View Modes
+
+Shell sections now operate in explicit view modes instead of just triggering
+reloads. Each retired section sets a named mode (search, videos, locations,
+review, devices) with formatted state text. Shell-level Dates Overview provides
+quick year shortcuts. This is the first phase where the app feels like it has
+distinct navigation modes rather than just filter variants.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Added "Dates Overview" quick-access: 2026, 2025, 2024 year shortcuts
+- Simplified `_status()` builder method
+- Class docstring already at Phase 9 level (shell-native visible outcomes)
+
+#### Google Layout (`layouts/google_layout.py`)
+- Added `_current_view_mode` state field (all | videos | locations | search | review | devices)
+- Added `_set_view_mode(mode, description)` — sets mode state + formats "MODE . description" text
+- Find → search mode, focuses top_search_bar with fallback to search_bar
+- Videos → videos mode, requests reload with video_only=True
+- Locations → locations mode, expands accordion location section
+- Duplicates → review mode, opens duplicate dialog
+- Devices → devices mode, expands accordion devices section
+- Discover presets → search mode with preset description
+- Favorites/Documents/Screenshots → all mode with description
+- All Photos → all mode on branch click
+- `_clear_shell_state_text()` now sets "Ready" instead of calling clear
+
+#### MainWindow (`main_window_qt.py`)
+- Router upgraded to Phase 10 with year shortcut routing (year_2026/2025/2024)
+- Year shortcuts route directly to layout.request_reload(reason="year_filter", year=N)
+- Router documentation updated to Phase 10
+
+#### View Mode Tests (`tests/test_phase10_view_modes.py`) — NEW
+- 39 tests covering all Phase 10 view mode transitions, no PySide6/Qt required
+- **TestSetViewMode** (4 tests): mode state, text format with/without description
+- **TestFindSearchMode** (4 tests): search mode, state text, focus top/fallback search bar
+- **TestVideosMode** (3 tests): videos mode, state text, reload with video_only
+- **TestLocationsMode** (3 tests): locations mode, state text, accordion expand
+- **TestDuplicatesReviewMode** (3 tests): review mode, state text, open dialog
+- **TestDevicesMode** (3 tests): devices mode, state text, accordion expand
+- **TestAllPhotosMode** (2 tests): all mode, state text
+- **TestDiscoverPresetsMode** (6 tests): search mode, preset descriptions
+- **TestFavoritesDocumentsMode** (3 tests): all mode with labels
+- **TestClearShellStateTextReady** (1 test): "Ready" text
+- **TestMainWindowYearShortcuts** (4 tests): year routing, no people fallthrough
+- **TestMainWindowPhase10Router** (3 tests): docstring, delegation
+
+#### Regression Test Updates
+- All phase test mocks updated with _set_view_mode, _is_legacy_section_retired, _set_shell_state_text bindings
+- Phase 9 state text assertions updated to "MODE . description" format
+- Phase 7A/7B/8/9: docstring checks updated to accept Phase 10
+- **Total test count: 335 (all passing)**
+
+---
+
 ### Phase 9 — Shell-Native Visible Outcomes
 
 Retired shell sections now produce direct, visible outcomes instead of only

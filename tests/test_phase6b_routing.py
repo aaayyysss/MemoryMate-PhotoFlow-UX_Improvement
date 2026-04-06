@@ -159,6 +159,36 @@ def _make_mock_layout(**overrides):
     layout = MagicMock()
     layout.__class__.__name__ = "GooglePhotosLayout"
 
+    # Shell sidebar mock
+    layout.google_shell_sidebar = MagicMock()
+    layout.google_shell_sidebar.set_active_branch = MagicMock()
+    layout.google_shell_sidebar.clear_active_branch = MagicMock()
+    layout.google_shell_sidebar.set_legacy_emphasis = MagicMock()
+    layout.google_shell_sidebar.set_shell_state_text = MagicMock()
+
+    # Bind real helpers
+    import functools
+    layout._set_shell_active_branch = functools.partial(
+        GooglePhotosLayout._set_shell_active_branch, layout
+    )
+    layout._clear_shell_active_branch = functools.partial(
+        GooglePhotosLayout._clear_shell_active_branch, layout
+    )
+    layout._is_legacy_section_retired = functools.partial(
+        GooglePhotosLayout._is_legacy_section_retired, layout
+    )
+    layout._set_shell_state_text = functools.partial(
+        GooglePhotosLayout._set_shell_state_text, layout
+    )
+    layout._set_view_mode = functools.partial(
+        GooglePhotosLayout._set_view_mode, layout
+    )
+    layout._current_view_mode = "all"
+    layout._retired_legacy_sections = overrides.get(
+        "_retired_legacy_sections",
+        {"find", "devices", "videos", "locations", "duplicates"}
+    )
+
     # Accordion sidebar mock
     layout.accordion_sidebar = MagicMock()
     layout.accordion_sidebar._expand_section = MagicMock()

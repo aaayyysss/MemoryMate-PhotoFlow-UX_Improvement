@@ -372,6 +372,9 @@ class GooglePhotosLayout(BaseLayout):
         self._last_passive_section = None
         self._last_passive_section_ts = 0.0
 
+        # Phase 10: explicit view mode state
+        self._current_view_mode = "all"  # all | videos | locations | search | duplicates | devices
+
         # Defer initial photo load until MainWindow signals first paint is done.
         # Previously _load_photos() fired here during __init__(), before show(),
         # so the DB query + grouping + widget creation competed with first paint.
@@ -1336,6 +1339,17 @@ class GooglePhotosLayout(BaseLayout):
         except Exception:
             pass
 
+    def _set_view_mode(self, mode: str, description: str = ""):
+        self._current_view_mode = mode
+
+        # Stronger shell state text
+        if description:
+            self._set_shell_state_text(f"{mode.upper()} \u2022 {description}")
+        else:
+            self._set_shell_state_text(f"{mode.upper()} view")
+
+        print(f"[{self.__class__.__name__}] View mode \u2192 {mode}")
+
     def _set_shell_state_text(self, text: str):
         try:
             if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
@@ -1347,8 +1361,8 @@ class GooglePhotosLayout(BaseLayout):
     def _clear_shell_state_text(self):
         try:
             if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
-                if hasattr(self.google_shell_sidebar, "clear_shell_state_text"):
-                    self.google_shell_sidebar.clear_shell_state_text()
+                if hasattr(self.google_shell_sidebar, "set_shell_state_text"):
+                    self.google_shell_sidebar.set_shell_state_text("Ready")
         except Exception:
             pass
 
@@ -1442,6 +1456,7 @@ class GooglePhotosLayout(BaseLayout):
 
             # ── All Photos: shell-first direct grid reset ─────────────────────────────
             if branch == "all":
+                self._set_view_mode("all", "All photos")
                 if not getattr(self, "project_id", None):
                     return
 
@@ -1525,53 +1540,28 @@ class GooglePhotosLayout(BaseLayout):
             if not target:
                 return
 
-            # Phase 9: retired sections must produce visible shell-native outcomes
+            # Phase 10: retired sections produce visible mode transitions
             if self._is_legacy_section_retired(target):
-                if branch in {"find", "discover_beach", "discover_mountains", "discover_city", "favorites", "documents", "screenshots"}:
-                    self._set_shell_active_branch(branch if branch != "find" else "find")
+                if branch == "find":
+                    self._set_shell_active_branch("find")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-
-                    if branch == "find":
-                        self._set_shell_state_text("Search is ready, use the main search field")
-                        # Best visible outcome: focus the main search field if available
-                        try:
-                            if hasattr(self.main_window, "search_bar") and self.main_window.search_bar:
-                                self.main_window.search_bar.setFocus()
-                                self.main_window.search_bar.selectAll()
-                        except Exception:
-                            pass
-                        return
-
-                    if branch == "favorites":
-                        self._set_shell_state_text("Showing favorites")
-                        if hasattr(self, "_filter_favorites"):
-                            self._filter_favorites()
-                        return
-
-                    if branch in {"documents", "screenshots"}:
-                        self._set_shell_state_text(f"Showing {branch}")
-                        self._load_photos()
-                        return
-
-                    if branch == "discover_beach":
-                        self._set_shell_state_text("Discover preset, Beach")
-                        return
-                    if branch == "discover_mountains":
-                        self._set_shell_state_text("Discover preset, Mountains")
-                        return
-                    if branch == "discover_city":
-                        self._set_shell_state_text("Discover preset, City")
-                        return
-
+                    self._set_view_mode("search", "Type to search your library")
+                    # Focus search bar if available
+                    try:
+                        if hasattr(self.main_window, "top_search_bar") and self.main_window.top_search_bar:
+                            self.main_window.top_search_bar.setFocus()
+                        elif hasattr(self.main_window, "search_bar") and self.main_window.search_bar:
+                            self.main_window.search_bar.setFocus()
+                    except Exception:
+                        pass
                     return
 
                 if branch == "videos":
                     self._set_shell_active_branch("videos")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-                    self._set_shell_state_text("Showing videos")
-                    # Visible outcome: use existing video branch/filter behavior
+                    self._set_view_mode("videos", "Showing video files")
                     try:
-                        self._on_accordion_branch_clicked("duration:medium")
+                        self.request_reload(reason="videos_only", video_only=True)
                     except Exception:
                         try:
                             self._load_photos()
@@ -1582,8 +1572,7 @@ class GooglePhotosLayout(BaseLayout):
                 if branch == "locations":
                     self._set_shell_active_branch("locations")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-                    self._set_shell_state_text("Showing location results")
-                    # Visible outcome: open location section once and let user pick
+                    self._set_view_mode("locations", "Grouped by location")
                     try:
                         if hasattr(self.accordion_sidebar, "_expand_section"):
                             self.accordion_sidebar._expand_section("locations")
@@ -1594,7 +1583,7 @@ class GooglePhotosLayout(BaseLayout):
                 if branch == "duplicates":
                     self._set_shell_active_branch("duplicates")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-                    self._set_shell_state_text("Opening duplicate review")
+                    self._set_view_mode("review", "Duplicates & similar shots")
                     try:
                         if hasattr(self, "_open_duplicates_dialog"):
                             self._open_duplicates_dialog()
@@ -1605,13 +1594,40 @@ class GooglePhotosLayout(BaseLayout):
                 if branch == "devices":
                     self._set_shell_active_branch("devices")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-                    self._set_shell_state_text("Showing device sources")
+                    self._set_view_mode("devices", "External sources")
                     try:
                         if hasattr(self.accordion_sidebar, "_expand_section"):
                             self.accordion_sidebar._expand_section("devices")
                     except Exception:
                         pass
                     return
+
+                if branch in {"discover_beach", "discover_mountains", "discover_city"}:
+                    self._set_shell_active_branch(branch)
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    preset = branch.replace("discover_", "").title()
+                    self._set_view_mode("search", f"Discover preset, {preset}")
+                    return
+
+                if branch == "favorites":
+                    self._set_shell_active_branch("favorites")
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    self._set_view_mode("all", "Showing favorites")
+                    if hasattr(self, "_filter_favorites"):
+                        self._filter_favorites()
+                    return
+
+                if branch in {"documents", "screenshots"}:
+                    self._set_shell_active_branch(branch)
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    self._set_view_mode("all", f"Showing {branch}")
+                    self._load_photos()
+                    return
+
+                # Catch-all for any other retired section
+                self._set_shell_active_branch(branch)
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                return
 
             now = time.time()
             if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
