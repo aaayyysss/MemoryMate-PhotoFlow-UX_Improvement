@@ -47,12 +47,13 @@ class _ShellSection(QFrame):
 
 class GoogleShellSidebar(QWidget):
     """
-    Phase 6A passive shell sidebar.
+    Phase 9 shell sidebar.
 
-    Displays the future navigation structure above the legacy accordion.
-    Clicks emit selectBranch / openActivityCenterRequested but do NOT
-    own any routing — the layout's passive handler bridges to the
-    legacy accordion.
+    Shell is now the preferred visible interaction surface for stable,
+    retired sections. Legacy accordion remains visible and alive as
+    fallback, while shell clicks should produce direct, obvious outcomes
+    for retired sections such as Find, Videos, Locations, Duplicates,
+    and Devices.
     """
 
     selectBranch = Signal(str)
@@ -65,6 +66,8 @@ class GoogleShellSidebar(QWidget):
         self._active_branch = None
         self._project_available = False
         self._retired_legacy_sections = set()
+        self._shell_status_label = None
+        self._shell_state_text = ""
         self._project_required_branches = {
             "all",
             "dates",
@@ -112,6 +115,7 @@ class GoogleShellSidebar(QWidget):
         # ── Search Hub ────────────────────────────────────────────
         self.search_hub = _ShellSection("Search Hub", expanded=True)
         self.search_hub.add_widget(self._hint("Search, recent searches, scopes"))
+        self.search_hub.add_widget(self._status("No active shell result"))
         self.search_hub.add_widget(self._nav("Open Search", "find"))
 
         # ── Discover ──────────────────────────────────────────────
@@ -197,6 +201,14 @@ class GoogleShellSidebar(QWidget):
         lbl.setWordWrap(True)
         return lbl
 
+    def _status(self, text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setObjectName("ShellStatus")
+        lbl.setWordWrap(True)
+        self._shell_status_label = lbl
+        self._shell_state_text = text
+        return lbl
+
     def _subhead(self, text: str) -> QLabel:
         lbl = QLabel(text)
         lbl.setObjectName("ShellSubhead")
@@ -246,6 +258,14 @@ class GoogleShellSidebar(QWidget):
     def is_legacy_section_retired(self, section_name: str) -> bool:
         return section_name in self._retired_legacy_sections
 
+    def set_shell_state_text(self, text: str):
+        self._shell_state_text = text or ""
+        if self._shell_status_label is not None:
+            self._shell_status_label.setText(self._shell_state_text)
+
+    def clear_shell_state_text(self):
+        self.set_shell_state_text("No active shell result")
+
     def set_legacy_emphasis(self, emphasized: bool):
         self.setProperty("legacySoft", not emphasized)
         self.style().unpolish(self)
@@ -292,6 +312,14 @@ QLabel#ShellSubhead {
     font-size: 11px;
     font-weight: 600;
     padding: 6px 2px 2px 2px;
+}
+QLabel#ShellStatus {
+    color: #1a73e8;
+    background: #eef3ff;
+    border: 1px solid #d2e3fc;
+    border-radius: 8px;
+    font-size: 11px;
+    padding: 6px 8px;
 }
 QPushButton#ShellNavBtn {
     text-align: left;

@@ -3309,10 +3309,10 @@ class MainWindow(QMainWindow):
 
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
-        Phase 8:
-        Gradual legacy retirement, section by section.
+        Phase 9:
+        Shell-native visible outcomes for retired sections.
         Google layout stays shell-primary, legacy fallback remains alive,
-        and no global routing removal happens yet.
+        and retired sections now produce direct visible results.
         """
         try:
             # People branches stay delegated through the dedicated people router
@@ -3343,7 +3343,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
 
-    # ── end Phase 8 ──────────────────────────────────────────────────
+    # ── end Phase 9 ──────────────────────────────────────────────────
 
     def _on_ux1_search_requested(self, payload: dict):
         """

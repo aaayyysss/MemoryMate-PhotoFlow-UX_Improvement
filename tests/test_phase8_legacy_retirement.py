@@ -222,20 +222,33 @@ class TestIsLegacySectionRetired:
 class TestRetiredSectionsSkipAccordion:
     """Retired-section branches should NOT expand accordion."""
 
-    RETIRED_BRANCHES = [
+    # Phase 9: branches that skip accordion entirely
+    RETIRED_SKIP_ACCORDION = [
         "find", "discover_beach", "discover_mountains", "discover_city",
         "favorites", "documents", "screenshots",
-        "devices", "videos", "locations", "duplicates",
+        "videos", "duplicates",
     ]
 
-    @pytest.mark.parametrize("branch", RETIRED_BRANCHES)
+    # Phase 9: branches that expand accordion as visible outcome
+    RETIRED_EXPAND_ACCORDION = ["devices", "locations"]
+
+    ALL_RETIRED_BRANCHES = RETIRED_SKIP_ACCORDION + RETIRED_EXPAND_ACCORDION
+
+    @pytest.mark.parametrize("branch", RETIRED_SKIP_ACCORDION)
     def test_retired_branch_does_not_expand_accordion(self, branch):
-        """Retired branches should not call accordion._expand_section."""
+        """Retired branches that skip accordion should not call _expand_section."""
         layout = _make_mock_layout()
         _call_shell_branch(layout, branch)
         layout.accordion_sidebar._expand_section.assert_not_called()
 
-    @pytest.mark.parametrize("branch", RETIRED_BRANCHES)
+    @pytest.mark.parametrize("branch", RETIRED_EXPAND_ACCORDION)
+    def test_retired_branch_expands_accordion_as_visible_outcome(self, branch):
+        """Phase 9: devices/locations expand accordion as their visible outcome."""
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, branch)
+        layout.accordion_sidebar._expand_section.assert_called_once_with(branch)
+
+    @pytest.mark.parametrize("branch", ALL_RETIRED_BRANCHES)
     def test_retired_branch_sets_active_branch(self, branch):
         """Retired branches should still set shell active branch."""
         layout = _make_mock_layout()
@@ -329,7 +342,7 @@ class TestMainWindowPhase8Router:
     def test_router_has_phase_8_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "Phase 8" in doc or "phase 8" in doc
+        assert "Phase 8" in doc or "phase 8" in doc or "Phase 9" in doc or "phase 9" in doc
 
     def test_router_still_delegates_people(self):
         mw = MagicMock()
