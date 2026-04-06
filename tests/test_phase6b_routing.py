@@ -489,11 +489,17 @@ class TestLegacySectionRouting:
         "folders": "folders",
     }
 
-    # Phase 8 retired these — they short-circuit without expanding accordion
-    RETIRED_BRANCHES = [
-        "devices", "videos", "locations", "duplicates",
+    # Phase 9: retired branches that skip accordion entirely
+    RETIRED_SKIP_ACCORDION = [
+        "videos", "duplicates",
         "favorites", "documents", "screenshots", "find",
         "discover_beach", "discover_mountains", "discover_city",
+    ]
+
+    # Phase 9: retired branches that still expand accordion as visible outcome
+    RETIRED_EXPAND_ACCORDION = [
+        ("devices", "devices"),
+        ("locations", "locations"),
     ]
 
     @pytest.mark.parametrize("branch,expected_section", list(LIVE_SECTION_MAP.items()))
@@ -503,12 +509,19 @@ class TestLegacySectionRouting:
         _call_shell_branch(layout, branch)
         layout.accordion_sidebar._expand_section.assert_called_once_with(expected_section)
 
-    @pytest.mark.parametrize("branch", RETIRED_BRANCHES)
+    @pytest.mark.parametrize("branch", RETIRED_SKIP_ACCORDION)
     def test_retired_branch_skips_accordion(self, branch):
-        """Phase 8 retired branches should NOT expand accordion."""
+        """Phase 9 retired branches that skip accordion entirely."""
         layout = _make_mock_layout()
         _call_shell_branch(layout, branch)
         layout.accordion_sidebar._expand_section.assert_not_called()
+
+    @pytest.mark.parametrize("branch,expected_section", RETIRED_EXPAND_ACCORDION)
+    def test_retired_branch_expands_accordion_as_visible_outcome(self, branch, expected_section):
+        """Phase 9 retired branches that expand accordion as visible outcome."""
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, branch)
+        layout.accordion_sidebar._expand_section.assert_called_once_with(expected_section)
 
     @pytest.mark.parametrize("branch,expected_section", list(LIVE_SECTION_MAP.items()))
     def test_legacy_branch_does_not_reload_grid(self, branch, expected_section):

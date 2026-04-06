@@ -1295,6 +1295,7 @@ class GooglePhotosLayout(BaseLayout):
         try:
             if branch in {"all", "dates", "folders", "devices", "videos", "locations", "duplicates", "find"}:
                 logger.info("[GooglePhotosLayout] Ignoring shell branch without project: %s", branch)
+                self._set_shell_state_text("Create or select a project to use shell actions")
 
             if hasattr(self, "main_window") and self.main_window:
                 try:
@@ -1332,6 +1333,22 @@ class GooglePhotosLayout(BaseLayout):
                 self.legacy_tools_group.setTitle("Legacy Tools, fallback")
             else:
                 self.legacy_tools_group.setTitle("Legacy Tools")
+        except Exception:
+            pass
+
+    def _set_shell_state_text(self, text: str):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "set_shell_state_text"):
+                    self.google_shell_sidebar.set_shell_state_text(text)
+        except Exception:
+            pass
+
+    def _clear_shell_state_text(self):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "clear_shell_state_text"):
+                    self.google_shell_sidebar.clear_shell_state_text()
         except Exception:
             pass
 
@@ -1508,33 +1525,92 @@ class GooglePhotosLayout(BaseLayout):
             if not target:
                 return
 
-            # Phase 8: retire selected legacy sections by making shell action sufficient
+            # Phase 9: retired sections must produce visible shell-native outcomes
             if self._is_legacy_section_retired(target):
                 if branch in {"find", "discover_beach", "discover_mountains", "discover_city", "favorites", "documents", "screenshots"}:
                     self._set_shell_active_branch(branch if branch != "find" else "find")
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+
+                    if branch == "find":
+                        self._set_shell_state_text("Search is ready, use the main search field")
+                        # Best visible outcome: focus the main search field if available
+                        try:
+                            if hasattr(self.main_window, "search_bar") and self.main_window.search_bar:
+                                self.main_window.search_bar.setFocus()
+                                self.main_window.search_bar.selectAll()
+                        except Exception:
+                            pass
+                        return
+
+                    if branch == "favorites":
+                        self._set_shell_state_text("Showing favorites")
+                        if hasattr(self, "_filter_favorites"):
+                            self._filter_favorites()
+                        return
+
+                    if branch in {"documents", "screenshots"}:
+                        self._set_shell_state_text(f"Showing {branch}")
+                        self._load_photos()
+                        return
+
+                    if branch == "discover_beach":
+                        self._set_shell_state_text("Discover preset, Beach")
+                        return
+                    if branch == "discover_mountains":
+                        self._set_shell_state_text("Discover preset, Mountains")
+                        return
+                    if branch == "discover_city":
+                        self._set_shell_state_text("Discover preset, City")
+                        return
+
                     return
 
                 if branch == "videos":
                     self._set_shell_active_branch("videos")
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    self._set_shell_state_text("Showing videos")
+                    # Visible outcome: use existing video branch/filter behavior
                     try:
-                        if hasattr(self.accordion_sidebar, "section_logic"):
-                            videos_section = self.accordion_sidebar.section_logic.get("videos")
-                            if videos_section and hasattr(videos_section, "_on_video_clicked"):
-                                return
+                        self._on_accordion_branch_clicked("duration:medium")
                     except Exception:
-                        pass
+                        try:
+                            self._load_photos()
+                        except Exception:
+                            pass
                     return
 
                 if branch == "locations":
                     self._set_shell_active_branch("locations")
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    self._set_shell_state_text("Showing location results")
+                    # Visible outcome: open location section once and let user pick
+                    try:
+                        if hasattr(self.accordion_sidebar, "_expand_section"):
+                            self.accordion_sidebar._expand_section("locations")
+                    except Exception:
+                        pass
                     return
 
                 if branch == "duplicates":
                     self._set_shell_active_branch("duplicates")
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    self._set_shell_state_text("Opening duplicate review")
+                    try:
+                        if hasattr(self, "_open_duplicates_dialog"):
+                            self._open_duplicates_dialog()
+                    except Exception:
+                        pass
                     return
 
                 if branch == "devices":
                     self._set_shell_active_branch("devices")
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                    self._set_shell_state_text("Showing device sources")
+                    try:
+                        if hasattr(self.accordion_sidebar, "_expand_section"):
+                            self.accordion_sidebar._expand_section("devices")
+                    except Exception:
+                        pass
                     return
 
             now = time.time()
@@ -1568,6 +1644,7 @@ class GooglePhotosLayout(BaseLayout):
         """
         try:
             self._set_shell_active_branch(key)
+            self._set_shell_state_text(f"Quick date, {key.replace('_', ' ')}")
             if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
                 self.google_shell_sidebar.set_legacy_emphasis(False)
             mapping = {
@@ -2409,6 +2486,7 @@ class GooglePhotosLayout(BaseLayout):
         print(f"[GooglePhotosLayout] Accordion date clicked: {date_key}")
 
         self._set_shell_active_branch("dates")
+        self._set_shell_state_text(f"Date filter, {date_key}")
         if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
             self.google_shell_sidebar.set_legacy_emphasis(True)
 
@@ -2495,6 +2573,7 @@ class GooglePhotosLayout(BaseLayout):
                     print(f"[GooglePhotosLayout] Found folder path: {folder_path}")
                     print(f"[GooglePhotosLayout] Calling _load_photos with filter_folder={folder_path}")
                     self._set_shell_active_branch("folders")
+                    self._set_shell_state_text("Folder filter active")
                     if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
                         self.google_shell_sidebar.set_legacy_emphasis(True)
                     self._load_photos(
@@ -2555,6 +2634,8 @@ class GooglePhotosLayout(BaseLayout):
             person_branch_key: Identifier for the face cluster to filter by.
         """
         self._set_shell_active_branch("people_show_all")
+        if person_branch_key:
+            self._set_shell_state_text("People filter active")
         if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
             self.google_shell_sidebar.set_legacy_emphasis(False)
 
@@ -2562,6 +2643,7 @@ class GooglePhotosLayout(BaseLayout):
         if person_branch_key == "":
             logger.info("[GooglePhotosLayout] Clearing person filter from accordion toggle")
             self._set_shell_active_branch("all")
+            self._set_shell_state_text("Showing all photos")
             self._request_load(
                 thumb_size=self.current_thumb_size,
                 year=self.current_filter_year,
@@ -2729,6 +2811,9 @@ class GooglePhotosLayout(BaseLayout):
         )
 
         self._set_shell_active_branch("locations")
+        self._set_shell_state_text(
+            f"Location, {location_data.get('name', 'Unknown Location')}"
+        )
         if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
             self.google_shell_sidebar.set_legacy_emphasis(True)
 
@@ -8859,6 +8944,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
     def _on_toggle_activity_center(self):
         """Toggle the Activity Center dock widget from the layout toolbar."""
         try:
+            self._set_shell_state_text("Opening Activity Center")
             if hasattr(self.main_window, "_toggle_activity_center"):
                 self.main_window._toggle_activity_center()
         except Exception:
@@ -9705,6 +9791,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
             self.google_shell_sidebar.set_legacy_emphasis(False)
         self._refresh_legacy_visibility_state()
+        self._set_shell_state_text("Showing all photos")
         print("[GooglePhotosLayout] Clearing all filters")
 
         # Reload without filters
@@ -10729,6 +10816,9 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
 
             if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
                 self.google_shell_sidebar.set_project_available(bool(project_id))
+
+            if project_id:
+                self._clear_shell_state_text()
             self._refresh_legacy_visibility_state()
 
             # Update accordion sidebar with new project

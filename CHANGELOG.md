@@ -4,6 +4,70 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-06
 
+### Phase 9 — Shell-Native Visible Outcomes
+
+Retired shell sections now produce direct, visible outcomes instead of only
+changing internal ownership or suppressing accordion expansion.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Added shell status message row in Search Hub (`ShellStatus` QLabel)
+- Added `set_shell_state_text()` / `clear_shell_state_text()`
+- New `_status()` builder method and `_shell_status_label` / `_shell_state_text` state
+- New CSS: `QLabel#ShellStatus` — blue text, light blue background, rounded border
+- Shell now visibly reports the current shell-native outcome
+- Class docstring updated to Phase 9
+
+#### Google Layout (`layouts/google_layout.py`)
+- Added `_set_shell_state_text()` / `_clear_shell_state_text()` helpers
+- No-project shell clicks now update shell status text
+- All Photos visibly reports "Showing all photos"
+- Quick dates visibly report the active quick-date context
+- Dates, folders, locations, and people now sync visible shell state text
+- Retired sections now produce visible outcomes:
+  - Find → focuses main search field, reports "Search is ready"
+  - Favorites → runs favorite filter, reports "Showing favorites"
+  - Documents/Screenshots → loads photos, reports section name
+  - Videos → attempts video filter, reports "Showing videos"
+  - Locations → expands accordion location section, reports "Showing location results"
+  - Duplicates → opens duplicate review dialog, reports "Opening duplicate review"
+  - Devices → expands accordion devices section, reports "Showing device sources"
+  - Discover presets → report preset name (Beach/Mountains/City)
+- Activity center toggle reports "Opening Activity Center"
+- Project set clears onboarding status text
+- Legacy block remains visible and alive
+- Legacy Dates remains the detailed owner
+
+#### MainWindow (`main_window_qt.py`)
+- Router documentation updated to Phase 9 shell-native visible outcomes
+- No removals, fallback remains alive
+
+#### Visible Outcome Tests (`tests/test_phase9_visible_outcomes.py`) — NEW
+- 43 tests covering all Phase 9 visible outcome paths, no PySide6/Qt required
+- **TestShellStateTextHelpers** (4 tests): set/clear state text, no-sidebar guards
+- **TestFindVisibleOutcome** (4 tests): state text, focus, selectAll, emphasis
+- **TestVideosVisibleOutcome** (3 tests): state text, emphasis, active branch
+- **TestLocationsVisibleOutcome** (3 tests): state text, accordion expand, emphasis
+- **TestDuplicatesVisibleOutcome** (3 tests): state text, emphasis, open dialog
+- **TestDevicesVisibleOutcome** (3 tests): state text, accordion expand, emphasis
+- **TestDiscoverPresetsVisibleOutcome** (6 tests): 3 presets × state text + emphasis
+- **TestFavoritesDocumentsScreenshots** (4 tests): state text, filter call
+- **TestQuickDatesShellStateText** (8 tests): all 8 quick dates
+- **TestClearFilterShellStateText** (1 test): "Showing all photos"
+- **TestActivityCenterShellStateText** (1 test): "Opening Activity Center"
+- **TestMainWindowPhase9Router** (3 tests): docstring, people delegation, layout delegation
+
+#### Regression Test Updates
+- Phase 6B: split retired branches into skip-accordion and expand-accordion groups
+- Phase 8: split retired branches into skip-accordion and expand-accordion groups
+- Phase 7A/7B/8: docstring checks updated to accept Phase 9
+- **Total test count: 296 (all passing)**
+
+#### Product Effect
+- Retired sections now feel meaningfully different from Phase 7B/8
+- The shell now communicates results directly instead of only changing routing ownership
+
+---
+
 ### Phase 8 — Gradual Legacy Retirement (Wave 1)
 
 First wave of legacy section retirement. Retired sections (find, devices, videos,

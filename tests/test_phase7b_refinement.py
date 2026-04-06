@@ -366,7 +366,7 @@ class TestMainWindowPhase7BRouter:
     def test_router_has_phase_7b_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "7B" in doc or "7b" in doc or "8" in doc
+        assert "7B" in doc or "7b" in doc or "8" in doc or "9" in doc
 
     def test_router_still_delegates_people(self):
         mw = MagicMock()
