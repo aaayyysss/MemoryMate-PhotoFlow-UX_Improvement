@@ -1,0 +1,772 @@
+My observation is **Phase 8 can be “complete” in code and tests, yet show little visible difference in the UI.** That is exactly what the current artifacts suggest.
+
+## Audit verdict
+
+### What Phase 8 clearly achieved
+
+The changelog says Phase 8 was implemented as **Gradual Legacy Retirement, Wave 1**, with these sections retired from normal-use reliance:
+
+* find
+* devices
+* videos
+* locations
+* duplicates
+
+while these remain live through accordion fallback:
+
+* dates
+* folders
+* people. 
+
+That matches the intended plan:
+
+* shell-primary path for stable sections,
+* legacy still visible,
+* legacy routing still alive,
+* Dates still detailed owner. 
+
+The runtime log also shows the onboarding refinement is working:
+
+* with no project, shell clicks like `all` are now safely ignored instead of causing weird behavior, via `Ignoring shell branch without project: all`. 
+
+So the phase is not fake. It did change behavior.
+
+## Why you do not see much difference
+
+Because **Phase 8, as implemented, is mostly a routing and retirement-policy phase, not a visual or performance phase**.
+
+The changelog wording itself confirms that the retired sections “no longer expand the accordion, the shell handles them directly,” but it does **not** claim:
+
+* a new visual design,
+* a new grid rendering mode,
+* or a major performance boost. 
+
+That means if the shell click for a retired section now:
+
+* sets active branch,
+* avoids accordion expansion,
+* and keeps the same visible grid result,
+
+the app can feel almost identical to Phase 7B, even though the internal ownership changed.
+
+So your “I do not see any difference” reaction is understandable and mostly correct from the user perspective.
+
+## What this means in product terms
+
+### Good
+
+* architecture is progressing
+* routing is cleaner
+* onboarding is safer
+* legacy retirement is now possible section-by-section
+* tests are strong enough to trust the internal transition
+
+### Not good enough yet
+
+* the product value of Phase 8 is not visually obvious
+* the shell still does not feel decisively more powerful than before
+* retiring a legacy section internally does not help much unless the shell provides a clearly better direct experience
+
+That is the real gap.
+
+## Best-practice reading, Google / Apple / Lightroom style
+
+From a product perspective, Google Photos and Apple Photos do not win because of hidden routing cleanup. They win because:
+
+* clicks feel direct,
+* the active context is obvious,
+* the grid visibly changes in a meaningful way,
+* the user does not have to care who owns the action.
+
+Your current app is moving in the right engineering direction, but it still exposes too much of the transition state. That is why Phase 8 feels underwhelming.
+
+## What should be revised before the next phase
+
+### 1. Do not treat Phase 8 as a product milestone, treat it as an internal milestone
+
+It is internally useful, but not yet a strong user-facing improvement.
+
+### 2. The next phase should focus on **visible shell outcomes**
+
+Not more retirement bookkeeping first.
+
+For retired sections, a shell click should visibly do one of these:
+
+* change the grid content directly,
+* open a direct shell-native subview,
+* or show a clear result panel/state change.
+
+If it only stops expanding accordion, the user will barely notice.
+
+### 3. Keep Dates in legacy
+
+This is still correct. The log and changelog both support that Dates remains the detailed owner, and that should not change yet.
+
+### 4. Legacy block should remain for now
+
+Also correct. Nothing in the runtime suggests it is safe to remove it yet. 
+
+## Is it ready for the next phase?
+
+**Yes, but only if the next phase is user-visible.**
+
+Not another invisible internal refactor.
+
+The next phase should be something like:
+
+## Phase 9, shell-native visible outcomes
+
+for retired sections:
+
+* Find should visibly open or focus the search experience
+* Videos should visibly constrain the grid or open a videos view
+* Locations should visibly constrain the grid or open a location result view
+* Duplicates should visibly open the duplicate workflow
+* Devices should visibly open a device-oriented pane or state
+
+That would finally create a noticeable difference from Phase 7B.
+
+## Do I need any specific file?
+
+Yes. To prepare the right next patch pack, the most useful files now would be:
+
+* the current `layouts/google_layout.py`
+* the current `ui/search/google_shell_sidebar.py`
+* and the current handler methods for the retired sections, especially where these actions are supposed to land:
+
+  * find
+  * videos
+  * locations
+  * duplicates
+  * devices
+
+So, in one line:
+
+**Phase 8 looks technically valid, but it is not surprising that you do not feel a visible difference, because it mostly changed ownership, not experience.**
+So **Phase 8 looks technically valid, but it is weak as a user-facing milestone.**
+
+## Audit verdict
+
+### What is correct
+
+Phase 8 was implemented in the way the changelog describes:
+
+* retired sections are now `find`, `devices`, `videos`, `locations`, `duplicates`
+* live legacy-backed sections remain `dates`, `folders`, `people`
+* legacy Dates is still the detailed owner
+* legacy routing is still alive. 
+
+The runtime also confirms the onboarding cleanup is working:
+
+* with no project, shell actions like `All Photos` are safely ignored instead of trying to act on an empty state. 
+
+So from an engineering perspective, Phase 8 is not fake. It did something real.
+
+### What is not good enough
+
+You are also right that **it does not feel different enough**.
+
+That is because the current Phase 8 mostly changes:
+
+* ownership,
+* accordion expansion behavior,
+* and fallback policy,
+
+but it does **not** yet provide strong shell-native visible outcomes. That is exactly why it feels similar to Phase 7B.
+
+The changelog itself hints at this. It says retired sections “no longer expand the accordion” and the shell handles them directly, but it does not claim:
+
+* a new shell-native search panel,
+* a direct videos mode,
+* a shell-native duplicates experience,
+* or a device pane. 
+
+So the user-visible difference is naturally small.
+
+## Best-practice reading
+
+From a Google Photos / Apple Photos product perspective, users do not care who owns routing internally. They care whether a click produces an obvious, immediate, meaningful result.
+
+Right now your app is still stronger internally than externally:
+
+* architecture is cleaner,
+* tests are stronger,
+* transitions are safer,
+* but the shell still does not feel decisively more powerful.
+
+That is the real gap.
+
+## What should be revised before the next phase
+
+### 1. Do not revise Phase 8 by undoing it
+
+Phase 8 is acceptable as an internal milestone. I would not roll it back.
+
+### 2. Do not expect Phase 8 to feel visually dramatic
+
+That expectation is the mismatch, not necessarily the code.
+
+### 3. The next phase must be explicitly user-visible
+
+The next phase should not be “more retirement.”
+It should be:
+
+## Phase 9, shell-native visible outcomes
+
+for retired sections:
+
+* **Find** should visibly open or focus the search experience
+* **Videos** should visibly constrain the grid or open a videos-focused result state
+* **Locations** should visibly constrain the grid or open a location result state
+* **Duplicates** should visibly open the duplicate workflow directly
+* **Devices** should visibly open a device-oriented pane or state
+
+That is what will finally create a noticeable difference from Phase 7B.
+
+## What I see in the current files
+
+The uploaded `google_shell_sidebar.py` still describes itself as a passive shell sidebar, and the visible shell is mostly a button emitter with state styling, not a shell-native result surface yet. 
+
+The uploaded `google_layout.py` is also still structured around the same Google layout core, with shell layered above legacy and the main result area still driven by the existing layout/grid machinery. That matches why the result feels similar despite the Phase 8 routing cleanup. 
+
+## Final decision
+
+So the honest conclusion is:
+
+* **Phase 8 is technically valid**
+* **Phase 8 is not yet a strong visible product milestone**
+* **nothing critical needs rollback**
+* **the next phase should be Phase 9, shell-native visible outcomes**
+
+
+The right next move is to stop optimizing invisible ownership and start making retired shell sections produce obvious, direct outcomes.
+
+Below is the **Phase 9 patch pack**, focused on **shell-native visible outcomes** for the retired sections, while keeping:
+
+* legacy block visible,
+* legacy routing alive,
+* legacy Dates as the detailed owner,
+* and no removals yet.
+
+---
+
+## `ui/search/google_shell_sidebar.py`
+
+### 1. Replace the class docstring of `GoogleShellSidebar`
+
+Find:
+
+```python
+    """
+    Phase 6A passive shell sidebar.
+
+    Displays the future navigation structure above the legacy accordion.
+    Clicks emit selectBranch / openActivityCenterRequested but do NOT
+    own any routing — the layout's passive handler bridges to the
+    legacy accordion.
+    """
+```
+
+Replace with:
+
+```python
+    """
+    Phase 9 shell sidebar.
+
+    Shell is now the preferred visible interaction surface for stable,
+    retired sections. Legacy accordion remains visible and alive as
+    fallback, while shell clicks should produce direct, obvious outcomes
+    for retired sections such as Find, Videos, Locations, Duplicates,
+    and Devices.
+    """
+```
+
+---
+
+### 2. In `__init__`, add visible-outcome state fields immediately after:
+
+```python
+        self._retired_legacy_sections = set()
+```
+
+Insert:
+
+```python
+        self._shell_status_label = None
+        self._shell_state_text = ""
+```
+
+---
+
+### 3. Insert this helper directly below `_subhead`
+
+```python
+    def _status(self, text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setObjectName("ShellStatus")
+        lbl.setWordWrap(True)
+        self._shell_status_label = lbl
+        self._shell_state_text = text
+        return lbl
+```
+
+---
+
+### 4. In `__init__`, inside the Search Hub section block, insert a visible shell status row
+
+Find:
+
+```python
+        self.search_hub.add_widget(self._hint("Search, recent searches, scopes"))
+        self.search_hub.add_widget(self._nav("Open Search", "find"))
+```
+
+Replace with:
+
+```python
+        self.search_hub.add_widget(self._hint("Search, recent searches, scopes"))
+        self.search_hub.add_widget(self._status("No active shell result"))
+        self.search_hub.add_widget(self._nav("Open Search", "find"))
+```
+
+---
+
+### 5. Insert these methods directly below `is_legacy_section_retired`
+
+```python
+    def set_shell_state_text(self, text: str):
+        self._shell_state_text = text or ""
+        if self._shell_status_label is not None:
+            self._shell_status_label.setText(self._shell_state_text)
+
+    def clear_shell_state_text(self):
+        self.set_shell_state_text("No active shell result")
+```
+
+---
+
+### 6. Replace the entire `_SHELL_STYLE` block
+
+Find the full `_SHELL_STYLE = """ ... """` block and replace it with:
+
+```python
+_SHELL_STYLE = """
+QWidget#GoogleShellSidebar {
+    background: transparent;
+}
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QFrame#ShellSection {
+    background: #ffffff;
+    border: 1px solid #e7eaee;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader {
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 9px 12px 7px 12px;
+}
+QPushButton#ShellSectionHeader:hover {
+    background: #f6f8fb;
+    border-radius: 12px;
+}
+QPushButton#ShellSectionHeader:checked {
+    color: #1a73e8;
+}
+QLabel#ShellHint {
+    color: #80868b;
+    font-size: 11px;
+    padding: 0 2px 4px 2px;
+}
+QLabel#ShellSubhead {
+    color: #5f6368;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px 2px 2px;
+}
+QLabel#ShellStatus {
+    color: #1a73e8;
+    background: #eef3ff;
+    border: 1px solid #d2e3fc;
+    border-radius: 8px;
+    font-size: 11px;
+    padding: 6px 8px;
+}
+QPushButton#ShellNavBtn {
+    text-align: left;
+    font-size: 12px;
+    color: #202124;
+    border: none;
+    background: transparent;
+    padding: 6px 8px;
+    border-radius: 8px;
+}
+QPushButton#ShellNavBtn:hover {
+    background: #eef3ff;
+}
+QPushButton#ShellNavBtn[active="true"] {
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-weight: 600;
+}
+QPushButton#ShellNavBtn[disabledShell="true"] {
+    color: #a0a4ab;
+}
+QPushButton#ShellNavBtn[disabledShell="true"]:hover {
+    background: #f8f9fb;
+}
+"""
+```
+
+---
+
+## `layouts/google_layout.py`
+
+### 7. Insert these helpers directly below `_refresh_legacy_visibility_state`
+
+```python
+    def _set_shell_state_text(self, text: str):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "set_shell_state_text"):
+                    self.google_shell_sidebar.set_shell_state_text(text)
+        except Exception:
+            pass
+
+    def _clear_shell_state_text(self):
+        try:
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                if hasattr(self.google_shell_sidebar, "clear_shell_state_text"):
+                    self.google_shell_sidebar.clear_shell_state_text()
+        except Exception:
+            pass
+```
+
+---
+
+### 8. In `_on_disabled_shell_branch_requested(self, branch: str)`, add shell status feedback
+
+Find:
+
+```python
+            if branch in {"all", "dates", "folders", "devices", "videos", "locations", "duplicates", "find"}:
+                logger.info("[GooglePhotosLayout] Ignoring shell branch without project: %s", branch)
+```
+
+Replace with:
+
+```python
+            if branch in {"all", "dates", "folders", "devices", "videos", "locations", "duplicates", "find"}:
+                logger.info("[GooglePhotosLayout] Ignoring shell branch without project: %s", branch)
+                self._set_shell_state_text("Create or select a project to use shell actions")
+```
+
+---
+
+### 9. In `set_project(self, project_id)`, clear onboarding shell status when a project becomes active
+
+Find:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_project_available(bool(project_id))
+```
+
+Replace with:
+
+```python
+        if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+            self.google_shell_sidebar.set_project_available(bool(project_id))
+
+        if project_id:
+            self._clear_shell_state_text()
+```
+
+---
+
+### 10. In `_clear_filter(self)`, add a visible shell-native result message
+
+Find the existing Phase 7A/7B lines:
+
+```python
+        self._set_shell_active_branch("all")
+```
+
+Keep it, then immediately after the existing legacy emphasis/reset lines, insert:
+
+```python
+        self._set_shell_state_text("Showing all photos")
+```
+
+---
+
+### 11. Replace the retired-section block inside `_on_passive_shell_branch_clicked()`
+
+Find the current retired-section short-circuit block that starts with:
+
+```python
+        # Phase 8: retire selected legacy sections by making shell action sufficient
+        if self._is_legacy_section_retired(target):
+```
+
+Replace that whole block with:
+
+```python
+        # Phase 9: retired sections must produce visible shell-native outcomes
+        if self._is_legacy_section_retired(target):
+            if branch in {"find", "discover_beach", "discover_mountains", "discover_city", "favorites", "documents", "screenshots"}:
+                self._set_shell_active_branch(branch if branch != "find" else "find")
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+
+                if branch == "find":
+                    self._set_shell_state_text("Search is ready, use the main search field")
+                    # Best visible outcome: focus the main search field if available
+                    try:
+                        if hasattr(self.main_window, "search_bar") and self.main_window.search_bar:
+                            self.main_window.search_bar.setFocus()
+                            self.main_window.search_bar.selectAll()
+                    except Exception:
+                        pass
+                    return
+
+                if branch == "favorites":
+                    self._set_shell_state_text("Showing favorites")
+                    if hasattr(self, "_filter_favorites"):
+                        self._filter_favorites()
+                    return
+
+                if branch in {"documents", "screenshots"}:
+                    self._set_shell_state_text(f"Showing {branch}")
+                    self._load_photos()
+                    return
+
+                if branch == "discover_beach":
+                    self._set_shell_state_text("Discover preset, Beach")
+                    return
+                if branch == "discover_mountains":
+                    self._set_shell_state_text("Discover preset, Mountains")
+                    return
+                if branch == "discover_city":
+                    self._set_shell_state_text("Discover preset, City")
+                    return
+
+                return
+
+            if branch == "videos":
+                self._set_shell_active_branch("videos")
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_shell_state_text("Showing videos")
+                # Visible outcome: use existing video branch/filter behavior
+                try:
+                    self._on_accordion_branch_clicked("duration:medium")
+                except Exception:
+                    try:
+                        self._load_photos()
+                    except Exception:
+                        pass
+                return
+
+            if branch == "locations":
+                self._set_shell_active_branch("locations")
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_shell_state_text("Showing location results")
+                # Visible outcome: open location section once and let user pick
+                try:
+                    if hasattr(self.accordion_sidebar, "_expand_section"):
+                        self.accordion_sidebar._expand_section("locations")
+                except Exception:
+                    pass
+                return
+
+            if branch == "duplicates":
+                self._set_shell_active_branch("duplicates")
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_shell_state_text("Opening duplicate review")
+                try:
+                    if hasattr(self, "_open_duplicates_dialog"):
+                        self._open_duplicates_dialog()
+                except Exception:
+                    pass
+                return
+
+            if branch == "devices":
+                self._set_shell_active_branch("devices")
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_shell_state_text("Showing device sources")
+                try:
+                    if hasattr(self.accordion_sidebar, "_expand_section"):
+                        self.accordion_sidebar._expand_section("devices")
+                except Exception:
+                    pass
+                return
+```
+
+---
+### 12. In `_on_shell_quick_date_clicked(self, key: str)`, add a visible shell state message
+
+Find:
+
+```python
+            self._set_shell_active_branch(key)
+```
+
+Immediately after it, insert:
+
+```python
+            self._set_shell_state_text(f"Quick date, {key.replace('_', ' ')}")
+```
+
+---
+
+### 13. In `_on_accordion_date_clicked(self, date_key: str)`, add a visible state message
+
+Find:
+
+```python
+        self._set_shell_active_branch("dates")
+```
+
+Immediately after it, insert:
+
+```python
+        self._set_shell_state_text(f"Date filter, {date_key}")
+```
+
+---
+
+### 14. In `_execute_folder_click(self)`, add a visible state message
+
+Find:
+
+```python
+                    self._set_shell_active_branch("folders")
+```
+
+Immediately after it, insert:
+
+```python
+                    self._set_shell_state_text("Folder filter active")
+```
+
+---
+
+### 15. In `_on_accordion_location_clicked(self, location_data: dict)`, add a visible state message
+
+Find:
+
+```python
+        self._set_shell_active_branch("locations")
+```
+
+Immediately after it, insert:
+
+```python
+        self._set_shell_state_text(
+            f"Location, {location_data.get('name', 'Unknown Location')}"
+        )
+```
+
+---
+
+### 16. In `_on_accordion_person_clicked(self, person_branch_key: str)`, add visible state messages
+
+Find:
+
+```python
+        self._set_shell_active_branch("people_show_all")
+```
+
+Immediately after it, insert:
+
+```python
+        if person_branch_key:
+            self._set_shell_state_text("People filter active")
+```
+
+Then in the clear branch inside that same method, find:
+
+```python
+            self._set_shell_active_branch("all")
+```
+
+Immediately after it, insert:
+
+```python
+            self._set_shell_state_text("Showing all photos")
+```
+
+---
+
+### 17. In `_on_toggle_activity_center(self)`, add visible status text
+
+Find the method:
+
+```python
+    def _on_toggle_activity_center(self):
+```
+
+Inside it, at the top of the method body, insert:
+
+```python
+        self._set_shell_state_text("Opening Activity Center")
+```
+
+Do not change its existing logic.
+
+---
+
+## `CHANGELOG.md`
+
+### 18. Insert this new section at the top of `[Unreleased] - 2026-04-06`
+
+```markdown
+### Phase 9 — Shell-Native Visible Outcomes
+
+Retired shell sections now produce direct, visible outcomes instead of only
+changing internal ownership or suppressing accordion expansion.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Added shell status message row in Search Hub
+- Added `set_shell_state_text()` / `clear_shell_state_text()`
+- Shell now visibly reports the current shell-native outcome
+
+#### Google Layout (`layouts/google_layout.py`)
+- Added `_set_shell_state_text()` / `_clear_shell_state_text()` helpers
+- No-project shell clicks now update shell status text
+- All Photos visibly reports "Showing all photos"
+- Quick dates visibly report the active quick-date context
+- Dates, folders, locations, and people now sync visible shell state text
+- Retired sections now produce visible outcomes:
+  - Find → focuses main search field
+  - Favorites → runs favorite filter
+  - Videos → shows a videos result state
+  - Locations → visibly opens location results
+  - Duplicates → opens duplicate review
+  - Devices → visibly opens device sources
+- Legacy block remains visible and alive
+- Legacy Dates remains the detailed owner
+
+#### Product Effect
+- Retired sections now feel meaningfully different from Phase 7B/8
+- The shell now communicates results directly instead of only changing routing ownership
+```
+
+---
+
+## What this Phase 9 should change visibly
+
+After this patch:
+
+* clicking **Find** should visibly focus search and show shell status
+* clicking **Videos** should visibly move into a video-oriented result state
+* clicking **Locations** should visibly expose location results
+* clicking **Duplicates** should directly open duplicate review
+* clicking **Devices** should visibly open device sources
+* shell should finally feel more direct than in Phase 8
+
