@@ -1,0 +1,352 @@
+Good, now we are finally at the point where things become product-grade instead of just “technically correct”.
+
+Your Phase 9 logs confirm something important:
+
+👉 **You still don’t have strong visible differentiation between shell actions and grid state.**
+
+What you pasted shows:
+
+* full reload cycles,
+* layout switches,
+* grouping,
+* but **no clear “this is now Videos mode / Find mode / Locations mode” state transition**.
+
+So your instinct is correct, Phase 10 is needed.
+
+---
+
+# 🔴 Phase 10 — Shell-native result surfaces (with Dates in shell)
+
+## What this phase really fixes (hard truth)
+
+Right now your system behaves like:
+
+* shell = trigger
+* grid = always “same renderer with slightly different filters”
+
+That is **not how Google Photos or Apple Photos feel**.
+
+They behave like:
+
+* each section has a **mode identity**
+* grid is **visibly different per mode**
+* navigation state is **clear and persistent**
+
+👉 Phase 10 introduces:
+
+* **mode state**
+* **visible feedback**
+* **shell-owned Dates hierarchy (preview level)**
+* **better state text**
+* **clearer transitions**
+
+---
+
+# 🧠 Key concept you were missing
+
+You have filters.
+You don’t have **view modes**.
+
+We fix that.
+
+---
+
+# ✅ Phase 10 patch pack
+
+STRICT copy-paste blocks only.
+
+---
+
+# 🔧 FILE 1 — `layouts/google_layout.py`
+
+---
+
+## 🔹 PATCH 1 — ADD VIEW MODE STATE
+
+ADD inside `__init__`:
+
+```python
+# Phase 10: explicit view mode state
+self._current_view_mode = "all"  # all | videos | locations | search | duplicates | devices
+```
+
+---
+
+## 🔹 PATCH 2 — CENTRAL VIEW MODE SETTER
+
+ADD method:
+
+```python
+def _set_view_mode(self, mode: str, description: str = ""):
+    self._current_view_mode = mode
+
+    # Stronger shell state text
+    if description:
+        self._set_shell_state_text(f"{mode.upper()} • {description}")
+    else:
+        self._set_shell_state_text(f"{mode.upper()} view")
+
+    print(f"[{self.__class__.__name__}] View mode → {mode}")
+```
+
+---
+
+## 🔹 PATCH 3 — UPGRADE FIND (REAL MODE)
+
+REPLACE your Phase 9 find block:
+
+```python
+elif branch == "find":
+    self._set_view_mode("search", "Type to search your library")
+
+    # focus search bar if available
+    if hasattr(self, "main_window") and hasattr(self.main_window, "top_search_bar"):
+        try:
+            self.main_window.top_search_bar.setFocus()
+        except Exception:
+            pass
+```
+
+---
+
+## 🔹 PATCH 4 — UPGRADE VIDEOS (VISIBLE MODE)
+
+REPLACE videos block:
+
+```python
+elif branch == "videos":
+    self._set_view_mode("videos", "Showing video files")
+
+    self.request_reload(reason="videos_only", video_only=True)
+```
+
+👉 this requires your reload to support `video_only`
+
+---
+
+## 🔹 PATCH 5 — UPGRADE LOCATIONS (MODE + FILTER)
+
+REPLACE:
+
+```python
+elif branch == "locations":
+    self._set_view_mode("locations", "Grouped by location")
+
+    if hasattr(self, "_accordion"):
+        self._accordion.expand_section("locations")
+```
+
+---
+
+## 🔹 PATCH 6 — UPGRADE DUPLICATES (WITH SIMILARS)
+
+THIS IS IMPORTANT — you asked about similars.
+
+👉 duplicates ≠ similars
+👉 but both belong to **“Review” mode**
+
+REPLACE:
+
+```python
+elif branch == "duplicates":
+    self._set_view_mode("review", "Duplicates & similar shots")
+
+    if hasattr(self, "_open_duplicates_dialog"):
+        self._open_duplicates_dialog()
+```
+
+---
+
+## 🔹 PATCH 7 — DEVICES MODE (REAL STATE)
+
+```python
+elif branch == "devices":
+    self._set_view_mode("devices", "External sources")
+
+    if hasattr(self, "_accordion"):
+        self._accordion.expand_section("devices")
+```
+
+---
+
+## 🔹 PATCH 8 — ALL PHOTOS RESET MODE
+
+MODIFY your existing “all” block:
+
+```python
+self._set_view_mode("all", "All photos")
+```
+
+---
+
+## 🔹 PATCH 9 — STRONGER STATE TEXT CLEANUP
+
+REPLACE `_clear_shell_state_text`:
+
+```python
+def _clear_shell_state_text(self):
+    if hasattr(self, "shell_sidebar"):
+        self.shell_sidebar.set_shell_state_text("Ready")
+```
+
+---
+
+# 🔧 FILE 2 — `ui/search/google_shell_sidebar.py`
+
+---
+
+## 🔹 PATCH 10 — IMPROVE STATUS LABEL
+
+FIND status label creation
+
+REPLACE WITH:
+
+```python
+def _status(self, text: str):
+    lbl = QLabel(text)
+    lbl.setObjectName("ShellStatus")
+    lbl.setWordWrap(True)
+    self._shell_status_label = lbl
+    return lbl
+```
+
+---
+
+## 🔹 PATCH 11 — ADD DATES TREE (SHELL LEVEL)
+
+👉 This is your requested major upgrade
+
+ADD inside Browse section after “Dates”:
+
+```python
+self.browse.add_widget(self._subhead("Dates Overview"))
+
+self.browse.add_widget(self._nav("2026", "year_2026"))
+self.browse.add_widget(self._nav("2025", "year_2025"))
+self.browse.add_widget(self._nav("2024", "year_2024"))
+```
+
+👉 This is NOT replacing legacy tree
+👉 This is **quick-access layer**
+
+---
+
+## 🔹 PATCH 12 — IMPROVE STATE TEXT API
+
+REPLACE:
+
+```python
+def set_shell_state_text(self, text: str):
+    if self._shell_status_label:
+        self._shell_status_label.setText(text)
+```
+
+WITH:
+
+```python
+def set_shell_state_text(self, text: str):
+    self._shell_state_text = text
+    if self._shell_status_label:
+        self._shell_status_label.setText(text)
+```
+
+---
+
+# 🔧 FILE 3 — `main_window_qt.py`
+
+---
+
+## 🔹 PATCH 13 — ROUTER UPGRADE (DATES FROM SHELL)
+
+ADD inside router:
+
+```python
+if branch.startswith("year_"):
+    year = int(branch.split("_")[1])
+    self.google_layout.request_reload(reason="year_filter", year=year)
+    return
+```
+
+---
+
+## 🔹 PATCH 14 — STRONGER SHELL PRIORITY
+
+Update docstring only:
+
+```python
+# Phase 10:
+# Shell now controls visible modes (not only routing).
+# Legacy accordion remains as fallback and detailed hierarchy.
+```
+
+---
+
+# 🎯 What you gain immediately
+
+After Phase 10:
+
+### Before
+
+* Everything = same grid + reload
+
+### After
+
+* Find → search mode
+* Videos → video mode
+* Locations → location mode
+* Duplicates → review mode
+* Devices → source mode
+* Dates → quick shell + deep legacy tree
+
+👉 **THIS is the first time your app feels like a product**
+
+---
+
+# 🔥 Critical insight (don’t ignore this)
+
+You asked:
+
+> “why no visible difference between Phase 7B and Phase 8?”
+
+Because:
+
+👉 you were changing **routing**
+👉 not **state + rendering identity**
+
+Phase 10 fixes that.
+
+---
+
+# ⚠️ One blind spot you still have
+
+You still rely heavily on:
+
+* full reload cycles
+
+Google Photos doesn’t.
+
+Later Phase (11+):
+
+* introduce **state-preserving transitions**
+* avoid full reload where possible
+
+---
+
+# Next step
+
+If you want to push toward **real product quality**:
+
+👉 Next phase would be:
+
+**Phase 11 — State-preserving transitions & zero-reload navigation**
+
+---
+
+If you want, I can:
+
+* audit your reload pipeline next (this is where 80% of UX weakness still lives)
+* or give you Phase 11 patch pack
+
+But for now:
+
+👉 **Apply Phase 10, this is the first phase that actually changes perception, not just architecture.**
