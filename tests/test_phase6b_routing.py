@@ -480,33 +480,37 @@ class TestPeopleBranchRouting:
 class TestLegacySectionRouting:
     """Test legacy-detailed section accordion fallback."""
 
-    LEGACY_SECTION_MAP = {
+    # Non-retired sections still expand accordion (Phase 8 kept these live)
+    LIVE_SECTION_MAP = {
         "dates": "dates",
         "years": "dates",
         "months": "dates",
         "days": "dates",
         "folders": "folders",
-        "devices": "devices",
-        "videos": "videos",
-        "locations": "locations",
-        "duplicates": "duplicates",
-        "favorites": "find",
-        "documents": "find",
-        "screenshots": "find",
-        "find": "find",
-        "discover_beach": "find",
-        "discover_mountains": "find",
-        "discover_city": "find",
     }
 
-    @pytest.mark.parametrize("branch,expected_section", list(LEGACY_SECTION_MAP.items()))
+    # Phase 8 retired these — they short-circuit without expanding accordion
+    RETIRED_BRANCHES = [
+        "devices", "videos", "locations", "duplicates",
+        "favorites", "documents", "screenshots", "find",
+        "discover_beach", "discover_mountains", "discover_city",
+    ]
+
+    @pytest.mark.parametrize("branch,expected_section", list(LIVE_SECTION_MAP.items()))
     def test_legacy_branch_expands_correct_section(self, branch, expected_section):
-        """Legacy branches should expand the correct accordion section."""
+        """Non-retired legacy branches should expand the correct accordion section."""
         layout = _make_mock_layout()
         _call_shell_branch(layout, branch)
         layout.accordion_sidebar._expand_section.assert_called_once_with(expected_section)
 
-    @pytest.mark.parametrize("branch,expected_section", list(LEGACY_SECTION_MAP.items()))
+    @pytest.mark.parametrize("branch", RETIRED_BRANCHES)
+    def test_retired_branch_skips_accordion(self, branch):
+        """Phase 8 retired branches should NOT expand accordion."""
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, branch)
+        layout.accordion_sidebar._expand_section.assert_not_called()
+
+    @pytest.mark.parametrize("branch,expected_section", list(LIVE_SECTION_MAP.items()))
     def test_legacy_branch_does_not_reload_grid(self, branch, expected_section):
         """Legacy branches should NOT trigger grid reload — accordion owns the action."""
         layout = _make_mock_layout()
@@ -533,11 +537,11 @@ class TestLegacySectionRouting:
         assert layout.accordion_sidebar._expand_section.call_count == 1
 
     def test_different_sections_not_deduped(self):
-        """Expanding different sections should NOT be deduped."""
+        """Expanding different non-retired sections should NOT be deduped."""
         layout = _make_mock_layout()
         _call_shell_branch(layout, "folders")
         assert layout.accordion_sidebar._expand_section.call_count == 1
-        _call_shell_branch(layout, "videos")
+        _call_shell_branch(layout, "dates")
         assert layout.accordion_sidebar._expand_section.call_count == 2
 
 

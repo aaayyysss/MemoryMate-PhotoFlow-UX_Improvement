@@ -2,7 +2,47 @@
 
 All notable changes to the MemoryMate PhotoFlow search pipeline are documented here.
 
-## [Unreleased] - 2026-04-05
+## [Unreleased] - 2026-04-06
+
+### Phase 8 — Gradual Legacy Retirement (Wave 1)
+
+First wave of legacy section retirement. Retired sections (find, devices, videos,
+locations, duplicates) no longer expand the accordion — the shell handles them
+directly. Non-retired sections (dates, folders, people) remain fully functional
+through the accordion fallback.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- Added `_retired_legacy_sections` set tracking retired sections
+- Added `set_retired_legacy_sections()` and `is_legacy_section_retired()` methods
+
+#### Google Layout (`layouts/google_layout.py`)
+- Added `_retired_legacy_sections` class-level set: find, devices, videos, locations, duplicates
+- Added `_is_legacy_section_retired()` helper method
+- Added `_refresh_legacy_visibility_state()` — updates legacy group title and shell emphasis
+- Retired-section short-circuit in `_on_passive_shell_branch_clicked()` — skips accordion
+- Expanded shell-primary emphasis set: retired branches now set emphasis=False
+- Non-retired legacy branches (dates, folders) continue to expand accordion with emphasis=True
+
+#### MainWindow (`main_window_qt.py`)
+- Router documentation updated to Phase 8 gradual legacy retirement model
+- No removals, non-retired fallback remains alive
+
+#### Retirement Tests (`tests/test_phase8_legacy_retirement.py`) — NEW
+- 53 tests covering all Phase 8 retirement logic, no PySide6/Qt required
+- **TestIsLegacySectionRetired** (9 tests): 5 retired=True, 3 non-retired=False, 1 unknown=False
+- **TestRetiredSectionsSkipAccordion** (22 tests): 11 branches skip accordion, 11 set active branch
+- **TestNonRetiredStillExpandAccordion** (5 tests): dates/years/months/days/folders still expand
+- **TestShellPrimaryEmphasisExpanded** (11 tests): retired branches set emphasis=False
+- **TestRefreshLegacyVisibility** (3 tests): fallback title, no-group guard, all-retired title
+- **TestMainWindowPhase8Router** (3 tests): docstring, people delegation, layout delegation
+
+#### Regression Test Updates
+- Phase 6B: split legacy section map into live/retired, added `test_retired_branch_skips_accordion`
+- Phase 7B: split emphasis branches into retired (emphasis=False) and live (emphasis=True)
+- Phase 7A/7B: docstring checks updated to accept Phase 8
+- **Total test count: 253 (all passing)**
+
+---
 
 ### Phase 7B — Shell-Primary Normal-Use Refinement
 

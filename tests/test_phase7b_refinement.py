@@ -249,11 +249,16 @@ class TestLegacyEmphasisFromShellClicks:
         "people_merge_review", "people_unnamed", "people_show_all",
     ]
 
+    # Phase 8 retired these sections — their branches now set emphasis=False
+    RETIRED_EMPHASIS_BRANCHES = [
+        "devices", "favorites", "videos", "documents", "screenshots",
+        "duplicates", "locations", "discover_beach", "discover_mountains",
+        "discover_city", "find",
+    ]
+
+    # Non-retired legacy branches still set emphasis=True
     LEGACY_EMPHASIS_BRANCHES = [
-        "dates", "years", "months", "days", "folders", "devices",
-        "favorites", "videos", "documents", "screenshots", "duplicates",
-        "locations", "discover_beach", "discover_mountains", "discover_city",
-        "find",
+        "dates", "years", "months", "days", "folders",
     ]
 
     @pytest.mark.parametrize("branch", SHELL_PRIMARY_BRANCHES)
@@ -263,9 +268,16 @@ class TestLegacyEmphasisFromShellClicks:
         GooglePhotosLayout._on_passive_shell_branch_clicked(layout, branch)
         layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
 
+    @pytest.mark.parametrize("branch", RETIRED_EMPHASIS_BRANCHES)
+    def test_retired_branches_set_emphasis_false(self, branch):
+        """Phase 8 retired branches now set legacy emphasis to False."""
+        layout = _make_mock_layout()
+        GooglePhotosLayout._on_passive_shell_branch_clicked(layout, branch)
+        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
+
     @pytest.mark.parametrize("branch", LEGACY_EMPHASIS_BRANCHES)
     def test_legacy_branches_set_emphasis_true(self, branch):
-        """Legacy-detailed branches should set legacy emphasis to True."""
+        """Non-retired legacy branches should set legacy emphasis to True."""
         layout = _make_mock_layout()
         GooglePhotosLayout._on_passive_shell_branch_clicked(layout, branch)
         layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(True)
@@ -354,7 +366,7 @@ class TestMainWindowPhase7BRouter:
     def test_router_has_phase_7b_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "7B" in doc or "7b" in doc
+        assert "7B" in doc or "7b" in doc or "8" in doc
 
     def test_router_still_delegates_people(self):
         mw = MagicMock()

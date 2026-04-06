@@ -1225,6 +1225,8 @@ class GooglePhotosLayout(BaseLayout):
             self._on_passive_activity_requested)
         self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
         self.google_shell_sidebar.set_legacy_emphasis(False)
+        self._retired_legacy_sections = {"find", "devices", "videos", "locations", "duplicates"}
+        self.google_shell_sidebar.set_retired_legacy_sections(self._retired_legacy_sections)
 
         # Legacy accordion in collapsible group
         self.legacy_tools_group = QGroupBox("Legacy Tools")
@@ -1240,6 +1242,7 @@ class GooglePhotosLayout(BaseLayout):
 
         lay.addWidget(self.google_shell_sidebar, 1)
         lay.addWidget(self.legacy_tools_group, 0)
+        self._refresh_legacy_visibility_state()
 
         container.setStyleSheet("""
             QWidget#GoogleLeftShell {
@@ -1303,6 +1306,32 @@ class GooglePhotosLayout(BaseLayout):
                     )
                 except Exception:
                     pass
+        except Exception:
+            pass
+
+    def _is_legacy_section_retired(self, section_name: str) -> bool:
+        return section_name in getattr(self, "_retired_legacy_sections", set())
+
+    def _refresh_legacy_visibility_state(self):
+        """
+        Phase 8:
+        Keep legacy visible, but make it clearly secondary once enough shell
+        paths are stable. Dates/People/Folders remain meaningful fallback.
+        """
+        try:
+            if not hasattr(self, "legacy_tools_group") or self.legacy_tools_group is None:
+                return
+
+            if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                self.google_shell_sidebar.set_legacy_emphasis(True)
+
+            remaining_live_sections = {"dates", "folders", "people"}
+            retired = getattr(self, "_retired_legacy_sections", set())
+
+            if remaining_live_sections - retired:
+                self.legacy_tools_group.setTitle("Legacy Tools, fallback")
+            else:
+                self.legacy_tools_group.setTitle("Legacy Tools")
         except Exception:
             pass
 
@@ -1371,6 +1400,17 @@ class GooglePhotosLayout(BaseLayout):
                     "people_merge_review",
                     "people_unnamed",
                     "people_show_all",
+                    "find",
+                    "discover_beach",
+                    "discover_mountains",
+                    "discover_city",
+                    "favorites",
+                    "documents",
+                    "screenshots",
+                    "duplicates",
+                    "videos",
+                    "locations",
+                    "devices",
                 }:
                     self.google_shell_sidebar.set_legacy_emphasis(False)
                 else:
@@ -1467,6 +1507,35 @@ class GooglePhotosLayout(BaseLayout):
             target = section_only_map.get(branch)
             if not target:
                 return
+
+            # Phase 8: retire selected legacy sections by making shell action sufficient
+            if self._is_legacy_section_retired(target):
+                if branch in {"find", "discover_beach", "discover_mountains", "discover_city", "favorites", "documents", "screenshots"}:
+                    self._set_shell_active_branch(branch if branch != "find" else "find")
+                    return
+
+                if branch == "videos":
+                    self._set_shell_active_branch("videos")
+                    try:
+                        if hasattr(self.accordion_sidebar, "section_logic"):
+                            videos_section = self.accordion_sidebar.section_logic.get("videos")
+                            if videos_section and hasattr(videos_section, "_on_video_clicked"):
+                                return
+                    except Exception:
+                        pass
+                    return
+
+                if branch == "locations":
+                    self._set_shell_active_branch("locations")
+                    return
+
+                if branch == "duplicates":
+                    self._set_shell_active_branch("duplicates")
+                    return
+
+                if branch == "devices":
+                    self._set_shell_active_branch("devices")
+                    return
 
             now = time.time()
             if target == self._last_passive_section and (now - self._last_passive_section_ts) < 1.0:
@@ -9635,6 +9704,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
         self._set_shell_active_branch("all")
         if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
             self.google_shell_sidebar.set_legacy_emphasis(False)
+        self._refresh_legacy_visibility_state()
         print("[GooglePhotosLayout] Clearing all filters")
 
         # Reload without filters
@@ -10659,6 +10729,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
 
             if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
                 self.google_shell_sidebar.set_project_available(bool(project_id))
+            self._refresh_legacy_visibility_state()
 
             # Update accordion sidebar with new project
             if hasattr(self, 'accordion_sidebar') and self.accordion_sidebar is not None:
