@@ -1,18 +1,18 @@
-C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main>run_app.bat
+C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main>run_app.bat
 Using runtime: C:\Tools\MM_Runtime\.venv\Scripts\python.exe
 [BOOT] sys.executable = C:\Tools\MM_Runtime\.venv\Scripts\python.exe
 [Startup] pillow_heif available — HEIC/HEIF support enabled.
 🔇 Decoder warnings suppressed per settings.
 🔇 Decoder warnings suppressed (Qt, Pillow, ICC).
-[Environment] APP_DIR = C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main
+[Environment] APP_DIR = C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main
 [Environment] Portable Python: False
 [Environment] sys.executable = C:\Tools\MM_Runtime\.venv\Scripts\python.exe
-✅ Loaded en translations from C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\locales\en.json
+✅ Loaded en translations from C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\locales\en.json
 🌍 Language initialized: en
-2026-04-06 21:14:49,597 [INFO] ================================================================================
-2026-04-06 21:14:49,597 [INFO] MemoryMate-PhotoFlow logging initialized (level=INFO)
-2026-04-06 21:14:49,597 [INFO] Log file: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\app_log.txt
-2026-04-06 21:14:49,597 [INFO] ================================================================================
+2026-04-07 01:19:30,214 [INFO] ================================================================================
+2026-04-07 01:19:30,214 [INFO] MemoryMate-PhotoFlow logging initialized (level=INFO)
+2026-04-07 01:19:30,214 [INFO] Log file: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\app_log.txt
+2026-04-07 01:19:30,214 [INFO] ================================================================================
 ============================================================
 SCREEN INFORMATION (DPI-Aware)
 ============================================================
@@ -25,18 +25,18 @@ Taskbar Height:  48px
 Adaptive Margin: 60px
 Adaptive Icons:  24px
 ============================================================
-2026-04-06 21:14:49,676 [INFO] Installed Qt message handler to suppress TIFF warnings
-2026-04-06 21:14:49,676 [INFO] Qt message handler installed to suppress TIFF warnings
-2026-04-06 21:14:49,699 [INFO] [Store] Initialized (ui_epoch=0)
-2026-04-06 21:14:49,699 [INFO] [Startup] ProjectState store initialized
+2026-04-07 01:19:30,335 [INFO] Installed Qt message handler to suppress TIFF warnings
+2026-04-07 01:19:30,335 [INFO] Qt message handler installed to suppress TIFF warnings
+2026-04-07 01:19:30,359 [INFO] [Store] Initialized (ui_epoch=0)
+2026-04-07 01:19:30,359 [INFO] [Startup] ProjectState store initialized
 [Main] Starting Qt event loop...
 [Startup] Database schema initialized successfully
-[Cache] {'entries': 0, 'size_mb': 0.0, 'path': 'C:\\Users\\suleimaa\\Downloads\\Photo-Sorter\\12.01.01.01-Photo-App\\19-MemoryMate-PhotoFlow-UX_Improvement-main\\thumbnails_cache.db', 'last_updated': '2026-04-06 21:14'}
-2026-04-06 21:14:51,215 [INFO] SearchService initialized
+[Cache] {'entries': 0, 'size_mb': 0.0, 'path': 'C:\\Users\\suleimaa\\Downloads\\Photo-Sorter\\12.01.01.01-Photo-App\\20-MemoryMate-PhotoFlow-UX_Improvement-main\\thumbnails_cache.db', 'last_updated': '2026-04-07 01:19'}
+2026-04-07 01:19:32,195 [INFO] SearchService initialized
 [Startup] SearchService initialized
-2026-04-06 21:14:51,225 [INFO] LRUCache initialized with capacity=200, max_memory=100.0MB
-2026-04-06 21:14:51,226 [INFO] ThumbnailService initialized (L1 capacity=200, max_memory=100.0MB, timeout=5.0s)
-2026-04-06 21:14:51,226 [INFO] Global ThumbnailService created with Phase 1B memory limits
+2026-04-07 01:19:32,195 [INFO] LRUCache initialized with capacity=200, max_memory=100.0MB
+2026-04-07 01:19:32,195 [INFO] ThumbnailService initialized (L1 capacity=200, max_memory=100.0MB, timeout=5.0s)
+2026-04-07 01:19:32,201 [INFO] Global ThumbnailService created with Phase 1B memory limits
 [Startup] ThumbnailService initialized
 [Startup] Qt image plugins: ['bmp', 'cur', 'gif', 'icns', 'ico', 'jpeg', 'jpg', 'pbm', 'pdf', 'pgm', 'png', 'ppm', 'svg', 'svgz', 'tga', 'tif', 'tiff', 'wbmp', 'webp', 'xbm', 'xpm']
 [Startup] ⚠️ CREATING MainWindow instance...
@@ -54,9 +54,9 @@ Adaptive Icons:  24px
 [MainWindow] 📍 Window position: x=60, y=60
 [MainWindow] ✓ Window geometry: PySide6.QtCore.QRect(60, 60, 1800, 1032)
 🔇 Qt/Pillow decoder warnings silenced (per user settings).
-2026-04-06 21:14:51,295 [INFO] [SessionState] Loaded: section=find, selection=None/None
-2026-04-06 21:14:51,298 [INFO] [Bootstrap] Policy: Last-used project_id=1 no longer exists
-2026-04-06 21:14:51,298 [INFO] [Bootstrap] Policy: No projects found, entering onboarding
+2026-04-07 01:19:32,295 [INFO] [SessionState] Loaded: section=find, selection=None/None
+2026-04-07 01:19:32,296 [INFO] [Bootstrap] Policy: Last-used project_id=1 no longer exists
+2026-04-07 01:19:32,296 [INFO] [Bootstrap] Policy: No projects found, entering onboarding
 [Sidebar] Device auto-detection disabled (manual refresh only)
 [SidebarQt] switch_display_mode(list) - canceling old workers
 [SidebarQt] Hiding tabs controller and accordion
@@ -72,14 +72,14 @@ Adaptive Icons:  24px
 [SidebarQt] list_branches() returned 0 branches
 [Sidebar] Loading videos for project_id=None
 [Sidebar] Found 0 videos in project None
-2026-04-06 21:14:51,326 [INFO] [get_location_clusters] GPS columns exist: True
-2026-04-06 21:14:51,326 [INFO] [get_location_clusters] Found 0 photos with GPS data (project_id=None)
-2026-04-06 21:14:51,326 [WARNING] [get_location_clusters] No GPS data found. Total photos in DB: 0
-2026-04-06 21:14:51,326 [INFO] [get_location_clusters] get_photos_by_location returned 0 location groups
-2026-04-06 21:14:51,326 [INFO] [get_location_clusters] Returning 0 location clusters
+2026-04-07 01:19:32,342 [INFO] [get_location_clusters] GPS columns exist: True
+2026-04-07 01:19:32,342 [INFO] [get_location_clusters] Found 0 photos with GPS data (project_id=None)
+2026-04-07 01:19:32,342 [WARNING] [get_location_clusters] No GPS data found. Total photos in DB: 0
+2026-04-07 01:19:32,342 [INFO] [get_location_clusters] get_photos_by_location returned 0 location groups
+2026-04-07 01:19:32,347 [INFO] [get_location_clusters] Returning 0 location clusters
 [Sidebar] No mobile devices detected - added help message
 [SidebarQt] _build_tree_model() completed
-2026-04-06 21:14:51,342 [INFO] [Bootstrap] Entering explicit onboarding state
+2026-04-07 01:19:32,359 [INFO] [Bootstrap] Entering explicit onboarding state
 [GRID] P2-26: Created dedicated thumbnail thread pool with 4 workers
 [MainWindow] ✓ MetadataEditorDock initialized
 [LayoutManager] Overriding saved layout 'current' → 'google'
@@ -88,22 +88,22 @@ Adaptive Icons:  24px
 [LayoutManager] 💾 Took ownership of original central widget: QWidget
 [GooglePhotosLayout] ⚠️ WARNING: No projects found! Please create a project first.
 [GooglePhotosLayout] Project selector populated with 0 projects (+ New Project option)
-2026-04-06 21:14:51,736 [INFO] [AccordionSidebar] Initializing with project_id=None
-2026-04-06 21:14:51,753 [INFO] [AccordionSidebar] Created 9 sections
-2026-04-06 21:14:51,753 [INFO] [AccordionSidebar] Suppressing default section expansion (onboarding mode)
+2026-04-07 01:19:32,802 [INFO] [AccordionSidebar] Initializing with project_id=None
+2026-04-07 01:19:32,826 [INFO] [AccordionSidebar] Created 9 sections
+2026-04-07 01:19:32,827 [INFO] [AccordionSidebar] Suppressing default section expansion (onboarding mode)
 [GooglePhotosLayout] ✅ Scroll-triggered lazy loading enabled
 [LayoutManager] Setting new central widget: QWidget
 [GooglePhotosLayout] Layout activated
 [LayoutManager] Switched to: Google Photos Style
 [Startup] Layout system initialized successfully
 [MainWindow] __init__() COMPLETED - returning to main_qt.py
-[MainWindow] Window object: <main_window_qt.MainWindow(0x202042ac8b0) at 0x00000202095DB700>
+[MainWindow] Window object: <main_window_qt.MainWindow(0x21210893280) at 0x00000212129EDF00>
 [MainWindow] Window valid: N/A
 [Startup] ✅ MainWindow instance created successfully
 [Startup] MainWindow type: <class 'main_window_qt.MainWindow'>
 [Startup] MainWindow is valid: True
-2026-04-06 21:14:52,093 [INFO] [Store] QtActionBridge initialized
-2026-04-06 21:14:52,093 [INFO] [Startup] QtActionBridge attached to MainWindow
+2026-04-07 01:19:33,169 [INFO] [Store] QtActionBridge initialized
+2026-04-07 01:19:33,169 [INFO] [Startup] QtActionBridge attached to MainWindow
 [Startup] Updating splash progress to 95%...
 
 [Breadcrumb] _update_breadcrumb() CALLED
@@ -131,27 +131,24 @@ Adaptive Icons:  24px
 [Startup] Window on screen: \\.\DISPLAY1
 [MainWindow] ✓ Window is on-screen (center at 959, 606)
 [Startup] Window raised and activated
-[Startup] _after_first_paint fired at 377500.245s
-2026-04-06 21:14:52,230 [INFO] JobService initialized
-2026-04-06 21:14:52,238 [INFO] [JobManager] Initialized with max 4 workers
-2026-04-06 21:14:52,238 [INFO] [JobManager] Startup throttle enabled (max_threads=1)
-2026-04-06 21:14:52,238 [INFO] [Startup] Suppressing initial project-bound layout load because no active project exists
+[Startup] _after_first_paint fired at 392181.306s
+2026-04-07 01:19:33,282 [INFO] JobService initialized
+2026-04-07 01:19:33,290 [INFO] [JobManager] Initialized with max 4 workers
+2026-04-07 01:19:33,290 [INFO] [JobManager] Startup throttle enabled (max_threads=1)
+2026-04-07 01:19:33,293 [INFO] [Startup] Suppressing initial project-bound layout load because no active project exists
 [Startup] ✅ Main window should now be visible
 [Startup] If window is not visible, check:
 [Startup]   1. Window position: (60, 60)
 [Startup]   2. Window size: 1800x1032
 [Startup]   3. Screen geometry: PySide6.QtCore.QRect(0, 0, 1920, 1152)
 [Startup]   4. Check if window is off-screen or on disconnected monitor
-2026-04-06 21:14:52,338 [INFO] [Main] Async FFmpeg detection worker launched
-2026-04-06 21:14:52,340 [INFO] [FFmpegDetectionWorker] Starting async FFmpeg detection...
-2026-04-06 21:14:52,466 [INFO] [FFmpegDetectionWorker] Fresh detection completed in 0.13s
-✅ FFmpeg and FFprobe detected (custom path: C:\ffmpeg\bin)
+2026-04-07 01:19:33,392 [INFO] [Main] Async FFmpeg detection worker launched
+2026-04-07 01:19:33,392 [INFO] [FFmpegDetectionWorker] Starting async FFmpeg detection...
 [MainWindow] No active project (onboarding) — suppressing auto-load and heavy maintenance
+2026-04-07 01:19:33,546 [INFO] [FFmpegDetectionWorker] Fresh detection completed in 0.15s
+✅ FFmpeg and FFprobe detected (custom path: C:\ffmpeg\bin)
 [Startup] Global QThreadPool restored to 1 threads
-2026-04-06 21:14:57,230 [INFO] [JobManager] Startup throttle disabled (restored max_threads=12)
-2026-04-06 21:15:05,647 [INFO] [GooglePhotosLayout] Ignoring shell branch without project: all
-✅ InsightFace detected with buffalo_l models
-   Location: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\models\buffalo_l
+2026-04-07 01:19:38,304 [INFO] [JobManager] Startup throttle disabled (restored max_threads=12)
 [GooglePhotosLayout] ➕ New Project option selected
 [GooglePhotosLayout] 🆕🆕🆕 CREATE PROJECT BUTTON CLICKED! 🆕🆕🆕
 [GooglePhotosLayout] ✓ Calling breadcrumb_nav._create_new_project()...
@@ -159,7 +156,7 @@ Adaptive Icons:  24px
 
 [MainWindow] ========== _on_project_changed_by_id(1) STARTED ==========
 [GooglePhotosLayout] set_project() called: None -> 1
-2026-04-06 21:15:18,250 [INFO] [AccordionSidebar] Switching project: None → 1
+2026-04-07 01:19:54,411 [INFO] [AccordionSidebar] Switching project: None → 1
 [MainWindow] Delegated to GooglePhotosLayout.set_project(1)
 [MainWindow] ========== _on_project_changed_by_id(1) COMPLETED ==========
 
@@ -174,329 +171,331 @@ Adaptive Icons:  24px
 [GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 1) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 1, page_size=250)
-2026-04-06 21:15:18,388 [INFO] [GoogleLayout] Page count ready: gen=1 total=0 (threshold=3000)
-2026-04-06 21:15:18,388 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=0 loaded=0/0
+2026-04-07 01:19:54,546 [INFO] [GoogleLayout] Page count ready: gen=1 total=0 (threshold=3000)
+2026-04-07 01:19:54,546 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=0 loaded=0/0
 [GooglePhotosLayout] No photos found in project 1
-2026-04-06 21:15:18,390 [INFO] [GoogleLayout] All pages loaded: 0 rows total
-2026-04-06 21:15:19,760 [INFO] [SemanticEmbeddingService] Creating service for model: openai/clip-vit-base-patch32
-2026-04-06 21:15:19,760 [INFO] [SemanticEmbeddingService] Initialized (lazy) with model=openai/clip-vit-base-patch32
-2026-04-06 21:15:35,330 [INFO] [JobManager] Registered tracked job -1: scan — Scanning output6
-2026-04-06 21:15:35,330 [INFO] Database connection verified for scan
-2026-04-06 21:15:35,330 [INFO] DBWriter timer started in worker thread
-2026-04-06 21:15:35,335 [INFO] [Store] ScanStarted job=-1 src=scan_controller deltas={'jobs_v': '0→1'}  →  3 subscriber(s)
-2026-04-06 21:15:35,335 [INFO] [ScanWorkerAdapter] Starting scan of C:/Users/suleimaa/Downloads/Photo-Sorter/Images/Images/output6 (thread=Dummy-10, is_main=False)
-2026-04-06 21:15:35,337 [INFO] Starting scan: C:/Users/suleimaa/Downloads/Photo-Sorter/Images/Images/output6 (incremental=True, skip_unchanged=True)
-2026-04-06 21:15:35,358 [INFO] Discovered 25 candidate image files and 2 video files
-2026-04-06 21:15:35,360 [INFO] Loading existing metadata for incremental scan...
-2026-04-06 21:15:35,363 [INFO] ✓ Loaded 0 existing photo records and 0 video records
+2026-04-07 01:19:54,550 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+✅ InsightFace detected with buffalo_l models
+   Location: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\models\buffalo_l
+2026-04-07 01:19:55,921 [INFO] [SemanticEmbeddingService] Creating service for model: openai/clip-vit-base-patch32
+2026-04-07 01:19:55,921 [INFO] [SemanticEmbeddingService] Initialized (lazy) with model=openai/clip-vit-base-patch32
+2026-04-07 01:20:13,821 [INFO] [JobManager] Registered tracked job -1: scan — Scanning output6
+2026-04-07 01:20:13,821 [INFO] Database connection verified for scan
+2026-04-07 01:20:13,821 [INFO] DBWriter timer started in worker thread
+2026-04-07 01:20:13,821 [INFO] [ScanWorkerAdapter] Starting scan of C:/Users/suleimaa/Downloads/Photo-Sorter/Images/Images/output6 (thread=Dummy-10, is_main=False)
+2026-04-07 01:20:13,821 [INFO] [Store] ScanStarted job=-1 src=scan_controller deltas={'jobs_v': '0→1'}  →  3 subscriber(s)
+2026-04-07 01:20:13,821 [INFO] Starting scan: C:/Users/suleimaa/Downloads/Photo-Sorter/Images/Images/output6 (incremental=True, skip_unchanged=True)
+2026-04-07 01:20:13,841 [INFO] Discovered 25 candidate image files and 2 video files
+2026-04-07 01:20:13,847 [INFO] Loading existing metadata for incremental scan...
+2026-04-07 01:20:13,851 [INFO] ✓ Loaded 0 existing photo records and 0 video records
 [SCAN] Created single executor for scan (25 files)
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Alya1_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,364 [INFO] 📷 Processing: Alya1_2_2_2.jpeg (345.2 KB)
+2026-04-07 01:20:13,851 [INFO] 📷 Processing: Alya1_2_2_2.jpeg (345.2 KB)
 [SCAN] Processing: Alya1_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Alya1_2_2_2.jpeg [w=1440, h=2560, date=2024-11-29 17:04:13]
-2026-04-06 21:15:35,520 [INFO] [Scan] Metadata extracted successfully: Alya1_2_2_2.jpeg [w=1440, h=2560, date=2024-11-29 17:04:13]
+2026-04-07 01:20:13,975 [INFO] [Scan] Metadata extracted successfully: Alya1_2_2_2.jpeg [w=1440, h=2560, date=2024-11-29 17:04:13]
 [SCAN] Creating folder hierarchy for: Alya1_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Alya1_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Alya1_3_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,520 [INFO] 📷 Processing: Alya1_3_2.jpeg (345.2 KB)
+2026-04-07 01:20:13,981 [INFO] 📷 Processing: Alya1_3_2.jpeg (345.2 KB)
 [SCAN] Processing: Alya1_3_2.jpeg
 [SCAN] ✓ Metadata extracted: Alya1_3_2.jpeg [w=1440, h=2560, date=2024-11-29 17:04:13]
-2026-04-06 21:15:35,563 [INFO] [Scan] Metadata extracted successfully: Alya1_3_2.jpeg [w=1440, h=2560, date=2024-11-29 17:04:13]
+2026-04-07 01:20:14,012 [INFO] [Scan] Metadata extracted successfully: Alya1_3_2.jpeg [w=1440, h=2560, date=2024-11-29 17:04:13]
 [SCAN] Creating folder hierarchy for: Alya1_3_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Alya1_3_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Alya2_2_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,572 [INFO] 📷 Processing: Alya2_2_2_2_2.jpeg (107.1 KB)
+2026-04-07 01:20:14,031 [INFO] 📷 Processing: Alya2_2_2_2_2.jpeg (107.1 KB)
 [SCAN] Processing: Alya2_2_2_2_2.jpeg
-2026-04-06 21:15:35,582 [INFO] [Scan] ✓ GPS extracted: Alya2_2_2_2_2.jpeg (33.4475, 36.1634)
+2026-04-07 01:20:14,038 [INFO] [Scan] ✓ GPS extracted: Alya2_2_2_2_2.jpeg (33.4475, 36.1634)
 [SCAN] ✓ GPS: (33.4475, 36.1634)
 [SCAN] ✓ Metadata extracted: Alya2_2_2_2_2.jpeg [w=611, h=1081, date=2024-12-02 17:24:41]
-2026-04-06 21:15:35,582 [INFO] [Scan] Metadata extracted successfully: Alya2_2_2_2_2.jpeg [w=611, h=1081, date=2024-12-02 17:24:41]
+2026-04-07 01:20:14,038 [INFO] [Scan] Metadata extracted successfully: Alya2_2_2_2_2.jpeg [w=611, h=1081, date=2024-12-02 17:24:41]
 [SCAN] Creating folder hierarchy for: Alya2_2_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Alya2_2_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Alya3_2_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,603 [INFO] 📷 Processing: Alya3_2_2_2_2.jpeg (97.2 KB)
+2026-04-07 01:20:14,051 [INFO] 📷 Processing: Alya3_2_2_2_2.jpeg (97.2 KB)
 [SCAN] Processing: Alya3_2_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Alya3_2_2_2_2.jpeg [w=1080, h=810, date=None]
-2026-04-06 21:15:35,611 [INFO] [Scan] Metadata extracted successfully: Alya3_2_2_2_2.jpeg [w=1080, h=810, date=None]
+2026-04-07 01:20:14,061 [INFO] [Scan] Metadata extracted successfully: Alya3_2_2_2_2.jpeg [w=1080, h=810, date=None]
 [SCAN] Creating folder hierarchy for: Alya3_2_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Alya3_2_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Alya_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,631 [INFO] 📷 Processing: Alya_2_2.jpeg (181.4 KB)
+2026-04-07 01:20:14,071 [INFO] 📷 Processing: Alya_2_2.jpeg (181.4 KB)
 [SCAN] Processing: Alya_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Alya_2_2.jpeg [w=965, h=1240, date=None]
-2026-04-06 21:15:35,643 [INFO] [Scan] Metadata extracted successfully: Alya_2_2.jpeg [w=965, h=1240, date=None]
+2026-04-07 01:20:14,091 [INFO] [Scan] Metadata extracted successfully: Alya_2_2.jpeg [w=965, h=1240, date=None]
 [SCAN] Creating folder hierarchy for: Alya_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Alya_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Alya_2_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,657 [INFO] 📷 Processing: Alya_2_2_2_2.jpeg (181.4 KB)
+2026-04-07 01:20:14,104 [INFO] 📷 Processing: Alya_2_2_2_2.jpeg (181.4 KB)
 [SCAN] Processing: Alya_2_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Alya_2_2_2_2.jpeg [w=965, h=1240, date=None]
-2026-04-06 21:15:35,661 [INFO] [Scan] Metadata extracted successfully: Alya_2_2_2_2.jpeg [w=965, h=1240, date=None]
+2026-04-07 01:20:14,112 [INFO] [Scan] Metadata extracted successfully: Alya_2_2_2_2.jpeg [w=965, h=1240, date=None]
 [SCAN] Creating folder hierarchy for: Alya_2_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Alya_2_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar-Ref(1)_2_2.png
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,681 [INFO] 📷 Processing: Ammar-Ref(1)_2_2.png (800.9 KB)
+2026-04-07 01:20:14,121 [INFO] 📷 Processing: Ammar-Ref(1)_2_2.png (800.9 KB)
 [SCAN] Processing: Ammar-Ref(1)_2_2.png
 [SCAN] ✓ Metadata extracted: Ammar-Ref(1)_2_2.png [w=1140, h=791, date=None]
-2026-04-06 21:15:35,691 [INFO] [Scan] Metadata extracted successfully: Ammar-Ref(1)_2_2.png [w=1140, h=791, date=None]
+2026-04-07 01:20:14,138 [INFO] [Scan] Metadata extracted successfully: Ammar-Ref(1)_2_2.png [w=1140, h=791, date=None]
 [SCAN] Creating folder hierarchy for: Ammar-Ref(1)_2_2.png
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar-Ref(1)_2_2.png
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar-Ref_2_2_2.png
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,708 [INFO] 📷 Processing: Ammar-Ref_2_2_2.png (800.9 KB)
+2026-04-07 01:20:14,153 [INFO] 📷 Processing: Ammar-Ref_2_2_2.png (800.9 KB)
 [SCAN] Processing: Ammar-Ref_2_2_2.png
 [SCAN] ✓ Metadata extracted: Ammar-Ref_2_2_2.png [w=1140, h=791, date=None]
-2026-04-06 21:15:35,711 [INFO] [Scan] Metadata extracted successfully: Ammar-Ref_2_2_2.png [w=1140, h=791, date=None]
+2026-04-07 01:20:14,161 [INFO] [Scan] Metadata extracted successfully: Ammar-Ref_2_2_2.png [w=1140, h=791, date=None]
 [SCAN] Creating folder hierarchy for: Ammar-Ref_2_2_2.png
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar-Ref_2_2_2.png
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar-Ref_3_2.png
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,731 [INFO] 📷 Processing: Ammar-Ref_3_2.png (800.9 KB)
+2026-04-07 01:20:14,181 [INFO] 📷 Processing: Ammar-Ref_3_2.png (800.9 KB)
 [SCAN] Processing: Ammar-Ref_3_2.png
 [SCAN] ✓ Metadata extracted: Ammar-Ref_3_2.png [w=1140, h=791, date=None]
-2026-04-06 21:15:35,741 [INFO] [Scan] Metadata extracted successfully: Ammar-Ref_3_2.png [w=1140, h=791, date=None]
+2026-04-07 01:20:14,191 [INFO] [Scan] Metadata extracted successfully: Ammar-Ref_3_2.png [w=1140, h=791, date=None]
 [SCAN] Creating folder hierarchy for: Ammar-Ref_3_2.png
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar-Ref_3_2.png
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar1_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,765 [INFO] 📷 Processing: Ammar1_2_2_2.jpeg (4364.7 KB)
+2026-04-07 01:20:14,209 [INFO] 📷 Processing: Ammar1_2_2_2.jpeg (4364.7 KB)
 [SCAN] Processing: Ammar1_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Ammar1_2_2_2.jpeg [w=4032, h=3024, date=2024-08-11 19:40:38]
-2026-04-06 21:15:35,875 [INFO] [Scan] Metadata extracted successfully: Ammar1_2_2_2.jpeg [w=4032, h=3024, date=2024-08-11 19:40:38]
+2026-04-07 01:20:14,312 [INFO] [Scan] Metadata extracted successfully: Ammar1_2_2_2.jpeg [w=4032, h=3024, date=2024-08-11 19:40:38]
 [SCAN] Creating folder hierarchy for: Ammar1_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar1_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar2_2_2_2 - Kopie.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,890 [INFO] 📷 Processing: Ammar2_2_2_2 - Kopie.jpeg (2338.2 KB)
+2026-04-07 01:20:14,324 [INFO] 📷 Processing: Ammar2_2_2_2 - Kopie.jpeg (2338.2 KB)
 [SCAN] Processing: Ammar2_2_2_2 - Kopie.jpeg
 [SCAN] ✓ Metadata extracted: Ammar2_2_2_2 - Kopie.jpeg [w=3664, h=2062, date=2024-11-18 14:17:43]
-2026-04-06 21:15:35,940 [INFO] [Scan] Metadata extracted successfully: Ammar2_2_2_2 - Kopie.jpeg [w=3664, h=2062, date=2024-11-18 14:17:43]
+2026-04-07 01:20:14,372 [INFO] [Scan] Metadata extracted successfully: Ammar2_2_2_2 - Kopie.jpeg [w=3664, h=2062, date=2024-11-18 14:17:43]
 [SCAN] Creating folder hierarchy for: Ammar2_2_2_2 - Kopie.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar2_2_2_2 - Kopie.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar2_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:35,957 [INFO] 📷 Processing: Ammar2_2_2_2.jpeg (2338.2 KB)
+2026-04-07 01:20:14,391 [INFO] 📷 Processing: Ammar2_2_2_2.jpeg (2338.2 KB)
 [SCAN] Processing: Ammar2_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Ammar2_2_2_2.jpeg [w=3664, h=2062, date=2024-11-18 14:17:43]
-2026-04-06 21:15:36,004 [INFO] [Scan] Metadata extracted successfully: Ammar2_2_2_2.jpeg [w=3664, h=2062, date=2024-11-18 14:17:43]
+2026-04-07 01:20:14,446 [INFO] [Scan] Metadata extracted successfully: Ammar2_2_2_2.jpeg [w=3664, h=2062, date=2024-11-18 14:17:43]
 [SCAN] Creating folder hierarchy for: Ammar2_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar2_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Ammar3_2_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:36,026 [INFO] 📷 Processing: Ammar3_2_2_2_2.jpeg (171.0 KB)
+2026-04-07 01:20:14,461 [INFO] 📷 Processing: Ammar3_2_2_2_2.jpeg (171.0 KB)
 [SCAN] Processing: Ammar3_2_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: Ammar3_2_2_2_2.jpeg [w=1284, h=2778, date=None]
-2026-04-06 21:15:36,052 [INFO] [Scan] Metadata extracted successfully: Ammar3_2_2_2_2.jpeg [w=1284, h=2778, date=None]
+2026-04-07 01:20:14,498 [INFO] [Scan] Metadata extracted successfully: Ammar3_2_2_2_2.jpeg [w=1284, h=2778, date=None]
 [SCAN] Creating folder hierarchy for: Ammar3_2_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: Ammar3_2_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\IMG_6850_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:36,075 [INFO] 📷 Processing: IMG_6850_2_2_2.jpeg (3027.8 KB)
+2026-04-07 01:20:14,514 [INFO] 📷 Processing: IMG_6850_2_2_2.jpeg (3027.8 KB)
 [SCAN] Processing: IMG_6850_2_2_2.jpeg
 [SCAN] ✓ Metadata extracted: IMG_6850_2_2_2.jpeg [w=4032, h=3024, date=2025-07-30 23:19:46]
-2026-04-06 21:15:36,150 [INFO] [Scan] Metadata extracted successfully: IMG_6850_2_2_2.jpeg [w=4032, h=3024, date=2025-07-30 23:19:46]
+2026-04-07 01:20:14,591 [INFO] [Scan] Metadata extracted successfully: IMG_6850_2_2_2.jpeg [w=4032, h=3024, date=2025-07-30 23:19:46]
 [SCAN] Creating folder hierarchy for: IMG_6850_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: IMG_6850_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\IMG_6995_2_2_2.jpeg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:36,163 [INFO] 📷 Processing: IMG_6995_2_2_2.jpeg (4005.4 KB)
+2026-04-07 01:20:14,601 [INFO] 📷 Processing: IMG_6995_2_2_2.jpeg (4005.4 KB)
 [SCAN] Processing: IMG_6995_2_2_2.jpeg
-2026-04-06 21:15:36,242 [INFO] [Scan] ✓ GPS extracted: IMG_6995_2_2_2.jpeg (47.9016, 11.8213)
+2026-04-07 01:20:14,681 [INFO] [Scan] ✓ GPS extracted: IMG_6995_2_2_2.jpeg (47.9016, 11.8213)
 [SCAN] ✓ GPS: (47.9016, 11.8213)
 [SCAN] ✓ Metadata extracted: IMG_6995_2_2_2.jpeg [w=4032, h=3024, date=2025-08-09 13:06:18]
-2026-04-06 21:15:36,242 [INFO] [Scan] Metadata extracted successfully: IMG_6995_2_2_2.jpeg [w=4032, h=3024, date=2025-08-09 13:06:18]
+2026-04-07 01:20:14,681 [INFO] [Scan] Metadata extracted successfully: IMG_6995_2_2_2.jpeg [w=4032, h=3024, date=2025-08-09 13:06:18]
 [SCAN] Creating folder hierarchy for: IMG_6995_2_2_2.jpeg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: IMG_6995_2_2_2.jpeg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\pexels-matreding-11363475 - Kopie (2).jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:36,264 [INFO] 📷 Processing: pexels-matreding-11363475 - Kopie (2).jpg (7378.6 KB)
+2026-04-07 01:20:14,691 [INFO] 📷 Processing: pexels-matreding-11363475 - Kopie (2).jpg (7378.6 KB)
 [SCAN] Processing: pexels-matreding-11363475 - Kopie (2).jpg
 [SCAN] ✓ Metadata extracted: pexels-matreding-11363475 - Kopie (2).jpg [w=8000, h=12000, date=None]
-2026-04-06 21:15:36,639 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475 - Kopie (2).jpg [w=8000, h=12000, date=None]
+2026-04-07 01:20:15,091 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475 - Kopie (2).jpg [w=8000, h=12000, date=None]
 [SCAN] Creating folder hierarchy for: pexels-matreding-11363475 - Kopie (2).jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: pexels-matreding-11363475 - Kopie (2).jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\pexels-matreding-11363475 - Kopie (3).jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:36,653 [INFO] 📷 Processing: pexels-matreding-11363475 - Kopie (3).jpg (7378.6 KB)
+2026-04-07 01:20:15,112 [INFO] 📷 Processing: pexels-matreding-11363475 - Kopie (3).jpg (7378.6 KB)
 [SCAN] Processing: pexels-matreding-11363475 - Kopie (3).jpg
 [SCAN] ✓ Metadata extracted: pexels-matreding-11363475 - Kopie (3).jpg [w=8000, h=12000, date=None]
-2026-04-06 21:15:37,020 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475 - Kopie (3).jpg [w=8000, h=12000, date=None]
+2026-04-07 01:20:15,486 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475 - Kopie (3).jpg [w=8000, h=12000, date=None]
 [SCAN] Creating folder hierarchy for: pexels-matreding-11363475 - Kopie (3).jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: pexels-matreding-11363475 - Kopie (3).jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\pexels-matreding-11363475 - Kopie.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,043 [INFO] 📷 Processing: pexels-matreding-11363475 - Kopie.jpg (7378.6 KB)
+2026-04-07 01:20:15,503 [INFO] 📷 Processing: pexels-matreding-11363475 - Kopie.jpg (7378.6 KB)
 [SCAN] Processing: pexels-matreding-11363475 - Kopie.jpg
 [SCAN] ✓ Metadata extracted: pexels-matreding-11363475 - Kopie.jpg [w=8000, h=12000, date=None]
-2026-04-06 21:15:37,404 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475 - Kopie.jpg [w=8000, h=12000, date=None]
+2026-04-07 01:20:15,846 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475 - Kopie.jpg [w=8000, h=12000, date=None]
 [SCAN] Creating folder hierarchy for: pexels-matreding-11363475 - Kopie.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: pexels-matreding-11363475 - Kopie.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\pexels-matreding-11363475.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,424 [INFO] 📷 Processing: pexels-matreding-11363475.jpg (7378.6 KB)
+2026-04-07 01:20:15,861 [INFO] 📷 Processing: pexels-matreding-11363475.jpg (7378.6 KB)
 [SCAN] Processing: pexels-matreding-11363475.jpg
 [SCAN] ✓ Metadata extracted: pexels-matreding-11363475.jpg [w=8000, h=12000, date=None]
-2026-04-06 21:15:37,762 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475.jpg [w=8000, h=12000, date=None]
+2026-04-07 01:20:16,179 [INFO] [Scan] Metadata extracted successfully: pexels-matreding-11363475.jpg [w=8000, h=12000, date=None]
 [SCAN] Creating folder hierarchy for: pexels-matreding-11363475.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: pexels-matreding-11363475.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\SuleimanAmmar - Kopie.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,784 [INFO] 📷 Processing: SuleimanAmmar - Kopie.jpg (150.4 KB)
+2026-04-07 01:20:16,196 [INFO] 📷 Processing: SuleimanAmmar - Kopie.jpg (150.4 KB)
 [SCAN] Processing: SuleimanAmmar - Kopie.jpg
 [SCAN] ✓ Metadata extracted: SuleimanAmmar - Kopie.jpg [w=940, h=1218, date=None]
-2026-04-06 21:15:37,791 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar - Kopie.jpg [w=940, h=1218, date=None]
+2026-04-07 01:20:16,204 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar - Kopie.jpg [w=940, h=1218, date=None]
 [SCAN] Creating folder hierarchy for: SuleimanAmmar - Kopie.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: SuleimanAmmar - Kopie.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\SuleimanAmmar-Revised.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,800 [INFO] 📷 Processing: SuleimanAmmar-Revised.jpg (89.3 KB)
+2026-04-07 01:20:16,225 [INFO] 📷 Processing: SuleimanAmmar-Revised.jpg (89.3 KB)
 [SCAN] Processing: SuleimanAmmar-Revised.jpg
 [SCAN] ✓ Metadata extracted: SuleimanAmmar-Revised.jpg [w=844, h=1135, date=None]
-2026-04-06 21:15:37,807 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar-Revised.jpg [w=844, h=1135, date=None]
+2026-04-07 01:20:16,231 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar-Revised.jpg [w=844, h=1135, date=None]
 [SCAN] Creating folder hierarchy for: SuleimanAmmar-Revised.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: SuleimanAmmar-Revised.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\SuleimanAmmar.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,821 [INFO] 📷 Processing: SuleimanAmmar.jpg (150.4 KB)
+2026-04-07 01:20:16,252 [INFO] 📷 Processing: SuleimanAmmar.jpg (150.4 KB)
 [SCAN] Processing: SuleimanAmmar.jpg
 [SCAN] ✓ Metadata extracted: SuleimanAmmar.jpg [w=940, h=1218, date=None]
-2026-04-06 21:15:37,830 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar.jpg [w=940, h=1218, date=None]
+2026-04-07 01:20:16,261 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar.jpg [w=940, h=1218, date=None]
 [SCAN] Creating folder hierarchy for: SuleimanAmmar.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=1
 [SCAN] ✓ File processed successfully: SuleimanAmmar.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Neuer Ordner\SuleimanAmmar - Kopie.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,847 [INFO] 📷 Processing: SuleimanAmmar - Kopie.jpg (150.4 KB)
+2026-04-07 01:20:16,280 [INFO] 📷 Processing: SuleimanAmmar - Kopie.jpg (150.4 KB)
 [SCAN] Processing: SuleimanAmmar - Kopie.jpg
 [SCAN] ✓ Metadata extracted: SuleimanAmmar - Kopie.jpg [w=940, h=1218, date=None]
-2026-04-06 21:15:37,852 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar - Kopie.jpg [w=940, h=1218, date=None]
+2026-04-07 01:20:16,290 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar - Kopie.jpg [w=940, h=1218, date=None]
 [SCAN] Creating folder hierarchy for: SuleimanAmmar - Kopie.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=24
 [SCAN] ✓ File processed successfully: SuleimanAmmar - Kopie.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Neuer Ordner\SuleimanAmmar-Revised.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,879 [INFO] 📷 Processing: SuleimanAmmar-Revised.jpg (89.3 KB)
+2026-04-07 01:20:16,321 [INFO] 📷 Processing: SuleimanAmmar-Revised.jpg (89.3 KB)
 [SCAN] Processing: SuleimanAmmar-Revised.jpg
 [SCAN] ✓ Metadata extracted: SuleimanAmmar-Revised.jpg [w=844, h=1135, date=None]
-2026-04-06 21:15:37,881 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar-Revised.jpg [w=844, h=1135, date=None]
+2026-04-07 01:20:16,325 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar-Revised.jpg [w=844, h=1135, date=None]
 [SCAN] Creating folder hierarchy for: SuleimanAmmar-Revised.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=24
 [SCAN] ✓ File processed successfully: SuleimanAmmar-Revised.jpg
 [SCAN] _process_file started for: C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Neuer Ordner\SuleimanAmmar.jpg
 [SCAN] Getting file stats...
 [SCAN] File stats retrieved successfully
-2026-04-06 21:15:37,911 [INFO] 📷 Processing: SuleimanAmmar.jpg (150.4 KB)
+2026-04-07 01:20:16,359 [INFO] 📷 Processing: SuleimanAmmar.jpg (150.4 KB)
 [SCAN] Processing: SuleimanAmmar.jpg
 [SCAN] ✓ Metadata extracted: SuleimanAmmar.jpg [w=940, h=1218, date=None]
-2026-04-06 21:15:37,920 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar.jpg [w=940, h=1218, date=None]
+2026-04-07 01:20:16,365 [INFO] [Scan] Metadata extracted successfully: SuleimanAmmar.jpg [w=940, h=1218, date=None]
 [SCAN] Creating folder hierarchy for: SuleimanAmmar.jpg
 [SCAN] ✓ Folder hierarchy created: folder_id=24
 [SCAN] ✓ File processed successfully: SuleimanAmmar.jpg
 [SCAN] ⚡ Writing final batch to database: 25 photos
-2026-04-06 21:15:37,943 [INFO] Writing final batch of 25 photos to database
+2026-04-07 01:20:16,393 [INFO] Writing final batch of 25 photos to database
 [SCAN] 💾 Starting bulk_upsert for 25 photos...
-2026-04-06 21:15:37,949 [INFO] [DB] Starting bulk_upsert for 25 photos
-2026-04-06 21:15:37,967 [INFO] Bulk upserted 25 photos for project 1
+2026-04-07 01:20:16,395 [INFO] [DB] Starting bulk_upsert for 25 photos
+2026-04-07 01:20:16,412 [INFO] Bulk upserted 25 photos for project 1
 [SCAN] ✓ Bulk_upsert completed: 25 photos written
-2026-04-06 21:15:37,968 [INFO] [DB] Bulk_upsert completed: 25 photos written
+2026-04-07 01:20:16,412 [INFO] [DB] Bulk_upsert completed: 25 photos written
 [SCAN] ✓ Final batch write complete
 [SCAN] Shutting down executor
-2026-04-06 21:15:37,968 [INFO] Executor shutdown complete
+2026-04-07 01:20:16,412 [INFO] Executor shutdown complete
 
 [SCAN] === STEP 4: VIDEO PROCESSING ===
 [SCAN] total_videos=2
 [SCAN] self._cancelled=False
 [SCAN] Condition check: 2 > 0 and not False = True
 [SCAN] Condition TRUE - calling _process_videos()
-2026-04-06 21:15:37,968 [INFO] Processing 2 videos...
+2026-04-07 01:20:16,414 [INFO] Processing 2 videos...
 [VIDEO_INDEX] Attempting to index: Qouzleh_mitSubtitles-ezgif.com-resize-video.mp4
 [VIDEO_INDEX]   project_id=1, folder_id=1
 [VIDEO_INDEX]   size_kb=13086.185546875, modified=2025-05-06 18:38:04
 [VIDEO_INDEX]   created_ts=1746482400, created_date=2025-05-06, created_year=2025
-2026-04-06 21:15:37,999 [INFO] Indexed video C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Qouzleh_mitSubtitles-ezgif.com-resize-video.mp4 (id=1, status=pending)
+2026-04-07 01:20:16,447 [INFO] Indexed video C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Qouzleh_mitSubtitles-ezgif.com-resize-video.mp4 (id=1, status=pending)
 [VIDEO_INDEX] SUCCESS: video_id=1
 [VIDEO_INDEX] Attempting to index: Qouzleh_mitSubtitles.mp4
 [VIDEO_INDEX]   project_id=1, folder_id=1
 [VIDEO_INDEX]   size_kb=57665.9013671875, modified=2025-05-06 16:05:10
 [VIDEO_INDEX]   created_ts=1746482400, created_date=2025-05-06, created_year=2025
-2026-04-06 21:15:38,031 [INFO] Indexed video C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Qouzleh_mitSubtitles.mp4 (id=2, status=pending)
+2026-04-07 01:20:16,481 [INFO] Indexed video C:\Users\suleimaa\Downloads\Photo-Sorter\Images\Images\output6\Qouzleh_mitSubtitles.mp4 (id=2, status=pending)
 [VIDEO_INDEX] SUCCESS: video_id=2
-2026-04-06 21:15:38,031 [INFO] Indexed 2 videos (metadata extraction pending)
-2026-04-06 21:15:38,062 [INFO] Launching background workers for 2 videos...
-2026-04-06 21:15:38,062 [INFO] Using ffprobe from settings: C:\ffmpeg\bin\ffprobe.exe
-2026-04-06 21:15:38,109 [INFO] ffprobe detected at 'C:\ffmpeg\bin\ffprobe.exe' - video metadata extraction enabled
-2026-04-06 21:15:38,109 [INFO] Connected metadata finished callback for sidebar refresh
-2026-04-06 21:15:38,109 [INFO] ✓ Video metadata extraction worker started
-2026-04-06 21:15:38,109 [INFO] [VideoMetadataWorker] Starting for project_id=1
-2026-04-06 21:15:38,109 [INFO] [VideoThumbnailService] Using default thumbnail directory: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache
-2026-04-06 21:15:38,109 [INFO] Using ffmpeg from same directory as ffprobe: C:\ffmpeg\bin\ffmpeg.exe
-2026-04-06 21:15:38,123 [INFO] [VideoMetadataWorker] Found 2 videos to process
-2026-04-06 21:15:38,123 [INFO] [VideoMetadataWorker] Processing with 4 parallel workers
-2026-04-06 21:15:38,152 [INFO] ffmpeg detected at 'C:\ffmpeg\bin\ffmpeg.exe' - video thumbnail generation enabled
-2026-04-06 21:15:38,156 [INFO] ✓ Video thumbnail generation worker started
-2026-04-06 21:15:38,156 [INFO] 🎬 Processing 2 videos in background (check logs for progress)
-2026-04-06 21:15:38,156 [INFO] Scan complete: 25 photos indexed, 2 videos indexed, 0 skipped, 0 failed in 2.8s
-2026-04-06 21:15:38,157 [INFO] [VideoThumbnailWorker] Starting for project_id=1
-2026-04-06 21:15:38,157 [INFO] Scan completed: 25 photos, 2 videos, 2 folders in 2.8s
-2026-04-06 21:15:38,157 [INFO] Scan finished: 2 folders, 25 photos, 2 videos
-2026-04-06 21:15:38,159 [INFO] Building date branches...
-2026-04-06 21:15:38,159 [INFO] [VideoThumbnailWorker] Found 2 videos to process
-2026-04-06 21:15:38,159 [INFO] Building date branches for project_id=1
-2026-04-06 21:15:38,159 [INFO] [VideoThumbnailWorker] Processing with 4 parallel workers
+2026-04-07 01:20:16,485 [INFO] Indexed 2 videos (metadata extraction pending)
+2026-04-07 01:20:16,541 [INFO] Launching background workers for 2 videos...
+2026-04-07 01:20:16,541 [INFO] Using ffprobe from settings: C:\ffmpeg\bin\ffprobe.exe
+2026-04-07 01:20:16,581 [INFO] ffprobe detected at 'C:\ffmpeg\bin\ffprobe.exe' - video metadata extraction enabled
+2026-04-07 01:20:16,586 [INFO] Connected metadata finished callback for sidebar refresh
+2026-04-07 01:20:16,586 [INFO] ✓ Video metadata extraction worker started
+2026-04-07 01:20:16,586 [INFO] [VideoMetadataWorker] Starting for project_id=1
+2026-04-07 01:20:16,586 [INFO] [VideoThumbnailService] Using default thumbnail directory: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache
+2026-04-07 01:20:16,588 [INFO] Using ffmpeg from same directory as ffprobe: C:\ffmpeg\bin\ffmpeg.exe
+2026-04-07 01:20:16,602 [INFO] [VideoMetadataWorker] Found 2 videos to process
+2026-04-07 01:20:16,604 [INFO] [VideoMetadataWorker] Processing with 4 parallel workers
+2026-04-07 01:20:16,631 [INFO] ffmpeg detected at 'C:\ffmpeg\bin\ffmpeg.exe' - video thumbnail generation enabled
+2026-04-07 01:20:16,631 [INFO] ✓ Video thumbnail generation worker started
+2026-04-07 01:20:16,631 [INFO] 🎬 Processing 2 videos in background (check logs for progress)
+2026-04-07 01:20:16,631 [INFO] Scan complete: 25 photos indexed, 2 videos indexed, 0 skipped, 0 failed in 2.8s
+2026-04-07 01:20:16,636 [INFO] Scan completed: 25 photos, 2 videos, 2 folders in 2.8s
+2026-04-07 01:20:16,636 [INFO] [VideoThumbnailWorker] Starting for project_id=1
+2026-04-07 01:20:16,636 [INFO] Scan finished: 2 folders, 25 photos, 2 videos
+2026-04-07 01:20:16,636 [INFO] Building date branches...
+2026-04-07 01:20:16,636 [INFO] Building date branches for project_id=1
 [build_date_branches] Using project_id=1
+2026-04-07 01:20:16,636 [INFO] [VideoThumbnailWorker] Found 2 videos to process
 [build_date_branches] Populating 'all' branch with 25 photos for project 1
+2026-04-07 01:20:16,636 [INFO] [VideoThumbnailWorker] Processing with 4 parallel workers
 [build_date_branches] Inserted 25/25 photos into 'all' branch
 [build_date_branches] Found 6 unique dates for project 1
 [build_date_branches] Date 2024-08-11: found 1 photos for project 1
@@ -519,8 +518,8 @@ Adaptive Icons:  24px
 [build_date_branches] Date 2025-08-09: inserted 1/1 into project_images (new)
 [build_date_branches] Total entries processed: 8
 [build_date_branches] project_images table has 33 rows for project 1
-2026-04-06 21:15:38,159 [INFO] Created 8 photo date branch entries for project 1
-2026-04-06 21:15:38,159 [INFO] Building video date branches for project_id=1
+2026-04-07 01:20:16,642 [INFO] Created 8 photo date branch entries for project 1
+2026-04-07 01:20:16,642 [INFO] Building video date branches for project_id=1
 [build_video_date_branches] Using project_id=1
 [build_video_date_branches] Found 2 videos with dates for project 1
 [build_video_date_branches] Inserted 2/2 videos into 'all' branch
@@ -528,231 +527,323 @@ Adaptive Icons:  24px
 [build_video_date_branches] Date 2025-05-06: inserted 2/2 (new)
 [build_video_date_branches] Total entries processed: 2
 [build_video_date_branches] project_videos table has 4 rows for project 1
-2026-04-06 21:15:38,166 [INFO] Created 2 video date branch entries for project 1
-2026-04-06 21:15:38,166 [INFO] Backfilling created_date fields for photos...
-2026-04-06 21:15:38,166 [INFO] Backfilled 17 photo rows with created_date
-2026-04-06 21:15:38,166 [INFO] Backfilling created_date fields for videos...
-2026-04-06 21:15:38,166 [INFO] Enqueueing duplicate detection pipeline as background job...
-2026-04-06 21:15:38,190 [INFO] [JobManager] Registered tracked job -2: post_scan — Duplicate Detection
-2026-04-06 21:15:38,193 [INFO] Post-scan pipeline dispatched to background thread pool
-2026-04-06 21:15:38,193 [INFO] Main scan operations complete. Remaining: {'post_scan_pipeline'}
-2026-04-06 21:15:38,193 [INFO] ⏳ Waiting for operations: {'post_scan_pipeline'}
-2026-04-06 21:15:38,193 [INFO] [PostScanPipelineWorker] Starting post-scan pipeline for project 1 (thread=Dummy-24, is_main=False)
-2026-04-06 21:15:38,220 [INFO] Starting hash backfill and asset linking for project 1
-2026-04-06 21:15:38,230 [INFO] Found 25 photos without instance links
-2026-04-06 21:15:38,270 [INFO] [VideoMetadataWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles-ezgif.com-resize-video.mp4
-2026-04-06 21:15:38,270 [INFO] [VideoMetadataWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles.mp4
-2026-04-06 21:15:38,273 [INFO] [VideoMetadataWorker] Finished: 2 success, 0 failed
-2026-04-06 21:15:38,381 [INFO] Generated thumbnail for c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles-ezgif.com-resize-video.mp4 at C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache\qouzleh_mitsubtitles-ezgif.com-resize-video_mp4_thumb.jpg
-2026-04-06 21:15:38,397 [INFO] [VideoThumbnailWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles-ezgif.com-resize-video.mp4
-2026-04-06 21:15:38,406 [INFO] Generated thumbnail for c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles.mp4 at C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache\qouzleh_mitsubtitles_mp4_thumb.jpg
-2026-04-06 21:15:38,412 [INFO] [VideoThumbnailWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles.mp4
-2026-04-06 21:15:38,419 [INFO] [VideoThumbnailWorker] Finished: 2 success, 0 failed
-2026-04-06 21:15:39,340 [INFO] No more photos to process
-2026-04-06 21:15:39,340 [INFO] Backfill complete: AssetBackfillStats(scanned=25, hashed=25, linked=25, errors=0, skipped=0)
-2026-04-06 21:15:39,340 [INFO] Hash backfill complete: 25 scanned, 25 hashed, 25 linked
-2026-04-06 21:15:39,347 [INFO] Found 7 exact duplicate groups
-2026-04-06 21:15:39,382 [INFO] Found 25 photos needing embeddings - generating in background
-2026-04-06 21:15:39,391 [INFO] [SemanticEmbeddingWorker] Using project canonical model: openai/clip-vit-base-patch32 (project_id=1)
-2026-04-06 21:15:39,393 [INFO] [SemanticEmbeddingWorker] Starting batch: 25 photos, model=openai/clip-vit-base-patch32, force=False, project=1
-2026-04-06 21:15:39,412 [INFO] [SemanticEmbeddingWorker] Embedding photo 1: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya1_2_2_2.jpeg
-2026-04-06 21:15:41,019 [INFO] [SemanticEmbeddingService] Loading model: openai/clip-vit-base-patch32
-2026-04-06 21:15:41,019 [INFO] [SemanticEmbeddingService] Using CPU
-2026-04-06 21:15:41,019 [INFO] [SemanticEmbeddingService] Searching for offline model...
-2026-04-06 21:15:41,019 [INFO] [SemanticEmbeddingService]   App root: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main
-2026-04-06 21:15:41,029 [INFO] [SemanticEmbeddingService]   Looking for: openai--clip-vit-base-patch32 (or clip-vit-base-patch32)
-2026-04-06 21:15:41,029 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\Model\openai--clip-vit-base-patch32
-2026-04-06 21:15:41,030 [INFO] [SemanticEmbeddingService]     → Exists: False
-2026-04-06 21:15:41,030 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\model\openai--clip-vit-base-patch32
-2026-04-06 21:15:41,030 [INFO] [SemanticEmbeddingService]     → Exists: False
-2026-04-06 21:15:41,030 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\models\openai--clip-vit-base-patch32
-2026-04-06 21:15:41,031 [INFO] [SemanticEmbeddingService]     → Exists: False
-2026-04-06 21:15:41,031 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\models\clip-vit-base-patch32
-2026-04-06 21:15:41,039 [INFO] [SemanticEmbeddingService]     → CHECKMARK VALID MODEL FOUND at C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\models\clip-vit-base-patch32\snapshots\3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268!
-2026-04-06 21:15:41,044 [INFO] [SemanticEmbeddingService] Loading from local path (offline mode): C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\models\clip-vit-base-patch32\snapshots\3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268
-2026-04-06 21:15:41,426 [INFO] [SemanticEmbeddingService] HEIC/HEIF support enabled via pillow-heif
-2026-04-06 21:15:42,613 [INFO] [SemanticEmbeddingService] Model loaded successfully: openai/clip-vit-base-patch32
-2026-04-06 21:15:42,619 [INFO] [SemanticEmbeddingService] CHECKMARK Patched CLIPTextTransformer.forward with pre-computed causal mask + safety fallback (Windows crash prevention, once-only)
-2026-04-06 21:15:43,029 [INFO] [SemanticEmbeddingService] CHECKMARK Warm-up inference completed (MKL kernels and GEMM initialised)
-2026-04-06 21:15:43,029 [INFO] [SemanticEmbeddingService] Model ready on cpu (ready event set)
-2026-04-06 21:15:43,380 [INFO] [SemanticEmbeddingWorker] Embedding photo 2: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya1_3_2.jpeg
-2026-04-06 21:15:43,710 [INFO] [SemanticEmbeddingWorker] Embedding photo 3: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya2_2_2_2_2.jpeg
-2026-04-06 21:15:43,985 [INFO] [SemanticEmbeddingWorker] Embedding photo 4: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya3_2_2_2_2.jpeg
-2026-04-06 21:15:44,275 [INFO] [SemanticEmbeddingWorker] Embedding photo 5: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya_2_2.jpeg
-2026-04-06 21:15:44,556 [INFO] [SemanticEmbeddingWorker] Embedding photo 6: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya_2_2_2_2.jpeg
-2026-04-06 21:15:44,839 [INFO] [SemanticEmbeddingWorker] Embedding photo 7: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar-ref(1)_2_2.png
-2026-04-06 21:15:45,129 [INFO] [SemanticEmbeddingWorker] Embedding photo 8: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar-ref_2_2_2.png
-2026-04-06 21:15:45,414 [INFO] [SemanticEmbeddingWorker] Embedding photo 9: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar-ref_3_2.png
-2026-04-06 21:15:45,708 [INFO] [SemanticEmbeddingWorker] Embedding photo 10: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar1_2_2_2.jpeg
-2026-04-06 21:15:46,259 [INFO] [SemanticEmbeddingWorker] Embedding photo 11: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar2_2_2_2 - kopie.jpeg
-2026-04-06 21:15:46,639 [INFO] [SemanticEmbeddingWorker] Embedding photo 12: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar2_2_2_2.jpeg
-2026-04-06 21:15:47,023 [INFO] [SemanticEmbeddingWorker] Embedding photo 13: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar3_2_2_2_2.jpeg
-2026-04-06 21:15:47,360 [INFO] [SemanticEmbeddingWorker] Embedding photo 14: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/img_6850_2_2_2.jpeg
-2026-04-06 21:15:47,800 [INFO] [SemanticEmbeddingWorker] Embedding photo 15: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/img_6995_2_2_2.jpeg
-2026-04-06 21:15:48,235 [INFO] [SemanticEmbeddingWorker] Embedding photo 16: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475 - kopie (2).jpg
-2026-04-06 21:15:49,604 [INFO] [SemanticEmbeddingWorker] Embedding photo 17: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475 - kopie (3).jpg
-2026-04-06 21:15:51,060 [INFO] [SemanticEmbeddingWorker] Embedding photo 18: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475 - kopie.jpg
-2026-04-06 21:15:52,385 [INFO] [SemanticEmbeddingWorker] Embedding photo 19: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475.jpg
-2026-04-06 21:15:53,662 [INFO] [SemanticEmbeddingWorker] Embedding photo 20: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/suleimanammar - kopie.jpg
-2026-04-06 21:15:53,963 [INFO] [SemanticEmbeddingWorker] Embedding photo 21: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/suleimanammar-revised.jpg
-2026-04-06 21:15:54,249 [INFO] [SemanticEmbeddingWorker] Embedding photo 22: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/suleimanammar.jpg
-2026-04-06 21:15:54,529 [INFO] [SemanticEmbeddingWorker] Embedding photo 23: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/neuer ordner/suleimanammar - kopie.jpg
-2026-04-06 21:15:54,809 [INFO] [SemanticEmbeddingWorker] Embedding photo 24: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/neuer ordner/suleimanammar-revised.jpg
-2026-04-06 21:15:55,090 [INFO] [SemanticEmbeddingWorker] Embedding photo 25: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/neuer ordner/suleimanammar.jpg
-2026-04-06 21:15:55,384 [INFO] [SemanticEmbeddingWorker] Batch complete: 25 success, 0 skipped, 0 failed in 16.0s
-2026-04-06 21:15:55,384 [INFO] Embedding generation complete: 25 generated
-2026-04-06 21:15:55,406 [INFO] Starting similar shot stack generation for project 1
-2026-04-06 21:15:55,406 [INFO] Parameters: StackGenParams(rule_version='1', time_window_seconds=30, min_stack_size=2, top_k=30, similarity_threshold=0.5, candidate_limit_per_photo=300, cross_date_similarity=True, cross_date_threshold=0.85)
-2026-04-06 21:15:55,419 [INFO] Cleared 0 similar stacks (rule v1)
-2026-04-06 21:15:55,421 [INFO] Cleared 0 existing similar shot stacks for rule v1
-2026-04-06 21:15:55,423 [INFO] Representative-only mode enabled: 25 → 13 photos considered
-2026-04-06 21:15:55,423 [INFO] Found 13 photos (13 with timestamps, 0 without)
-2026-04-06 21:15:55,423 [INFO] [SemanticEmbeddingService] Loaded 25 embeddings for project 1
-2026-04-06 21:15:55,423 [INFO] Batch-loaded 25 embeddings for similarity comparison
-2026-04-06 21:15:55,440 [INFO] Found 6 similar shot clusters (time-window pass)
-2026-04-06 21:15:55,440 [INFO] Global similarity pass: 13 photos with embeddings (14 unique photos in 6 time-window clusters)
-2026-04-06 21:15:55,440 [INFO] Global cross-date pass found 1 additional clusters (threshold=0.85)
-2026-04-06 21:15:55,440 [INFO] Total similar shot clusters: 7
-2026-04-06 21:15:55,700 [INFO] Similar shot stack generation complete: 7 stacks, 16 memberships, 0 errors
-2026-04-06 21:15:55,700 [INFO] Created 7 similar shot stacks
-2026-04-06 21:15:55,725 [INFO] [SearchFeatureRepo] Refreshed 25 rows for project 1 in 5ms
-2026-04-06 21:15:55,725 [INFO] [PostScanPipelineWorker] Rebuilt search_asset_features: 25 rows for project 1
-2026-04-06 21:15:55,765 [INFO] [JobManager] Tracked job -2 (post_scan) completed: {'exact': 7, 'similar': 7}
-2026-04-06 21:15:55,765 [INFO] Post-scan pipeline complete. Remaining: set()
-2026-04-06 21:15:55,765 [INFO] ✓ All scan operations complete. Triggering final refresh...
-2026-04-06 21:15:55,765 [INFO] [Store] EmbeddingsCompleted job=-1 src=post_scan_pipeline deltas={'embeddings_v': '0→1', 'jobs_v': '1→2'}  →  3 subscriber(s)
-2026-04-06 21:15:55,769 [INFO] [Store] DuplicatesCompleted job=-1 src=post_scan_pipeline deltas={'duplicates_v': '0→1', 'jobs_v': '2→3'}  →  3 subscriber(s)
-2026-04-06 21:15:55,881 [INFO] 🔄 Final scan bookkeeping (UI refresh handled by store subscribers)...
-2026-04-06 21:15:55,881 [INFO] Final refresh complete: 25 photos, 2 videos
-2026-04-06 21:15:55,900 [INFO] [JobManager] Tracked job -1 (scan) completed: {'photos': 25, 'videos': 2}
-2026-04-06 21:15:55,900 [INFO] [Store] ScanCompleted job=-1 src=scan_controller deltas={'media_v': '0→1', 'videos_v': '0→1', 'jobs_v': '3→4'}  →  3 subscriber(s)
+2026-04-07 01:20:16,645 [INFO] Created 2 video date branch entries for project 1
+2026-04-07 01:20:16,645 [INFO] Backfilling created_date fields for photos...
+2026-04-07 01:20:16,647 [INFO] Backfilled 17 photo rows with created_date
+2026-04-07 01:20:16,647 [INFO] Backfilling created_date fields for videos...
+2026-04-07 01:20:16,648 [INFO] Enqueueing duplicate detection pipeline as background job...
+2026-04-07 01:20:16,665 [INFO] [JobManager] Registered tracked job -2: post_scan — Duplicate Detection
+2026-04-07 01:20:16,665 [INFO] Post-scan pipeline dispatched to background thread pool
+2026-04-07 01:20:16,669 [INFO] Main scan operations complete. Remaining: {'post_scan_pipeline'}
+2026-04-07 01:20:16,669 [INFO] ⏳ Waiting for operations: {'post_scan_pipeline'}
+2026-04-07 01:20:16,670 [INFO] [PostScanPipelineWorker] Starting post-scan pipeline for project 1 (thread=Dummy-24, is_main=False)
+2026-04-07 01:20:16,691 [INFO] Starting hash backfill and asset linking for project 1
+2026-04-07 01:20:16,705 [INFO] Found 25 photos without instance links
+2026-04-07 01:20:16,743 [INFO] [VideoMetadataWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles-ezgif.com-resize-video.mp4
+2026-04-07 01:20:16,756 [INFO] [VideoMetadataWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles.mp4
+2026-04-07 01:20:16,756 [INFO] [VideoMetadataWorker] Finished: 2 success, 0 failed
+2026-04-07 01:20:16,869 [INFO] Generated thumbnail for c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles-ezgif.com-resize-video.mp4 at C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache\qouzleh_mitsubtitles-ezgif.com-resize-video_mp4_thumb.jpg
+2026-04-07 01:20:16,872 [INFO] Generated thumbnail for c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles.mp4 at C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache\qouzleh_mitsubtitles_mp4_thumb.jpg
+2026-04-07 01:20:16,891 [INFO] [VideoThumbnailWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles-ezgif.com-resize-video.mp4
+2026-04-07 01:20:16,898 [INFO] [VideoThumbnailWorker] ✓ c:/users/suleimaa/downloads/photo-sorter/images/images/output6/qouzleh_mitsubtitles.mp4
+2026-04-07 01:20:16,898 [INFO] [VideoThumbnailWorker] Finished: 2 success, 0 failed
+2026-04-07 01:20:17,848 [INFO] No more photos to process
+2026-04-07 01:20:17,851 [INFO] Backfill complete: AssetBackfillStats(scanned=25, hashed=25, linked=25, errors=0, skipped=0)
+2026-04-07 01:20:17,851 [INFO] Hash backfill complete: 25 scanned, 25 hashed, 25 linked
+2026-04-07 01:20:17,865 [INFO] Found 7 exact duplicate groups
+2026-04-07 01:20:17,896 [INFO] Found 25 photos needing embeddings - generating in background
+2026-04-07 01:20:17,904 [INFO] [SemanticEmbeddingWorker] Using project canonical model: openai/clip-vit-base-patch32 (project_id=1)
+2026-04-07 01:20:17,904 [INFO] [SemanticEmbeddingWorker] Starting batch: 25 photos, model=openai/clip-vit-base-patch32, force=False, project=1
+2026-04-07 01:20:17,921 [INFO] [SemanticEmbeddingWorker] Embedding photo 1: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya1_2_2_2.jpeg
+2026-04-07 01:20:19,890 [INFO] [SemanticEmbeddingService] Loading model: openai/clip-vit-base-patch32
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService] Using CPU
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService] Searching for offline model...
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]   App root: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]   Looking for: openai--clip-vit-base-patch32 (or clip-vit-base-patch32)
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\Model\openai--clip-vit-base-patch32
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]     → Exists: False
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\model\openai--clip-vit-base-patch32
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]     → Exists: False
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\models\openai--clip-vit-base-patch32
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]     → Exists: False
+2026-04-07 01:20:19,891 [INFO] [SemanticEmbeddingService]   Checking: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\models\clip-vit-base-patch32
+2026-04-07 01:20:19,909 [INFO] [SemanticEmbeddingService]     → CHECKMARK VALID MODEL FOUND at C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\models\clip-vit-base-patch32\snapshots\3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268!
+2026-04-07 01:20:19,909 [INFO] [SemanticEmbeddingService] Loading from local path (offline mode): C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\models\clip-vit-base-patch32\snapshots\3d74acf9a28c67741b2f4f2ea7635f0aaf6f0268
+2026-04-07 01:20:20,321 [INFO] [SemanticEmbeddingService] HEIC/HEIF support enabled via pillow-heif
+2026-04-07 01:20:21,521 [INFO] [SemanticEmbeddingService] Model loaded successfully: openai/clip-vit-base-patch32
+2026-04-07 01:20:21,531 [INFO] [SemanticEmbeddingService] CHECKMARK Patched CLIPTextTransformer.forward with pre-computed causal mask + safety fallback (Windows crash prevention, once-only)
+2026-04-07 01:20:22,019 [INFO] [SemanticEmbeddingService] CHECKMARK Warm-up inference completed (MKL kernels and GEMM initialised)
+2026-04-07 01:20:22,019 [INFO] [SemanticEmbeddingService] Model ready on cpu (ready event set)
+2026-04-07 01:20:22,365 [INFO] [SemanticEmbeddingWorker] Embedding photo 2: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya1_3_2.jpeg
+2026-04-07 01:20:22,701 [INFO] [SemanticEmbeddingWorker] Embedding photo 3: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya2_2_2_2_2.jpeg
+2026-04-07 01:20:22,969 [INFO] [SemanticEmbeddingWorker] Embedding photo 4: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya3_2_2_2_2.jpeg
+2026-04-07 01:20:23,251 [INFO] [SemanticEmbeddingWorker] Embedding photo 5: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya_2_2.jpeg
+2026-04-07 01:20:23,531 [INFO] [SemanticEmbeddingWorker] Embedding photo 6: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/alya_2_2_2_2.jpeg
+2026-04-07 01:20:23,814 [INFO] [SemanticEmbeddingWorker] Embedding photo 7: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar-ref(1)_2_2.png
+2026-04-07 01:20:24,101 [INFO] [SemanticEmbeddingWorker] Embedding photo 8: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar-ref_2_2_2.png
+2026-04-07 01:20:24,386 [INFO] [SemanticEmbeddingWorker] Embedding photo 9: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar-ref_3_2.png
+2026-04-07 01:20:24,671 [INFO] [SemanticEmbeddingWorker] Embedding photo 10: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar1_2_2_2.jpeg
+2026-04-07 01:20:25,131 [INFO] [SemanticEmbeddingWorker] Embedding photo 11: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar2_2_2_2 - kopie.jpeg
+2026-04-07 01:20:25,565 [INFO] [SemanticEmbeddingWorker] Embedding photo 12: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar2_2_2_2.jpeg
+2026-04-07 01:20:25,951 [INFO] [SemanticEmbeddingWorker] Embedding photo 13: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/ammar3_2_2_2_2.jpeg
+2026-04-07 01:20:26,291 [INFO] [SemanticEmbeddingWorker] Embedding photo 14: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/img_6850_2_2_2.jpeg
+2026-04-07 01:20:26,702 [INFO] [SemanticEmbeddingWorker] Embedding photo 15: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/img_6995_2_2_2.jpeg
+2026-04-07 01:20:27,131 [INFO] [SemanticEmbeddingWorker] Embedding photo 16: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475 - kopie (2).jpg
+2026-04-07 01:20:28,481 [INFO] [SemanticEmbeddingWorker] Embedding photo 17: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475 - kopie (3).jpg
+2026-04-07 01:20:29,904 [INFO] [SemanticEmbeddingWorker] Embedding photo 18: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475 - kopie.jpg
+2026-04-07 01:20:31,246 [INFO] [SemanticEmbeddingWorker] Embedding photo 19: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/pexels-matreding-11363475.jpg
+2026-04-07 01:20:32,569 [INFO] [SemanticEmbeddingWorker] Embedding photo 20: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/suleimanammar - kopie.jpg
+2026-04-07 01:20:32,866 [INFO] [SemanticEmbeddingWorker] Embedding photo 21: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/suleimanammar-revised.jpg
+2026-04-07 01:20:33,146 [INFO] [SemanticEmbeddingWorker] Embedding photo 22: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/suleimanammar.jpg
+2026-04-07 01:20:33,437 [INFO] [SemanticEmbeddingWorker] Embedding photo 23: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/neuer ordner/suleimanammar - kopie.jpg
+2026-04-07 01:20:33,721 [INFO] [SemanticEmbeddingWorker] Embedding photo 24: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/neuer ordner/suleimanammar-revised.jpg
+2026-04-07 01:20:34,006 [INFO] [SemanticEmbeddingWorker] Embedding photo 25: c:/users/suleimaa/downloads/photo-sorter/images/images/output6/neuer ordner/suleimanammar.jpg
+2026-04-07 01:20:34,301 [INFO] [SemanticEmbeddingWorker] Batch complete: 25 success, 0 skipped, 0 failed in 16.4s
+2026-04-07 01:20:34,301 [INFO] Embedding generation complete: 25 generated
+2026-04-07 01:20:34,328 [INFO] Starting similar shot stack generation for project 1
+2026-04-07 01:20:34,328 [INFO] Parameters: StackGenParams(rule_version='1', time_window_seconds=30, min_stack_size=2, top_k=30, similarity_threshold=0.5, candidate_limit_per_photo=300, cross_date_similarity=True, cross_date_threshold=0.85)
+2026-04-07 01:20:34,341 [INFO] Cleared 0 similar stacks (rule v1)
+2026-04-07 01:20:34,341 [INFO] Cleared 0 existing similar shot stacks for rule v1
+2026-04-07 01:20:34,346 [INFO] Representative-only mode enabled: 25 → 13 photos considered
+2026-04-07 01:20:34,346 [INFO] Found 13 photos (13 with timestamps, 0 without)
+2026-04-07 01:20:34,346 [INFO] [SemanticEmbeddingService] Loaded 25 embeddings for project 1
+2026-04-07 01:20:34,346 [INFO] Batch-loaded 25 embeddings for similarity comparison
+2026-04-07 01:20:34,365 [INFO] Found 6 similar shot clusters (time-window pass)
+2026-04-07 01:20:34,368 [INFO] Global similarity pass: 13 photos with embeddings (14 unique photos in 6 time-window clusters)
+2026-04-07 01:20:34,371 [INFO] Global cross-date pass found 1 additional clusters (threshold=0.85)
+2026-04-07 01:20:34,371 [INFO] Total similar shot clusters: 7
+2026-04-07 01:20:34,622 [INFO] Similar shot stack generation complete: 7 stacks, 16 memberships, 0 errors
+2026-04-07 01:20:34,622 [INFO] Created 7 similar shot stacks
+2026-04-07 01:20:34,646 [INFO] [SearchFeatureRepo] Refreshed 25 rows for project 1 in 5ms
+2026-04-07 01:20:34,646 [INFO] [PostScanPipelineWorker] Rebuilt search_asset_features: 25 rows for project 1
+2026-04-07 01:20:34,684 [INFO] [JobManager] Tracked job -2 (post_scan) completed: {'exact': 7, 'similar': 7}
+2026-04-07 01:20:34,684 [INFO] Post-scan pipeline complete. Remaining: set()
+2026-04-07 01:20:34,684 [INFO] ✓ All scan operations complete. Triggering final refresh...
+2026-04-07 01:20:34,691 [INFO] [Store] EmbeddingsCompleted job=-1 src=post_scan_pipeline deltas={'embeddings_v': '0→1', 'jobs_v': '1→2'}  →  3 subscriber(s)
+2026-04-07 01:20:34,691 [INFO] [Store] DuplicatesCompleted job=-1 src=post_scan_pipeline deltas={'duplicates_v': '0→1', 'jobs_v': '2→3'}  →  3 subscriber(s)
+2026-04-07 01:20:34,790 [INFO] 🔄 Final scan bookkeeping (UI refresh handled by store subscribers)...
+2026-04-07 01:20:34,790 [INFO] Final refresh complete: 25 photos, 2 videos
+2026-04-07 01:20:34,805 [INFO] [JobManager] Tracked job -1 (scan) completed: {'photos': 25, 'videos': 2}
+2026-04-07 01:20:34,809 [INFO] [Store] ScanCompleted job=-1 src=scan_controller deltas={'media_v': '0→1', 'videos_v': '0→1', 'jobs_v': '3→4'}  →  3 subscriber(s)
 [GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 2) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 2, page_size=250)
-2026-04-06 21:15:55,900 [INFO] [GoogleLayout] Page count ready: gen=2 total=27 (threshold=3000)
-2026-04-06 21:15:55,907 [INFO] [GoogleLayout] Page ready: gen=2 offset=0 rows=27 loaded=27/27
+2026-04-07 01:20:34,812 [INFO] [GoogleLayout] Page count ready: gen=2 total=27 (threshold=3000)
+2026-04-07 01:20:34,813 [INFO] [GoogleLayout] Page ready: gen=2 offset=0 rows=27 loaded=27/27
 [GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
-2026-04-06 21:15:55,907 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+2026-04-07 01:20:34,813 [INFO] [GoogleLayout] All pages loaded: 27 rows total
 [GooglePhotosLayout] Grouped into 13 date groups
 [GooglePhotosLayout] Tracking 27 paths for multi-selection
-[GooglePhotosLayout] 📐 Responsive grid: 5 columns (viewport: 1101px, thumb: 200px)
+[GooglePhotosLayout] 📐 Responsive grid: 6 columns (viewport: 1256px, thumb: 200px)
 [GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
 [GooglePhotosLayout] Rendered: 5 groups | Placeholders: 8 groups
 [GooglePhotosLayout] Queued 10 thumbnails for loading (initial limit: 50)
 [GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-04-07 01:20:54,631 [INFO] [AccordionSidebar] Expanding section: people
+2026-04-07 01:20:54,640 [INFO] [PeopleSection] Loading face clusters (generation 3)…
+2026-04-07 01:20:54,643 [INFO] [PeopleSection] Loaded 0 clusters (gen 3)
+[ReferenceDB] Closed connection for thread 37600
+2026-04-07 01:20:54,645 [INFO] [PEOPLE_UI] loaded=0 clusters (gen 3)
+2026-04-07 01:20:54,645 [INFO] [PeopleSection] Data load confirmed: 0 clusters at generation 3
+2026-04-07 01:20:54,645 [INFO] [PeopleSection] Grid built with 0 people + Groups tab
+2026-04-07 01:20:54,686 [INFO] [AccordionSidebar] Section people loaded and displayed
 [GooglePhotosLayout] Executing debounced reload: browse_all
 [GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 3) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 3, page_size=250)
-2026-04-06 21:16:10,783 [INFO] [GoogleLayout] Page count ready: gen=3 total=27 (threshold=3000)
-2026-04-06 21:16:10,783 [INFO] [GoogleLayout] Page ready: gen=3 offset=0 rows=27 loaded=27/27
+2026-04-07 01:21:04,274 [INFO] [GoogleLayout] Page count ready: gen=3 total=27 (threshold=3000)
+2026-04-07 01:21:04,274 [INFO] [GoogleLayout] Page ready: gen=3 offset=0 rows=27 loaded=27/27
 [GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
-2026-04-06 21:16:10,783 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+2026-04-07 01:21:04,280 [INFO] [GoogleLayout] All pages loaded: 27 rows total
 [GooglePhotosLayout] Grouped into 13 date groups
 [GooglePhotosLayout] Tracking 27 paths for multi-selection
+[GooglePhotosLayout] 📐 Responsive grid: 5 columns (viewport: 1244px, thumb: 200px)
 [GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
 [GooglePhotosLayout] Rendered: 5 groups | Placeholders: 8 groups
 [GooglePhotosLayout] Queued 10 thumbnails for loading (initial limit: 50)
 [GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
-2026-04-06 21:16:12,616 [INFO] [AccordionSidebar] Expanding section: dates
-2026-04-06 21:16:12,621 [INFO] [DatesSection] Loading dates (generation 3)...
-2026-04-06 21:16:12,626 [INFO] [DatesSection] Loaded 4 years (gen 3)
-[ReferenceDB] Closed connection for thread 10316
-2026-04-06 21:16:12,629 [INFO] [DatesSection] Data loaded successfully (gen 3)
-2026-04-06 21:16:12,629 [INFO] [DatesSection] Tree built with 4 years
-2026-04-06 21:16:12,667 [INFO] [AccordionSidebar] Section dates loaded and displayed
-2026-04-06 21:16:17,890 [INFO] [AccordionSidebar] Expanding section: folders
-2026-04-06 21:16:17,900 [INFO] [FoldersSection] Loading folders (generation 3)...
-2026-04-06 21:16:17,900 [INFO] [FoldersSection] Loaded 2 folders (gen 3)
-[ReferenceDB] Closed connection for thread 25192
-2026-04-06 21:16:17,909 [INFO] [FoldersSection] Data loaded successfully (gen 3)
-2026-04-06 21:16:17,909 [INFO] [FoldersSection] Tree built with 1 top-level folders
-2026-04-06 21:16:17,949 [INFO] [AccordionSidebar] Section folders loaded and displayed
-2026-04-06 21:16:29,162 [INFO] [AccordionSidebar] Expanding section: quick
-2026-04-06 21:16:29,178 [INFO] [QuickSection] Loading quick dates
-2026-04-06 21:16:29,214 [INFO] [AccordionSidebar] Section quick loaded and displayed
-2026-04-06 21:16:29,214 [INFO] [QuickSection] Quick date selected: today
-[GooglePhotosLayout] Accordion date clicked: 2026-04-06
-[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4, day=6]...
+2026-04-07 01:21:06,359 [INFO] [AccordionSidebar] Expanding section: dates
+2026-04-07 01:21:06,366 [INFO] [DatesSection] Loading dates (generation 3)...
+2026-04-07 01:21:06,371 [INFO] [DatesSection] Loaded 4 years (gen 3)
+[ReferenceDB] Closed connection for thread 8992
+2026-04-07 01:21:06,371 [INFO] [DatesSection] Data loaded successfully (gen 3)
+2026-04-07 01:21:06,371 [INFO] [DatesSection] Tree built with 4 years
+2026-04-07 01:21:06,412 [INFO] [AccordionSidebar] Section dates loaded and displayed
+2026-04-07 01:21:09,062 [INFO] [AccordionSidebar] Expanding section: folders
+2026-04-07 01:21:09,070 [INFO] [FoldersSection] Loading folders (generation 3)...
+2026-04-07 01:21:09,070 [INFO] [FoldersSection] Loaded 2 folders (gen 3)
+[ReferenceDB] Closed connection for thread 34552
+2026-04-07 01:21:09,070 [INFO] [FoldersSection] Data loaded successfully (gen 3)
+2026-04-07 01:21:09,070 [INFO] [FoldersSection] Tree built with 1 top-level folders
+2026-04-07 01:21:09,116 [INFO] [AccordionSidebar] Section folders loaded and displayed
+2026-04-07 01:21:10,570 [INFO] [AccordionSidebar] Expanding section: devices
+[DeviceMonitor] Initialized for platform: Windows
+[WindowsDeviceWindow] Native window created (hidden)
+[DeviceMonitor] Windows device monitoring started
+[DeviceMonitor] Listening for WM_DEVICECHANGE messages
+2026-04-07 01:21:10,593 [INFO] [DevicesSection] Scanning devices (generation 3)…
+
+[DeviceScanner] ===== Starting device scan (FORCED) =====
+[DeviceScanner] Platform: Windows
+[DeviceScanner] Database registration: disabled
+[DeviceScanner] Scanning Windows drives...
+[DeviceScanner]   Checking drive letters D:-Z:...
+[DeviceScanner]   Checking portable devices (MTP/PTP)...
+[DeviceScanner]     Attempting Shell COM enumeration...
+[DeviceScanner]     COM initialized for current thread
+[DeviceScanner]     Found 1 items under 'This PC'
+[DeviceScanner]       → Item: '(C:) SYSTEM' | IsFolder=True | IsFileSystem=True
+[DeviceScanner]     COM uninitialized
+[DeviceScanner] ===== Scan complete: 0 device(s) found =====
+[DeviceScanner] Results cached for 300.0s
+
+2026-04-07 01:21:10,791 [INFO] [AccordionSidebar] Section devices loaded and displayed
+[GooglePhotosLayout] No search results for: 'Favorites'
+[GooglePhotosLayout] Accordion branch clicked: duration:medium
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [person=duration:medium]...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 4) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 4, page_size=250)
-2026-04-06 21:16:29,290 [INFO] [GoogleLayout] Page count ready: gen=4 total=0 (threshold=3000)
-2026-04-06 21:16:29,291 [INFO] [GoogleLayout] Page ready: gen=4 offset=0 rows=0 loaded=0/0
+2026-04-07 01:21:24,626 [INFO] [GoogleLayout] Page count ready: gen=4 total=0 (threshold=3000)
+2026-04-07 01:21:24,626 [INFO] [GoogleLayout] Page ready: gen=4 offset=0 rows=0 loaded=0/0
 [GooglePhotosLayout] No photos found in project 1
-2026-04-06 21:16:29,291 [INFO] [GoogleLayout] All pages loaded: 0 rows total
-2026-04-06 21:16:32,964 [INFO] [QuickSection] Quick date selected: yesterday
-[GooglePhotosLayout] Accordion date clicked: 2026-04-05
-[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4, day=5]...
+2026-04-07 01:21:24,630 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 5) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 5, page_size=250)
-2026-04-06 21:16:33,029 [INFO] [GoogleLayout] Page count ready: gen=5 total=0 (threshold=3000)
-2026-04-06 21:16:33,029 [INFO] [GoogleLayout] Page ready: gen=5 offset=0 rows=0 loaded=0/0
-[GooglePhotosLayout] No photos found in project 1
-2026-04-06 21:16:33,029 [INFO] [GoogleLayout] All pages loaded: 0 rows total
-2026-04-06 21:16:35,371 [INFO] [QuickSection] Quick date selected: last_7_days
-[GooglePhotosLayout] Accordion date clicked: 2026-03-31:2026-04-06
-[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=3]...
+2026-04-07 01:21:29,770 [INFO] [GoogleLayout] Page count ready: gen=5 total=27 (threshold=3000)
+2026-04-07 01:21:29,770 [INFO] [GoogleLayout] Page ready: gen=5 offset=0 rows=27 loaded=27/27
+[GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
+2026-04-07 01:21:29,770 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+[GooglePhotosLayout] Grouped into 13 date groups
+[GooglePhotosLayout] Tracking 27 paths for multi-selection
+[GooglePhotosLayout] 📐 Responsive grid: 6 columns (viewport: 1256px, thumb: 200px)
+[GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
+[GooglePhotosLayout] Rendered: 5 groups | Placeholders: 8 groups
+[GooglePhotosLayout] Queued 10 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 6) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 6, page_size=250)
-2026-04-06 21:16:35,435 [INFO] [GoogleLayout] Page count ready: gen=6 total=0 (threshold=3000)
-2026-04-06 21:16:35,439 [INFO] [GoogleLayout] Page ready: gen=6 offset=0 rows=0 loaded=0/0
-[GooglePhotosLayout] No photos found in project 1
-2026-04-06 21:16:35,439 [INFO] [GoogleLayout] All pages loaded: 0 rows total
-2026-04-06 21:16:35,970 [INFO] [QuickSection] Quick date selected: last_30_days
-[GooglePhotosLayout] Accordion date clicked: 2026-03-08:2026-04-06
-[GooglePhotosLayout] Skipping redundant reload (same state signature)
-2026-04-06 21:16:36,490 [INFO] [QuickSection] Quick date selected: this_month
-[GooglePhotosLayout] Accordion date clicked: 2026-04
-[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4]...
+2026-04-07 01:21:33,835 [INFO] [GoogleLayout] Page count ready: gen=6 total=27 (threshold=3000)
+2026-04-07 01:21:33,835 [INFO] [GoogleLayout] Page ready: gen=6 offset=0 rows=27 loaded=27/27
+[GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
+2026-04-07 01:21:33,835 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+[GooglePhotosLayout] Grouped into 13 date groups
+[GooglePhotosLayout] Tracking 27 paths for multi-selection
+[GooglePhotosLayout] 📐 Responsive grid: 5 columns (viewport: 1244px, thumb: 200px)
+[GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
+[GooglePhotosLayout] Rendered: 5 groups | Placeholders: 8 groups
+[GooglePhotosLayout] Queued 10 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+2026-04-07 01:21:36,250 [INFO] Started async duplicate loading (generation 1)
+2026-04-07 01:21:36,250 [INFO] Loaded 7 duplicate assets in background (limit=None, offset=0)
+2026-04-07 01:21:36,669 [INFO] Async duplicate loading complete: 7 groups loaded
+2026-04-07 01:21:42,221 [INFO] [AccordionSidebar] Expanding section: locations
+2026-04-07 01:21:42,230 [INFO] [LocationsSection] Loading locations (generation 3)...
+2026-04-07 01:21:42,230 [INFO] [get_location_clusters] GPS columns exist: True
+2026-04-07 01:21:42,230 [INFO] [get_location_clusters] Found 2 photos with GPS data (project_id=1)
+2026-04-07 01:21:42,240 [INFO] [get_location_clusters] get_photos_by_location returned 2 location groups
+2026-04-07 01:21:42,240 [INFO] [get_location_clusters] Returning 2 location clusters
+2026-04-07 01:21:42,240 [INFO] [LocationsSection] Loaded 2 location clusters (gen 3)
+[ReferenceDB] Closed connection for thread 33680
+2026-04-07 01:21:42,242 [INFO] [LocationsSection] Data loaded successfully (gen 3)
+2026-04-07 01:21:42,242 [INFO] [LocationsSection] Tree built with 2 locations
+2026-04-07 01:21:42,280 [INFO] [AccordionSidebar] Section locations loaded and displayed
+2026-04-07 01:21:45,890 [INFO] [AccordionSidebar] Expanding section: quick
+2026-04-07 01:21:45,894 [INFO] [QuickSection] Loading quick dates
+2026-04-07 01:21:45,938 [INFO] [AccordionSidebar] Section quick loaded and displayed
+2026-04-07 01:21:45,942 [INFO] [QuickSection] Quick date selected: today
+[GooglePhotosLayout] Accordion date clicked: 2026-04-07
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4, day=7]...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 7) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 7, page_size=250)
-2026-04-06 21:16:36,569 [INFO] [GoogleLayout] Page count ready: gen=7 total=0 (threshold=3000)
-2026-04-06 21:16:36,569 [INFO] [GoogleLayout] Page ready: gen=7 offset=0 rows=0 loaded=0/0
+2026-04-07 01:21:46,009 [INFO] [GoogleLayout] Page count ready: gen=7 total=0 (threshold=3000)
+2026-04-07 01:21:46,010 [INFO] [GoogleLayout] Page ready: gen=7 offset=0 rows=0 loaded=0/0
 [GooglePhotosLayout] No photos found in project 1
-2026-04-06 21:16:36,569 [INFO] [GoogleLayout] All pages loaded: 0 rows total
-2026-04-06 21:16:37,029 [INFO] [QuickSection] Quick date selected: last_month
-[GooglePhotosLayout] Accordion date clicked: 2026-03
-[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=3]...
+2026-04-07 01:21:46,010 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+2026-04-07 01:21:51,105 [INFO] [QuickSection] Quick date selected: yesterday
+[GooglePhotosLayout] Accordion date clicked: 2026-04-06
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4, day=6]...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 8) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 8, page_size=250)
-2026-04-06 21:16:37,101 [INFO] [GoogleLayout] Page count ready: gen=8 total=0 (threshold=3000)
-2026-04-06 21:16:37,101 [INFO] [GoogleLayout] Page ready: gen=8 offset=0 rows=0 loaded=0/0
+2026-04-07 01:21:51,170 [INFO] [GoogleLayout] Page count ready: gen=8 total=0 (threshold=3000)
+2026-04-07 01:21:51,172 [INFO] [GoogleLayout] Page ready: gen=8 offset=0 rows=0 loaded=0/0
 [GooglePhotosLayout] No photos found in project 1
-2026-04-06 21:16:37,101 [INFO] [GoogleLayout] All pages loaded: 0 rows total
-2026-04-06 21:16:38,590 [INFO] [QuickSection] Quick date selected: this_year
-[GooglePhotosLayout] Accordion date clicked: 2026
-[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026]...
+2026-04-07 01:21:51,172 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+2026-04-07 01:21:52,459 [INFO] [QuickSection] Quick date selected: last_7_days
+[GooglePhotosLayout] Accordion date clicked: 2026-04-01:2026-04-07
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4]...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 9) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 9, page_size=250)
-2026-04-06 21:16:38,663 [INFO] [GoogleLayout] Page count ready: gen=9 total=4 (threshold=3000)
-2026-04-06 21:16:38,663 [INFO] [GoogleLayout] Page ready: gen=9 offset=0 rows=4 loaded=4/4
+2026-04-07 01:21:52,523 [INFO] [GoogleLayout] Page count ready: gen=9 total=0 (threshold=3000)
+2026-04-07 01:21:52,523 [INFO] [GoogleLayout] Page ready: gen=9 offset=0 rows=0 loaded=0/0
+[GooglePhotosLayout] No photos found in project 1
+2026-04-07 01:21:52,523 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+2026-04-07 01:21:54,855 [INFO] [QuickSection] Quick date selected: last_7_days
+[GooglePhotosLayout] Accordion date clicked: 2026-04-01:2026-04-07
+[GooglePhotosLayout] Skipping redundant reload (same state signature)
+2026-04-07 01:21:55,696 [INFO] [QuickSection] Quick date selected: last_30_days
+[GooglePhotosLayout] Accordion date clicked: 2026-03-09:2026-04-07
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=3]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 10) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 10, page_size=250)
+2026-04-07 01:21:55,763 [INFO] [GoogleLayout] Page count ready: gen=10 total=0 (threshold=3000)
+2026-04-07 01:21:55,763 [INFO] [GoogleLayout] Page ready: gen=10 offset=0 rows=0 loaded=0/0
+[GooglePhotosLayout] No photos found in project 1
+2026-04-07 01:21:55,767 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+2026-04-07 01:21:56,385 [INFO] [QuickSection] Quick date selected: this_month
+[GooglePhotosLayout] Accordion date clicked: 2026-04
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=4]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 11) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 11, page_size=250)
+2026-04-07 01:21:56,456 [INFO] [GoogleLayout] Page count ready: gen=11 total=0 (threshold=3000)
+2026-04-07 01:21:56,460 [INFO] [GoogleLayout] Page ready: gen=11 offset=0 rows=0 loaded=0/0
+[GooglePhotosLayout] No photos found in project 1
+2026-04-07 01:21:56,460 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+2026-04-07 01:21:57,332 [INFO] [QuickSection] Quick date selected: last_month
+[GooglePhotosLayout] Accordion date clicked: 2026-03
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026, month=3]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 12) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 12, page_size=250)
+2026-04-07 01:21:57,412 [INFO] [GoogleLayout] Page count ready: gen=12 total=0 (threshold=3000)
+2026-04-07 01:21:57,412 [INFO] [GoogleLayout] Page ready: gen=12 offset=0 rows=0 loaded=0/0
+[GooglePhotosLayout] No photos found in project 1
+2026-04-07 01:21:57,412 [INFO] [GoogleLayout] All pages loaded: 0 rows total
+2026-04-07 01:21:58,190 [INFO] [QuickSection] Quick date selected: this_year
+[GooglePhotosLayout] Accordion date clicked: 2026
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2026]...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 13) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 13, page_size=250)
+2026-04-07 01:21:58,250 [INFO] [GoogleLayout] Page count ready: gen=13 total=4 (threshold=3000)
+2026-04-07 01:21:58,250 [INFO] [GoogleLayout] Page ready: gen=13 offset=0 rows=4 loaded=4/4
 [GooglePhotosLayout] Dispatching 4 assets (photos+videos) to background grouping worker...
-2026-04-06 21:16:38,663 [INFO] [GoogleLayout] All pages loaded: 4 rows total
+2026-04-07 01:21:58,250 [INFO] [GoogleLayout] All pages loaded: 4 rows total
 [GooglePhotosLayout] Grouped into 1 date groups
 [GooglePhotosLayout] Tracking 4 paths for multi-selection
+[GooglePhotosLayout] 📐 Responsive grid: 6 columns (viewport: 1256px, thumb: 200px)
 [GooglePhotosLayout] Virtual scrolling enabled: 1 total date groups
 [GooglePhotosLayout] Rendered: 1 groups | Placeholders: 0 groups
 [GooglePhotosLayout] Queued 4 thumbnails for loading (initial limit: 50)
 [GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
-2026-04-06 21:16:40,649 [INFO] [QuickSection] Quick date selected: last_year
+2026-04-07 01:21:59,840 [INFO] [QuickSection] Quick date selected: last_year
 [GooglePhotosLayout] Accordion date clicked: 2025
 [GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px) [year=2025]...
-[GooglePhotosLayout] 🔍 Starting async photo load (generation 10) - existing content preserved...
-[GooglePhotosLayout] Paged load started (generation 10, page_size=250)
-2026-04-06 21:16:40,720 [INFO] [GoogleLayout] Page count ready: gen=10 total=13 (threshold=3000)
-2026-04-06 21:16:40,720 [INFO] [GoogleLayout] Page ready: gen=10 offset=0 rows=13 loaded=13/13
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 14) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 14, page_size=250)
+2026-04-07 01:21:59,913 [INFO] [GoogleLayout] Page count ready: gen=14 total=13 (threshold=3000)
+2026-04-07 01:21:59,913 [INFO] [GoogleLayout] Page ready: gen=14 offset=0 rows=13 loaded=13/13
 [GooglePhotosLayout] Dispatching 13 assets (photos+videos) to background grouping worker...
-2026-04-06 21:16:40,720 [INFO] [GoogleLayout] All pages loaded: 13 rows total
+2026-04-07 01:21:59,913 [INFO] [GoogleLayout] All pages loaded: 13 rows total
 [GooglePhotosLayout] Grouped into 7 date groups
 [GooglePhotosLayout] Tracking 13 paths for multi-selection
-2026-04-06 21:16:40,749 [INFO] [VideoThumbnailService] Using default thumbnail directory: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache
-2026-04-06 21:16:40,749 [INFO] Using ffmpeg from same directory as ffprobe: C:\ffmpeg\bin\ffmpeg.exe
-2026-04-06 21:16:40,759 [INFO] [VideoThumbnailService] Using default thumbnail directory: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache
-2026-04-06 21:16:40,759 [INFO] Using ffmpeg from same directory as ffprobe: C:\ffmpeg\bin\ffmpeg.exe
-2026-04-06 21:16:40,799 [INFO] ffmpeg detected at 'C:\ffmpeg\bin\ffmpeg.exe' - video thumbnail generation enabled
-[ThumbnailLoader] ✓ Video thumbnail: qouzleh_mitsubtitles.mp4
-2026-04-06 21:16:40,800 [INFO] ffmpeg detected at 'C:\ffmpeg\bin\ffmpeg.exe' - video thumbnail generation enabled
+2026-04-07 01:21:59,940 [INFO] [VideoThumbnailService] Using default thumbnail directory: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache
+2026-04-07 01:21:59,940 [INFO] Using ffmpeg from same directory as ffprobe: C:\ffmpeg\bin\ffmpeg.exe
+2026-04-07 01:21:59,944 [INFO] [VideoThumbnailService] Using default thumbnail directory: C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main\.thumb_cache
+2026-04-07 01:21:59,944 [INFO] Using ffmpeg from same directory as ffprobe: C:\ffmpeg\bin\ffmpeg.exe
+2026-04-07 01:21:59,990 [INFO] ffmpeg detected at 'C:\ffmpeg\bin\ffmpeg.exe' - video thumbnail generation enabled
+2026-04-07 01:21:59,990 [INFO] ffmpeg detected at 'C:\ffmpeg\bin\ffmpeg.exe' - video thumbnail generation enabled
 [ThumbnailLoader] ✓ Video thumbnail: qouzleh_mitsubtitles-ezgif.com-resize-video.mp4
+[ThumbnailLoader] ✓ Video thumbnail: qouzleh_mitsubtitles.mp4
 [GooglePhotosLayout] Virtual scrolling enabled: 7 total date groups
 [GooglePhotosLayout] Rendered: 5 groups | Placeholders: 2 groups
 [GooglePhotosLayout] Queued 11 thumbnails for loading (initial limit: 50)
@@ -760,36 +851,25 @@ Adaptive Icons:  24px
 [GooglePhotosLayout] browse_all: clearing filters and reloading grid
 [GooglePhotosLayout] Clearing all filters
 [GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
-[GooglePhotosLayout] 🔍 Starting async photo load (generation 11) - existing content preserved...
-[GooglePhotosLayout] Paged load started (generation 11, page_size=250)
-2026-04-06 21:16:50,490 [INFO] [GoogleLayout] Page count ready: gen=11 total=27 (threshold=3000)
-2026-04-06 21:16:50,499 [INFO] [GoogleLayout] Page ready: gen=11 offset=0 rows=27 loaded=27/27
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 15) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 15, page_size=250)
+2026-04-07 01:22:12,910 [INFO] [GoogleLayout] Page count ready: gen=15 total=27 (threshold=3000)
+2026-04-07 01:22:12,910 [INFO] [GoogleLayout] Page ready: gen=15 offset=0 rows=27 loaded=27/27
 [GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
-2026-04-06 21:16:50,499 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+2026-04-07 01:22:12,919 [INFO] [GoogleLayout] All pages loaded: 27 rows total
 [GooglePhotosLayout] Grouped into 13 date groups
 [GooglePhotosLayout] Tracking 27 paths for multi-selection
+[GooglePhotosLayout] 📐 Responsive grid: 5 columns (viewport: 1244px, thumb: 200px)
 [GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
 [GooglePhotosLayout] Rendered: 5 groups | Placeholders: 8 groups
 [GooglePhotosLayout] Queued 10 thumbnails for loading (initial limit: 50)
 [GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
-2026-04-06 21:16:58,009 [INFO] [AccordionSidebar] Expanding section: dates
-2026-04-06 21:16:58,019 [INFO] [DatesSection] Skipping reload, already current for project 1
-2026-04-06 21:16:58,049 [INFO] [AccordionSidebar] Section dates loaded and displayed
-2026-04-06 21:16:59,990 [INFO] [AccordionSidebar] Expanding section: folders
-2026-04-06 21:16:59,999 [INFO] [FoldersSection] Skipping reload, already current for project 1
-2026-04-06 21:16:59,999 [INFO] [FoldersSection] Tree built with 1 top-level folders
-2026-04-06 21:17:00,039 [INFO] [AccordionSidebar] Section folders loaded and displayed
-2026-04-06 21:17:03,272 [INFO] [AccordionSidebar] Expanding section: duplicates
-2026-04-06 21:17:03,344 [INFO] [AccordionSidebar] Section duplicates loaded and displayed
-2026-04-06 21:17:06,284 [INFO] Started async duplicate loading (generation 1)
-2026-04-06 21:17:06,334 [INFO] Loaded 7 duplicate assets in background (limit=None, offset=0)
-2026-04-06 21:17:06,364 [INFO] Async duplicate loading complete: 7 groups loaded
-2026-04-06 21:17:08,178 [INFO] [AccordionSidebar] Section duplicates loaded and displayed
-[LayoutManager] Switching layout: google → google_legacy
-[LayoutManager] 🗑️ Removed old placeholder widget
+[LayoutManager] Switching layout: google → current
 [GooglePhotosLayout] Cleaning up resources...
-2026-04-06 21:17:15,908 [INFO] [AccordionSidebar] Cleanup
-[ReferenceDB] Closed connection for thread 33708
+2026-04-07 01:22:26,254 [INFO] [AccordionSidebar] Cleanup
+[DeviceMonitor] Windows monitoring stopped
+[DeviceMonitor] Monitoring stopped
+[ReferenceDB] Closed connection for thread 37676
 [GooglePhotosLayout]   ↳ Disconnecting signals...
 [GooglePhotosLayout]   ✓ Signals disconnected
 [GooglePhotosLayout]   ↳ Removing event filters...
@@ -802,50 +882,6 @@ Adaptive Icons:  24px
 [GooglePhotosLayout]   ✓ Caches cleared
 [GooglePhotosLayout]   ↳ Stopping animations...
 [GooglePhotosLayout]   ✓ Animations stopped
-[GooglePhotosLayoutLegacy] Using default project: 1
-[GooglePhotosLayoutLegacy] Project selector populated with 1 projects (+ New Project option)
-2026-04-06 21:17:15,953 [INFO] [AccordionSidebar] Initializing with project_id=1
-2026-04-06 21:17:15,978 [INFO] [AccordionSidebar] Created 9 sections
-2026-04-06 21:17:15,978 [INFO] [AccordionSidebar] Expanding section: find
-2026-04-06 21:17:15,990 [INFO] [SemanticSearchService] Creating service for project 1 with canonical model: openai/clip-vit-base-patch32
-2026-04-06 21:17:15,990 [INFO] [SemanticSearchService] Initialized with model=openai/clip-vit-base-patch32
-2026-04-06 21:17:16,150 [INFO] [AccordionSidebar] Section find loaded and displayed
-[GooglePhotosLayoutLegacy] ✅ Scroll-triggered lazy loading enabled
-[LayoutManager] Setting new central widget: QWidget
-[GooglePhotosLayoutLegacy] Layout activated
-[LayoutManager] Switched to: Google Photos Legacy
-[MainWindow] ✓ Switched to layout: google_legacy
-[GooglePhotosLayoutLegacy] 📐 Responsive grid: 5 columns (viewport: 1121px, thumb: 200px)
-[GooglePhotosLayoutLegacy] Executing debounced reload: layout_switch_post_startup
-[GooglePhotosLayoutLegacy] 📷 Loading photos from database (thumb size: 200px)...
-[GooglePhotosLayoutLegacy] 🔍 Starting async photo load (generation 1) - existing content preserved...
-[GooglePhotosLayoutLegacy] Paged load started (generation 1, page_size=250)
-2026-04-06 21:17:16,352 [INFO] [GoogleLayout] Page count ready: gen=1 total=27 (threshold=3000)
-2026-04-06 21:17:16,352 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=27 loaded=27/27
-[GooglePhotosLayoutLegacy] Dispatching 27 assets (photos+videos) to background grouping worker...
-2026-04-06 21:17:16,352 [INFO] [GoogleLayout] All pages loaded: 27 rows total
-[GooglePhotosLayoutLegacy] Grouped into 13 date groups
-[GooglePhotosLayoutLegacy] Tracking 27 paths for multi-selection
-[GooglePhotosLayoutLegacy] Virtual scrolling enabled: 13 total date groups
-[GooglePhotosLayoutLegacy] Rendered: 5 groups | Placeholders: 8 groups
-[GooglePhotosLayoutLegacy] Queued 10 thumbnails for loading (initial limit: 50)
-[GooglePhotosLayoutLegacy] Photo loading complete! Thumbnails will load progressively.
-[LayoutManager] Switching layout: google_legacy → current
-[GooglePhotosLayoutLegacy] Cleaning up resources...
-2026-04-06 21:17:21,041 [INFO] [AccordionSidebar] Cleanup
-[ReferenceDB] Closed connection for thread 33708
-[GooglePhotosLayoutLegacy]   ↳ Disconnecting signals...
-[GooglePhotosLayoutLegacy]   ✓ Signals disconnected
-[GooglePhotosLayoutLegacy]   ↳ Removing event filters...
-[GooglePhotosLayoutLegacy]   ✓ Event filters removed
-[GooglePhotosLayoutLegacy]   ↳ Stopping timers...
-[GooglePhotosLayoutLegacy]   ✓ Timers stopped
-[GooglePhotosLayoutLegacy]   ↳ Cleaning up thread pools...
-[GooglePhotosLayoutLegacy]   ✓ Thread pools cleaned
-[GooglePhotosLayoutLegacy]   ↳ Clearing caches...
-[GooglePhotosLayoutLegacy]   ✓ Caches cleared
-[GooglePhotosLayoutLegacy]   ↳ Stopping animations...
-[GooglePhotosLayoutLegacy]   ✓ Animations stopped
 [LayoutManager] 🔄 Restoring original central widget: QWidget
 [CurrentLayout] Layout activated - scheduling deferred refresh
 [LayoutManager] Switched to: Current Layout
@@ -867,10 +903,10 @@ Adaptive Icons:  24px
 [Sidebar] Found 2 videos in project 1
 [VideoDateHierarchy] Building: 1 years, 1 months, 2 videos
 [Sidebar] Added 🎬 Videos section with 2 videos and filters.
-2026-04-06 21:17:21,208 [INFO] [get_location_clusters] GPS columns exist: True
-2026-04-06 21:17:21,208 [INFO] [get_location_clusters] Found 2 photos with GPS data (project_id=1)
-2026-04-06 21:17:21,208 [INFO] [get_location_clusters] get_photos_by_location returned 2 location groups
-2026-04-06 21:17:21,208 [INFO] [get_location_clusters] Returning 2 location clusters
+2026-04-07 01:22:26,419 [INFO] [get_location_clusters] GPS columns exist: True
+2026-04-07 01:22:26,419 [INFO] [get_location_clusters] Found 2 photos with GPS data (project_id=1)
+2026-04-07 01:22:26,419 [INFO] [get_location_clusters] get_photos_by_location returned 2 location groups
+2026-04-07 01:22:26,419 [INFO] [get_location_clusters] Returning 2 location clusters
 [Sidebar] Added 🗺️ Locations section with 2 locations, 2 photos.
 [Sidebar] No mobile devices detected - added help message
 [Sidebar] starting async count population for 1 branch targets
@@ -919,24 +955,112 @@ Adaptive Icons:  24px
 [LayoutManager] 💾 Took ownership of original central widget: QWidget
 [GooglePhotosLayout] Using default project: 1
 [GooglePhotosLayout] Project selector populated with 1 projects (+ New Project option)
-2026-04-06 21:18:17,128 [INFO] [AccordionSidebar] Initializing with project_id=1
-2026-04-06 21:18:17,157 [INFO] [AccordionSidebar] Created 9 sections
-2026-04-06 21:18:17,158 [INFO] [AccordionSidebar] Expanding section: find
-2026-04-06 21:18:17,277 [INFO] [AccordionSidebar] Section find loaded and displayed
+2026-04-07 01:22:52,439 [INFO] [AccordionSidebar] Initializing with project_id=1
+2026-04-07 01:22:52,459 [INFO] [AccordionSidebar] Created 9 sections
+2026-04-07 01:22:52,459 [INFO] [AccordionSidebar] Expanding section: find
+2026-04-07 01:22:52,471 [INFO] [SemanticSearchService] Creating service for project 1 with canonical model: openai/clip-vit-base-patch32
+2026-04-07 01:22:52,471 [INFO] [SemanticSearchService] Initialized with model=openai/clip-vit-base-patch32
+2026-04-07 01:22:52,641 [INFO] [AccordionSidebar] Section find loaded and displayed
 [GooglePhotosLayout] ✅ Scroll-triggered lazy loading enabled
 [LayoutManager] Setting new central widget: QWidget
 [GooglePhotosLayout] Layout activated
 [LayoutManager] Switched to: Google Photos Style
 [MainWindow] ✓ Switched to layout: google
-[GooglePhotosLayout] 📐 Responsive grid: 5 columns (viewport: 1121px, thumb: 200px)
+[GooglePhotosLayout] 📐 Responsive grid: 6 columns (viewport: 1256px, thumb: 200px)
 [GooglePhotosLayout] Executing debounced reload: layout_switch_post_startup
 [GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
 [GooglePhotosLayout] 🔍 Starting async photo load (generation 1) - existing content preserved...
 [GooglePhotosLayout] Paged load started (generation 1, page_size=250)
-2026-04-06 21:18:17,734 [INFO] [GoogleLayout] Page count ready: gen=1 total=27 (threshold=3000)
-2026-04-06 21:18:17,737 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=27 loaded=27/27
+2026-04-07 01:22:53,086 [INFO] [GoogleLayout] Page count ready: gen=1 total=27 (threshold=3000)
+2026-04-07 01:22:53,089 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=27 loaded=27/27
 [GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
-2026-04-06 21:18:17,738 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+2026-04-07 01:22:53,089 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+[GooglePhotosLayout] Grouped into 13 date groups
+[GooglePhotosLayout] Tracking 27 paths for multi-selection
+[GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
+[GooglePhotosLayout] Rendered: 5 groups | Placeholders: 8 groups
+[GooglePhotosLayout] Queued 10 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
+[LayoutManager] Switching layout: google → google_legacy
+[LayoutManager] 🗑️ Removed old placeholder widget
+[GooglePhotosLayout] Cleaning up resources...
+2026-04-07 01:22:56,639 [INFO] [AccordionSidebar] Cleanup
+[ReferenceDB] Closed connection for thread 37676
+[GooglePhotosLayout]   ↳ Disconnecting signals...
+[GooglePhotosLayout]   ✓ Signals disconnected
+[GooglePhotosLayout]   ↳ Removing event filters...
+[GooglePhotosLayout]   ✓ Event filters removed
+[GooglePhotosLayout]   ↳ Stopping timers...
+[GooglePhotosLayout]   ✓ Timers stopped
+[GooglePhotosLayout]   ↳ Cleaning up thread pools...
+[GooglePhotosLayout]   ✓ Thread pools cleaned
+[GooglePhotosLayout]   ↳ Clearing caches...
+[GooglePhotosLayout]   ✓ Caches cleared
+[GooglePhotosLayout]   ↳ Stopping animations...
+[GooglePhotosLayout]   ✓ Animations stopped
+[GooglePhotosLayoutLegacy] Using default project: 1
+[GooglePhotosLayoutLegacy] Project selector populated with 1 projects (+ New Project option)
+2026-04-07 01:22:56,674 [INFO] [AccordionSidebar] Initializing with project_id=1
+2026-04-07 01:22:56,699 [INFO] [AccordionSidebar] Created 9 sections
+2026-04-07 01:22:56,699 [INFO] [AccordionSidebar] Expanding section: find
+2026-04-07 01:22:56,808 [INFO] [AccordionSidebar] Section find loaded and displayed
+[GooglePhotosLayoutLegacy] ✅ Scroll-triggered lazy loading enabled
+[LayoutManager] Setting new central widget: QWidget
+[GooglePhotosLayoutLegacy] Layout activated
+[LayoutManager] Switched to: Google Photos Legacy
+[MainWindow] ✓ Switched to layout: google_legacy
+[GooglePhotosLayoutLegacy] 📐 Responsive grid: 6 columns (viewport: 1256px, thumb: 200px)
+[GooglePhotosLayoutLegacy] Executing debounced reload: layout_switch_post_startup
+[GooglePhotosLayoutLegacy] 📷 Loading photos from database (thumb size: 200px)...
+[GooglePhotosLayoutLegacy] 🔍 Starting async photo load (generation 1) - existing content preserved...
+[GooglePhotosLayoutLegacy] Paged load started (generation 1, page_size=250)
+2026-04-07 01:22:57,030 [INFO] [GoogleLayout] Page count ready: gen=1 total=27 (threshold=3000)
+2026-04-07 01:22:57,031 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=27 loaded=27/27
+[GooglePhotosLayoutLegacy] Dispatching 27 assets (photos+videos) to background grouping worker...
+2026-04-07 01:22:57,031 [INFO] [GoogleLayout] All pages loaded: 27 rows total
+[GooglePhotosLayoutLegacy] Grouped into 13 date groups
+[GooglePhotosLayoutLegacy] Tracking 27 paths for multi-selection
+[GooglePhotosLayoutLegacy] Virtual scrolling enabled: 13 total date groups
+[GooglePhotosLayoutLegacy] Rendered: 5 groups | Placeholders: 8 groups
+[GooglePhotosLayoutLegacy] Queued 10 thumbnails for loading (initial limit: 50)
+[GooglePhotosLayoutLegacy] Photo loading complete! Thumbnails will load progressively.
+[LayoutManager] Switching layout: google_legacy → google
+[LayoutManager] 🗑️ Removed old placeholder widget
+[GooglePhotosLayoutLegacy] Cleaning up resources...
+2026-04-07 01:23:00,638 [INFO] [AccordionSidebar] Cleanup
+[ReferenceDB] Closed connection for thread 37676
+[GooglePhotosLayoutLegacy]   ↳ Disconnecting signals...
+[GooglePhotosLayoutLegacy]   ✓ Signals disconnected
+[GooglePhotosLayoutLegacy]   ↳ Removing event filters...
+[GooglePhotosLayoutLegacy]   ✓ Event filters removed
+[GooglePhotosLayoutLegacy]   ↳ Stopping timers...
+[GooglePhotosLayoutLegacy]   ✓ Timers stopped
+[GooglePhotosLayoutLegacy]   ↳ Cleaning up thread pools...
+[GooglePhotosLayoutLegacy]   ✓ Thread pools cleaned
+[GooglePhotosLayoutLegacy]   ↳ Clearing caches...
+[GooglePhotosLayoutLegacy]   ✓ Caches cleared
+[GooglePhotosLayoutLegacy]   ↳ Stopping animations...
+[GooglePhotosLayoutLegacy]   ✓ Animations stopped
+[GooglePhotosLayout] Using default project: 1
+[GooglePhotosLayout] Project selector populated with 1 projects (+ New Project option)
+2026-04-07 01:23:00,670 [INFO] [AccordionSidebar] Initializing with project_id=1
+2026-04-07 01:23:00,684 [INFO] [AccordionSidebar] Created 9 sections
+2026-04-07 01:23:00,686 [INFO] [AccordionSidebar] Expanding section: find
+2026-04-07 01:23:00,792 [INFO] [AccordionSidebar] Section find loaded and displayed
+[GooglePhotosLayout] ✅ Scroll-triggered lazy loading enabled
+[LayoutManager] Setting new central widget: QWidget
+[GooglePhotosLayout] Layout activated
+[LayoutManager] Switched to: Google Photos Style
+[MainWindow] ✓ Switched to layout: google
+[GooglePhotosLayout] 📐 Responsive grid: 6 columns (viewport: 1256px, thumb: 200px)
+[GooglePhotosLayout] Executing debounced reload: layout_switch_post_startup
+[GooglePhotosLayout] 📷 Loading photos from database (thumb size: 200px)...
+[GooglePhotosLayout] 🔍 Starting async photo load (generation 1) - existing content preserved...
+[GooglePhotosLayout] Paged load started (generation 1, page_size=250)
+2026-04-07 01:23:01,212 [INFO] [GoogleLayout] Page count ready: gen=1 total=27 (threshold=3000)
+2026-04-07 01:23:01,212 [INFO] [GoogleLayout] Page ready: gen=1 offset=0 rows=27 loaded=27/27
+[GooglePhotosLayout] Dispatching 27 assets (photos+videos) to background grouping worker...
+2026-04-07 01:23:01,212 [INFO] [GoogleLayout] All pages loaded: 27 rows total
 [GooglePhotosLayout] Grouped into 13 date groups
 [GooglePhotosLayout] Tracking 27 paths for multi-selection
 [GooglePhotosLayout] Virtual scrolling enabled: 13 total date groups
@@ -945,13 +1069,13 @@ Adaptive Icons:  24px
 [GooglePhotosLayout] Photo loading complete! Thumbnails will load progressively.
 [UI] Generation bumped 0 -> 1: shutdown barrier
 [Shutdown] _closing flag set, ui_generation=1, beginning teardown...
-2026-04-06 21:18:22,953 [INFO] [Store] ShutdownRequested src=main_window deltas={'ui_epoch': '0→1'}  →  3 subscriber(s)
-2026-04-06 21:18:22,953 [INFO] [JobManager] Canceled 0 jobs
+2026-04-07 01:23:07,931 [INFO] [Store] ShutdownRequested src=main_window deltas={'ui_epoch': '0→1'}  →  3 subscriber(s)
+2026-04-07 01:23:07,931 [INFO] [JobManager] Canceled 0 jobs
 [Shutdown] JobManager barrier complete (drained=True).
-2026-04-06 21:18:22,955 [INFO] Scan cancellation requested
-2026-04-06 21:18:22,955 [INFO] Scan stop requested via adapter
-2026-04-06 21:18:22,955 [INFO] [ScanController] DBWriter shut down
-2026-04-06 21:18:22,958 [INFO] [ScanController] Shutdown barrier complete (drained=True)
+2026-04-07 01:23:07,931 [INFO] Scan cancellation requested
+2026-04-07 01:23:07,931 [INFO] Scan stop requested via adapter
+2026-04-07 01:23:07,931 [INFO] [ScanController] DBWriter shut down
+2026-04-07 01:23:07,931 [INFO] [ScanController] Shutdown barrier complete (drained=True)
 [Shutdown] ScanController barrier complete.
 [Shutdown] Grid threads shut down.
 [ThumbnailManager] Thread pool shut down.
@@ -963,4 +1087,4 @@ Adaptive Icons:  24px
 Exit code: 0
 Drücken Sie eine beliebige Taste . . .
 
-C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\19-MemoryMate-PhotoFlow-UX_Improvement-main>
+C:\Users\suleimaa\Downloads\Photo-Sorter\12.01.01.01-Photo-App\20-MemoryMate-PhotoFlow-UX_Improvement-main>
