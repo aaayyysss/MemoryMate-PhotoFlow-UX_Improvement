@@ -5,7 +5,7 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy,
+    QFrame, QScrollArea, QSizePolicy, QTreeWidget, QTreeWidgetItem
 )
 
 
@@ -68,6 +68,11 @@ class GoogleShellSidebar(QWidget):
         self._retired_legacy_sections = set()
         self._shell_status_label = None
         self._shell_state_text = ""
+        self._date_tree = None
+        self._folder_tree = None
+        self._location_tree = None
+        self._video_filter_buttons = {}
+        self._review_buttons = {}
         self._project_required_branches = {
             "all",
             "dates",
@@ -140,21 +145,31 @@ class GoogleShellSidebar(QWidget):
         self.browse.add_widget(self._nav("All Photos", "all"))
         self.browse.add_widget(self._nav("Dates", "dates"))
 
-        # Dynamic Dates tree — populated by layout after project load
-        self._dates_subhead = self._subhead("Dates Overview")
+        self._dates_subhead = self._subhead("Dates")
         self.browse.add_widget(self._dates_subhead)
-        self._dates_container = QWidget()
-        self._dates_layout = QVBoxLayout(self._dates_container)
-        self._dates_layout.setContentsMargins(0, 0, 0, 0)
-        self._dates_layout.setSpacing(0)
-        # Default placeholder years
-        self._dates_layout.addWidget(self._nav("2026", "year_2026"))
-        self._dates_layout.addWidget(self._nav("2025", "year_2025"))
-        self._dates_layout.addWidget(self._nav("2024", "year_2024"))
-        self.browse.add_widget(self._dates_container)
+
+        self._date_tree = QTreeWidget()
+        self._date_tree.setHeaderHidden(True)
+        self._date_tree.setRootIsDecorated(True)
+        self._date_tree.setIndentation(14)
+        self._date_tree.setObjectName("ShellTree")
+        self._date_tree.itemClicked.connect(self._on_date_tree_item_clicked)
+        self.browse.add_widget(self._date_tree)
 
         self.browse.add_widget(self._subhead("Sources"))
         self.browse.add_widget(self._nav("Folders", "folders"))
+
+        self._folders_subhead = self._subhead("Folder Tree")
+        self.browse.add_widget(self._folders_subhead)
+
+        self._folder_tree = QTreeWidget()
+        self._folder_tree.setHeaderHidden(True)
+        self._folder_tree.setRootIsDecorated(True)
+        self._folder_tree.setIndentation(14)
+        self._folder_tree.setObjectName("ShellTree")
+        self._folder_tree.itemClicked.connect(self._on_folder_tree_item_clicked)
+        self.browse.add_widget(self._folder_tree)
+
         self.browse.add_widget(self._nav("Devices", "devices"))
 
         self.browse.add_widget(self._subhead("Collections"))
@@ -164,6 +179,17 @@ class GoogleShellSidebar(QWidget):
 
         self.browse.add_widget(self._subhead("Places"))
         self.browse.add_widget(self._nav("Locations", "locations"))
+
+        self._locations_subhead = self._subhead("Locations")
+        self.browse.add_widget(self._locations_subhead)
+
+        self._location_tree = QTreeWidget()
+        self._location_tree.setHeaderHidden(True)
+        self._location_tree.setRootIsDecorated(False)
+        self._location_tree.setIndentation(14)
+        self._location_tree.setObjectName("ShellTree")
+        self._location_tree.itemClicked.connect(self._on_location_tree_item_clicked)
+        self.browse.add_widget(self._location_tree)
 
         self.browse.add_widget(self._subhead("Quick Dates"))
         self.browse.add_widget(self._nav("Today", "today"))
@@ -176,23 +202,37 @@ class GoogleShellSidebar(QWidget):
         self.browse.add_widget(self._nav("Last year", "last_year"))
 
         # ── Videos ───────────────────────────────────────────────
-        self.videos_section = _ShellSection("Videos", expanded=False)
-        self.videos_section.add_widget(self._hint("Filter by type, duration, quality"))
-        self.videos_section.add_widget(self._nav("All Videos", "videos_all"))
-        self.videos_section.add_widget(self._subhead("Duration"))
-        self.videos_section.add_widget(self._nav("Short (< 30s)", "videos_short"))
-        self.videos_section.add_widget(self._nav("Medium (30s - 5m)", "videos_medium"))
-        self.videos_section.add_widget(self._nav("Long (> 5m)", "videos_long"))
-        self.videos_section.add_widget(self._subhead("Quality"))
-        self.videos_section.add_widget(self._nav("HD (720p+)", "videos_hd"))
-        self.videos_section.add_widget(self._nav("Full HD (1080p+)", "videos_fhd"))
-        self.videos_section.add_widget(self._nav("4K (2160p+)", "videos_4k"))
+        self.videos = _ShellSection("Videos", expanded=False)
+        self.videos.add_widget(self._hint("Filter by type, duration, quality"))
+
+        self._video_filter_buttons["videos_all"] = self._nav("All Videos", "videos")
+        self.videos.add_widget(self._video_filter_buttons["videos_all"])
+
+        self.videos.add_widget(self._subhead("Duration"))
+        self._video_filter_buttons["videos_duration_short"] = self._nav("Short (< 30s)", "videos_duration_short")
+        self._video_filter_buttons["videos_duration_medium"] = self._nav("Medium (30s - 5m)", "videos_duration_medium")
+        self._video_filter_buttons["videos_duration_long"] = self._nav("Long (> 5m)", "videos_duration_long")
+        self.videos.add_widget(self._video_filter_buttons["videos_duration_short"])
+        self.videos.add_widget(self._video_filter_buttons["videos_duration_medium"])
+        self.videos.add_widget(self._video_filter_buttons["videos_duration_long"])
+
+        self.videos.add_widget(self._subhead("Quality"))
+        self._video_filter_buttons["videos_resolution_hd"] = self._nav("HD (720p+)", "videos_resolution_hd")
+        self._video_filter_buttons["videos_resolution_fhd"] = self._nav("Full HD (1080p+)", "videos_resolution_fhd")
+        self._video_filter_buttons["videos_resolution_4k"] = self._nav("4K (2160p+)", "videos_resolution_4k")
+        self.videos.add_widget(self._video_filter_buttons["videos_resolution_hd"])
+        self.videos.add_widget(self._video_filter_buttons["videos_resolution_fhd"])
+        self.videos.add_widget(self._video_filter_buttons["videos_resolution_4k"])
 
         # ── Review ───────────────────────────────────────────────
-        self.review_section = _ShellSection("Review", expanded=False)
-        self.review_section.add_widget(self._hint("Cleanup, dedup, and quality review"))
-        self.review_section.add_widget(self._nav("Duplicates", "duplicates"))
-        self.review_section.add_widget(self._nav("Similar Shots", "similar_shots"))
+        self.review = _ShellSection("Review", expanded=False)
+        self.review.add_widget(self._hint("Cleanup, dedup, and quality review"))
+
+        self._review_buttons["review_duplicates"] = self._nav("Duplicates", "duplicates")
+        self._review_buttons["review_similar"] = self._nav("Similar Shots", "similar_shots")
+
+        self.review.add_widget(self._review_buttons["review_duplicates"])
+        self.review.add_widget(self._review_buttons["review_similar"])
 
         # ── Filters ───────────────────────────────────────────────
         self.filters = _ShellSection("Filters", expanded=False)
@@ -211,8 +251,8 @@ class GoogleShellSidebar(QWidget):
             self.discover,
             self.people,
             self.browse,
-            self.videos_section,
-            self.review_section,
+            self.videos,
+            self.review,
             self.filters,
             self.activity,
         ):
@@ -298,29 +338,86 @@ class GoogleShellSidebar(QWidget):
         self.set_shell_state_text("No active shell result")
 
     def set_date_years(self, years_with_counts):
-        """Rebuild Dates Overview from actual project data.
+        """Rebuild Dates Overview from actual project data (legacy compat)."""
+        # Delegate to set_date_tree with simple payload
+        if years_with_counts:
+            payload = [{"label": f"{y} ({c})" if c else str(y), "value": str(y)} for y, c in years_with_counts]
+            self.set_date_tree(payload)
 
-        Args:
-            years_with_counts: list of (year, count) tuples, newest first.
-                e.g. [(2025, 340), (2024, 128), (2023, 55)]
-        """
-        if not hasattr(self, "_dates_layout") or self._dates_layout is None:
+    def set_date_tree(self, years_payload):
+        if self._date_tree is None:
             return
-        # Clear existing year buttons
-        while self._dates_layout.count():
-            item = self._dates_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                # Remove from branch_buttons tracking
-                for key, btn in list(self._branch_buttons.items()):
-                    if btn is widget:
-                        del self._branch_buttons[key]
-                        break
-                widget.deleteLater()
-        # Add new year buttons from project data
-        for year, count in (years_with_counts or []):
-            label = f"{year} ({count})" if count else str(year)
-            self._dates_layout.addWidget(self._nav(label, f"year_{year}"))
+        self._date_tree.clear()
+
+        for year_item in years_payload or []:
+            year_label = str(year_item.get("label", ""))
+            year_value = str(year_item.get("value", ""))
+            months = year_item.get("months", []) or []
+
+            year_node = QTreeWidgetItem([year_label])
+            year_node.setData(0, Qt.UserRole, ("date_year", year_value))
+            self._date_tree.addTopLevelItem(year_node)
+
+            for month_item in months:
+                month_label = str(month_item.get("label", ""))
+                month_value = str(month_item.get("value", ""))
+                month_node = QTreeWidgetItem([month_label])
+                month_node.setData(0, Qt.UserRole, ("date_month", month_value))
+                year_node.addChild(month_node)
+
+    def set_folder_tree(self, folder_payload):
+        if self._folder_tree is None:
+            return
+        self._folder_tree.clear()
+
+        def add_nodes(parent_widget, items):
+            for item in items or []:
+                node = QTreeWidgetItem([str(item.get("label", ""))])
+                node.setData(0, Qt.UserRole, ("folder", item.get("id")))
+                parent_widget.addChild(node)
+                add_nodes(node, item.get("children", []))
+
+        for top in folder_payload or []:
+            node = QTreeWidgetItem([str(top.get("label", ""))])
+            node.setData(0, Qt.UserRole, ("folder", top.get("id")))
+            self._folder_tree.addTopLevelItem(node)
+            add_nodes(node, top.get("children", []))
+
+    def set_location_tree(self, location_payload):
+        if self._location_tree is None:
+            return
+        self._location_tree.clear()
+
+        for item in location_payload or []:
+            node = QTreeWidgetItem([str(item.get("label", ""))])
+            node.setData(0, Qt.UserRole, ("location", item.get("value")))
+            self._location_tree.addTopLevelItem(node)
+
+    def _on_date_tree_item_clicked(self, item, _column):
+        payload = item.data(0, Qt.UserRole)
+        if not payload:
+            return
+        kind, value = payload
+        if kind == "date_year":
+            self.selectBranch.emit(f"year_{value}")
+        elif kind == "date_month":
+            self.selectBranch.emit(f"month_{value}")
+
+    def _on_folder_tree_item_clicked(self, item, _column):
+        payload = item.data(0, Qt.UserRole)
+        if not payload:
+            return
+        kind, value = payload
+        if kind == "folder":
+            self.selectBranch.emit(f"folder_id:{value}")
+
+    def _on_location_tree_item_clicked(self, item, _column):
+        payload = item.data(0, Qt.UserRole)
+        if not payload:
+            return
+        kind, value = payload
+        if kind == "location":
+            self.selectBranch.emit(f"location_name:{value}")
 
     def set_legacy_emphasis(self, emphasized: bool):
         self.setProperty("legacySoft", not emphasized)
@@ -399,5 +496,23 @@ QPushButton#ShellNavBtn[disabledShell="true"] {
 }
 QPushButton#ShellNavBtn[disabledShell="true"]:hover {
     background: #f8f9fb;
+}
+QTreeWidget#ShellTree {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 11px;
+    color: #202124;
+}
+QTreeWidget#ShellTree::item {
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+QTreeWidget#ShellTree::item:hover {
+    background: #eef3ff;
+}
+QTreeWidget#ShellTree::item:selected {
+    background: #e8f0fe;
+    color: #1a73e8;
 }
 """

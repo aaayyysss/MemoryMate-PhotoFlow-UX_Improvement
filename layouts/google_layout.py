@@ -1270,6 +1270,9 @@ class GooglePhotosLayout(BaseLayout):
         """)
 
         self._refresh_passive_browse_payload()
+        self._sync_shell_date_tree()
+        self._sync_shell_folder_tree()
+        self._sync_shell_location_tree()
 
         return container
 
@@ -1340,40 +1343,75 @@ class GooglePhotosLayout(BaseLayout):
             pass
 
     def _sync_shell_date_tree(self):
-        """Phase 10C: Push the project's actual date hierarchy to the shell sidebar."""
+        """Phase 10C fix: Push the project's actual date hierarchy to the shell sidebar."""
         try:
             if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
                 return
-            if not hasattr(self.google_shell_sidebar, "set_date_years"):
-                return
-            if not getattr(self, "project_id", None):
-                return
 
-            # Try to get years with counts from the database
-            years_with_counts = []
-            db = getattr(self, "db", None) or getattr(self, "reference_db", None)
-            if db and hasattr(db, "get_date_hierarchy"):
-                hierarchy = db.get_date_hierarchy(self.project_id)
-                if hierarchy:
-                    for year_str in sorted(hierarchy.keys(), reverse=True):
-                        try:
-                            year = int(year_str)
-                            month_count = sum(
-                                len(days) for days in hierarchy[year_str].values()
-                            )
-                            years_with_counts.append((year, month_count))
-                        except (ValueError, TypeError):
-                            pass
+            years_payload = []
+            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+                section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
+                dates_section = section_logic.get("dates")
 
-            if not years_with_counts:
-                # Fallback: just show recent years without counts
-                import datetime
-                current_year = datetime.datetime.now().year
-                years_with_counts = [(y, 0) for y in range(current_year, current_year - 5, -1)]
+                if dates_section and hasattr(dates_section, "years_data"):
+                    for year, months in (dates_section.years_data or {}).items():
+                        month_items = []
+                        for month in months or []:
+                            month_val = month.get("month")
+                            if month_val is not None:
+                                month_items.append({
+                                    "label": str(month_val),
+                                    "value": f"{year:04d}-{int(month_val):02d}",
+                                })
+                        years_payload.append({
+                            "label": str(year),
+                            "value": str(year),
+                            "months": month_items,
+                        })
 
-            self.google_shell_sidebar.set_date_years(years_with_counts)
+            self.google_shell_sidebar.set_date_tree(years_payload)
         except Exception as e:
             print(f"[{self.__class__.__name__}] _sync_shell_date_tree failed: {e}")
+
+    def _sync_shell_folder_tree(self):
+        """Phase 10C fix: Push the project's folder hierarchy to the shell sidebar."""
+        try:
+            if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
+                return
+
+            payload = []
+            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+                section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
+                folders_section = section_logic.get("folders")
+
+                if folders_section and hasattr(folders_section, "_folder_tree_data"):
+                    payload = folders_section._folder_tree_data or []
+
+            self.google_shell_sidebar.set_folder_tree(payload)
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] _sync_shell_folder_tree failed: {e}")
+
+    def _sync_shell_location_tree(self):
+        """Phase 10C fix: Push the project's location clusters to the shell sidebar."""
+        try:
+            if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
+                return
+
+            payload = []
+            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
+                section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
+                locations_section = section_logic.get("locations")
+
+                if locations_section and hasattr(locations_section, "location_clusters"):
+                    for item in locations_section.location_clusters or []:
+                        payload.append({
+                            "label": str(item.get("name", "Unknown Location")),
+                            "value": str(item.get("name", "Unknown Location")),
+                        })
+
+            self.google_shell_sidebar.set_location_tree(payload)
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] _sync_shell_location_tree failed: {e}")
 
     def _set_view_mode(self, mode: str, description: str = ""):
         self._current_view_mode = mode
@@ -1552,44 +1590,87 @@ class GooglePhotosLayout(BaseLayout):
                     self._on_shell_quick_date_clicked(branch)
                 return
 
-            # ── Phase 10C: Video classifications ──────────────────────────────────────
-            _video_branch_map = {
-                "videos_all": "all",
-                "videos_short": "duration:short",
-                "videos_medium": "duration:medium",
-                "videos_long": "duration:long",
-                "videos_hd": "resolution:hd",
-                "videos_fhd": "resolution:fhd",
-                "videos_4k": "resolution:4k",
-            }
-            if branch in _video_branch_map:
-                filter_spec = _video_branch_map[branch]
-                self._set_shell_active_branch(branch)
-                if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
-                    self.google_shell_sidebar.set_legacy_emphasis(False)
-                desc = branch.replace("videos_", "").replace("_", " ").title()
-                self._set_view_mode("videos", desc)
-                try:
-                    if hasattr(self, "_on_accordion_video_clicked"):
-                        self._on_accordion_video_clicked(filter_spec)
-                    else:
-                        self._load_photos()
-                except Exception:
-                    try:
-                        self._load_photos()
-                    except Exception:
-                        pass
+            # ── Phase 10C fix: Video classifications ────────────────────────────────
+            if branch == "videos":
+                self._set_view_mode("videos", "All videos")
+                self._on_accordion_video_clicked("all")
                 return
 
-            # ── Phase 10C: Similar Shots ──────────────────────────────────────────────
+            if branch == "videos_duration_short":
+                self._set_view_mode("videos", "Short videos")
+                self._on_accordion_video_clicked("duration:short")
+                return
+
+            if branch == "videos_duration_medium":
+                self._set_view_mode("videos", "Medium videos")
+                self._on_accordion_video_clicked("duration:medium")
+                return
+
+            if branch == "videos_duration_long":
+                self._set_view_mode("videos", "Long videos")
+                self._on_accordion_video_clicked("duration:long")
+                return
+
+            if branch == "videos_resolution_hd":
+                self._set_view_mode("videos", "HD videos")
+                self._on_accordion_video_clicked("resolution:hd")
+                return
+
+            if branch == "videos_resolution_fhd":
+                self._set_view_mode("videos", "Full HD videos")
+                self._on_accordion_video_clicked("resolution:fhd")
+                return
+
+            if branch == "videos_resolution_4k":
+                self._set_view_mode("videos", "4K videos")
+                self._on_accordion_video_clicked("resolution:4k")
+                return
+
+            # ── Phase 10C fix: Review ────────────────────────────────────────────────
+            if branch == "duplicates":
+                self._set_view_mode("review", "Duplicates")
+                if hasattr(self, "_open_duplicates_dialog"):
+                    self._open_duplicates_dialog()
+                return
+
             if branch == "similar_shots":
-                self._set_shell_active_branch("similar_shots")
-                if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
-                    self.google_shell_sidebar.set_legacy_emphasis(False)
-                self._set_view_mode("review", "Similar shots review")
+                self._set_view_mode("review", "Similar shots")
+                if hasattr(self.main_window, "_on_find_similar_photos"):
+                    self.main_window._on_find_similar_photos()
+                return
+
+            # ── Phase 10C fix: Location tree routing ─────────────────────────────────
+            if branch.startswith("location_name:"):
+                location_name = branch.split(":", 1)[1]
+                self._set_view_mode("locations", f"Location \u2022 {location_name}")
+                if hasattr(self, "accordion_sidebar") and self.accordion_sidebar:
+                    section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
+                    locations_section = section_logic.get("locations")
+                    if locations_section and hasattr(locations_section, "location_clusters"):
+                        for item in locations_section.location_clusters or []:
+                            if str(item.get("name", "")) == location_name:
+                                self._on_accordion_location_clicked(item)
+                                return
+                return
+
+            # ── Phase 10C fix: Dynamic date and folder tree routing ──────────────────
+            if branch.startswith("year_"):
+                year = branch.split("_", 1)[1]
+                self._set_view_mode("all", f"Year \u2022 {year}")
+                self._on_accordion_date_clicked(year)
+                return
+
+            if branch.startswith("month_"):
+                month_value = branch.split("_", 1)[1]
+                self._set_view_mode("all", f"Month \u2022 {month_value}")
+                self._on_accordion_date_clicked(month_value)
+                return
+
+            if branch.startswith("folder_id:"):
+                folder_id = branch.split(":", 1)[1]
                 try:
-                    if hasattr(self, "_open_duplicates_dialog"):
-                        self._open_duplicates_dialog()
+                    self._pending_folder_id = int(folder_id)
+                    self._execute_folder_click()
                 except Exception:
                     pass
                 return
@@ -2628,6 +2709,7 @@ class GooglePhotosLayout(BaseLayout):
             thumb_size=self.current_thumb_size,
             year=year, month=month, day=day,
         )
+        self._sync_shell_date_tree()
 
     def _on_accordion_folder_clicked(self, folder_id: int):
         """
@@ -2700,6 +2782,7 @@ class GooglePhotosLayout(BaseLayout):
             import traceback
             traceback.print_exc()
         print(f"[GooglePhotosLayout] ========================================")
+        self._sync_shell_folder_tree()
 
     def _on_accordion_tag_clicked(self, tag_name: str):
         """
@@ -2938,8 +3021,9 @@ class GooglePhotosLayout(BaseLayout):
             paths=paths,
             reset=True,
             view_context=("location", location_data.get("name"), int(location_data.get("count", 0))),
-            
+
         )
+        self._sync_shell_location_tree()
 
     def _on_accordion_person_merged(self, source_branch: str, target_branch: str):
         """Keep active person filters in sync after a merge in the sidebar."""
@@ -10929,6 +11013,8 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
                 self._clear_shell_state_text()
             self._refresh_legacy_visibility_state()
             self._sync_shell_date_tree()
+            self._sync_shell_folder_tree()
+            self._sync_shell_location_tree()
 
             # Update accordion sidebar with new project
             if hasattr(self, 'accordion_sidebar') and self.accordion_sidebar is not None:

@@ -270,13 +270,12 @@ class TestFindSearchMode:
         _call_shell_branch(layout, "videos")
         layout._on_accordion_video_clicked.assert_called_once_with("all")
 
-    def test_videos_falls_back_to_load_photos(self):
-        """If _on_accordion_video_clicked is missing, fall back to _load_photos."""
+    def test_videos_calls_accordion_video_clicked(self):
+        """Videos branch should call _on_accordion_video_clicked('all')."""
         layout = _make_mock_layout()
-        # Remove the video click method
-        del layout._on_accordion_video_clicked
+        layout._on_accordion_video_clicked = MagicMock()
         _call_shell_branch(layout, "videos")
-        layout._load_photos.assert_called()
+        layout._on_accordion_video_clicked.assert_called_once_with("all")
 
 
 # ===========================================================================
@@ -296,7 +295,7 @@ class TestVideosMode:
         layout = _make_mock_layout()
         _call_shell_branch(layout, "videos")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "VIDEOS \u2022 Showing video files"
+            "VIDEOS \u2022 All videos"
         )
 
     def test_videos_requests_real_video_filter(self):
@@ -349,7 +348,7 @@ class TestDuplicatesReviewMode:
         layout = _make_mock_layout()
         _call_shell_branch(layout, "duplicates")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "REVIEW \u2022 Duplicates & similar shots"
+            "REVIEW \u2022 Duplicates"
         )
 
     def test_duplicates_opens_dialog(self):
@@ -485,30 +484,34 @@ class TestClearShellStateTextReady:
 class TestMainWindowYearShortcuts:
     """Year shortcuts from shell should route to layout reload."""
 
-    def test_year_2026_routes_to_reload(self):
+    def test_year_2026_routes_to_layout(self):
         mw = MagicMock()
         layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
         mw.layout_manager.get_current_layout.return_value = layout
         _mw_search_branch_router(mw, "year_2026")
-        layout.request_reload.assert_called_once_with(reason="year_filter", year=2026)
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("year_2026")
 
-    def test_year_2025_routes_to_reload(self):
+    def test_year_2025_routes_to_layout(self):
         mw = MagicMock()
         layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
         mw.layout_manager.get_current_layout.return_value = layout
         _mw_search_branch_router(mw, "year_2025")
-        layout.request_reload.assert_called_once_with(reason="year_filter", year=2025)
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("year_2025")
 
-    def test_year_2024_routes_to_reload(self):
+    def test_year_2024_routes_to_layout(self):
         mw = MagicMock()
         layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
         mw.layout_manager.get_current_layout.return_value = layout
         _mw_search_branch_router(mw, "year_2024")
-        layout.request_reload.assert_called_once_with(reason="year_filter", year=2024)
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("year_2024")
 
     def test_year_does_not_fall_through_to_people(self):
         mw = MagicMock()
         layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
         mw.layout_manager.get_current_layout.return_value = layout
         _mw_search_branch_router(mw, "year_2025")
         mw._handle_people_branch.assert_not_called()
