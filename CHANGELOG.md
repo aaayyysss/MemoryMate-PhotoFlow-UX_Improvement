@@ -4,6 +4,28 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-06
 
+### Phase 10B — Shell-Native Outcome Corrections
+
+Corrects Phase 10 outcomes so retired sections use real filter paths instead
+of broken or weak fallbacks.
+
+#### Google Layout (`layouts/google_layout.py`)
+- **Videos**: now calls `_on_accordion_video_clicked("all")` which queries `video_metadata`
+  table for actual video results, instead of `request_reload(video_only=True)` which silently
+  dropped the `video_only` kwarg and returned all media
+- **Find**: robust 3-tier fallback — `top_search_bar` → `search_bar` → accordion `find` section
+- **Locations**: state text updated to "Pick a location cluster below" (actionable guidance)
+- **Devices**: state text updated to "Pick a device source below" (actionable guidance)
+
+#### Test Updates
+- Videos test now verifies `_on_accordion_video_clicked("all")` is called
+- Added Find fallback-to-accordion test (no search bars available)
+- Added Videos fallback-to-load_photos test
+- Phase 9 tests updated for corrected state text
+- **Total test count: 338 (all passing)**
+
+---
+
 ### Phase 10 — Shell-Native Result Surfaces & View Modes
 
 Shell sections now operate in explicit view modes instead of just triggering

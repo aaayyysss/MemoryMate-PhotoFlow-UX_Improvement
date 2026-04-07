@@ -1546,12 +1546,20 @@ class GooglePhotosLayout(BaseLayout):
                     self._set_shell_active_branch("find")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
                     self._set_view_mode("search", "Type to search your library")
-                    # Focus search bar if available
+                    # Focus the best available search bar
                     try:
+                        focused = False
+                        # Try top_search_bar first (UX-1 search)
                         if hasattr(self.main_window, "top_search_bar") and self.main_window.top_search_bar:
                             self.main_window.top_search_bar.setFocus()
-                        elif hasattr(self.main_window, "search_bar") and self.main_window.search_bar:
+                            focused = True
+                        # Then search_bar
+                        if not focused and hasattr(self.main_window, "search_bar") and self.main_window.search_bar:
                             self.main_window.search_bar.setFocus()
+                            focused = True
+                        # Then try expanding the find/search accordion section
+                        if not focused and hasattr(self.accordion_sidebar, "_expand_section"):
+                            self.accordion_sidebar._expand_section("find")
                     except Exception:
                         pass
                     return
@@ -1560,8 +1568,12 @@ class GooglePhotosLayout(BaseLayout):
                     self._set_shell_active_branch("videos")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
                     self._set_view_mode("videos", "Showing video files")
+                    # Use the real video filter path (queries video_metadata table)
                     try:
-                        self.request_reload(reason="videos_only", video_only=True)
+                        if hasattr(self, "_on_accordion_video_clicked"):
+                            self._on_accordion_video_clicked("all")
+                        else:
+                            self._load_photos()
                     except Exception:
                         try:
                             self._load_photos()
@@ -1572,7 +1584,8 @@ class GooglePhotosLayout(BaseLayout):
                 if branch == "locations":
                     self._set_shell_active_branch("locations")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-                    self._set_view_mode("locations", "Grouped by location")
+                    self._set_view_mode("locations", "Pick a location cluster below")
+                    # Expand location section — user picks specific cluster from accordion
                     try:
                         if hasattr(self.accordion_sidebar, "_expand_section"):
                             self.accordion_sidebar._expand_section("locations")
@@ -1594,7 +1607,8 @@ class GooglePhotosLayout(BaseLayout):
                 if branch == "devices":
                     self._set_shell_active_branch("devices")
                     self.google_shell_sidebar.set_legacy_emphasis(False)
-                    self._set_view_mode("devices", "External sources")
+                    self._set_view_mode("devices", "Pick a device source below")
+                    # Expand devices section — user picks specific device from accordion
                     try:
                         if hasattr(self.accordion_sidebar, "_expand_section"):
                             self.accordion_sidebar._expand_section("devices")

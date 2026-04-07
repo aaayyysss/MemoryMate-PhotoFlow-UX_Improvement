@@ -306,9 +306,9 @@ class TestLocationsVisibleOutcome:
     def test_locations_sets_shell_state_text(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "locations")
-        # Phase 10: view mode format
+        # Phase 10B: actionable description
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "LOCATIONS \u2022 Grouped by location"
+            "LOCATIONS \u2022 Pick a location cluster below"
         )
 
     def test_locations_expands_accordion(self):
@@ -361,9 +361,9 @@ class TestDevicesVisibleOutcome:
     def test_devices_sets_shell_state_text(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "devices")
-        # Phase 10: view mode format
+        # Phase 10B: actionable description
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "DEVICES \u2022 External sources"
+            "DEVICES \u2022 Pick a device source below"
         )
 
     def test_devices_expands_accordion(self):

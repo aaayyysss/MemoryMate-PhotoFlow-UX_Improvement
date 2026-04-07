@@ -256,6 +256,28 @@ class TestFindSearchMode:
         _call_shell_branch(layout, "find")
         layout.main_window.search_bar.setFocus.assert_called_once()
 
+    def test_find_falls_back_to_accordion_when_no_search_bars(self):
+        layout = _make_mock_layout()
+        layout.main_window.top_search_bar = None
+        layout.main_window.search_bar = None
+        _call_shell_branch(layout, "find")
+        layout.accordion_sidebar._expand_section.assert_called_once_with("find")
+
+    def test_videos_calls_real_video_filter(self):
+        """Phase 10B: Videos must use _on_accordion_video_clicked, not request_reload."""
+        layout = _make_mock_layout()
+        layout._on_accordion_video_clicked = MagicMock()
+        _call_shell_branch(layout, "videos")
+        layout._on_accordion_video_clicked.assert_called_once_with("all")
+
+    def test_videos_falls_back_to_load_photos(self):
+        """If _on_accordion_video_clicked is missing, fall back to _load_photos."""
+        layout = _make_mock_layout()
+        # Remove the video click method
+        del layout._on_accordion_video_clicked
+        _call_shell_branch(layout, "videos")
+        layout._load_photos.assert_called()
+
 
 # ===========================================================================
 # Test Class: Videos sets videos mode
@@ -277,10 +299,11 @@ class TestVideosMode:
             "VIDEOS \u2022 Showing video files"
         )
 
-    def test_videos_requests_reload(self):
+    def test_videos_requests_real_video_filter(self):
         layout = _make_mock_layout()
+        layout._on_accordion_video_clicked = MagicMock()
         _call_shell_branch(layout, "videos")
-        layout.request_reload.assert_called_once_with(reason="videos_only", video_only=True)
+        layout._on_accordion_video_clicked.assert_called_once_with("all")
 
 
 # ===========================================================================
@@ -300,7 +323,7 @@ class TestLocationsMode:
         layout = _make_mock_layout()
         _call_shell_branch(layout, "locations")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "LOCATIONS \u2022 Grouped by location"
+            "LOCATIONS \u2022 Pick a location cluster below"
         )
 
     def test_locations_expands_accordion(self):
@@ -353,7 +376,7 @@ class TestDevicesMode:
         layout = _make_mock_layout()
         _call_shell_branch(layout, "devices")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "DEVICES \u2022 External sources"
+            "DEVICES \u2022 Pick a device source below"
         )
 
     def test_devices_expands_accordion(self):
