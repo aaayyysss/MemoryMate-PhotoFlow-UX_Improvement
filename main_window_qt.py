@@ -3309,10 +3309,9 @@ class MainWindow(QMainWindow):
 
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
-        Phase 9:
-        Shell-native visible outcomes for retired sections.
-        Google layout stays shell-primary, legacy fallback remains alive,
-        and retired sections now produce direct visible results.
+        Phase 10:
+        Shell now controls visible modes (not only routing).
+        Legacy accordion remains as fallback and detailed hierarchy.
         """
         try:
             # People branches stay delegated through the dedicated people router
@@ -3320,6 +3319,21 @@ class MainWindow(QMainWindow):
                 if hasattr(self, "_handle_people_branch"):
                     self._handle_people_branch(branch)
                     return
+
+            # Shell-level year shortcuts → direct date filter
+            if branch.startswith("year_"):
+                try:
+                    year = int(branch.split("_")[1])
+                    layout = None
+                    if hasattr(self, "layout_manager") and self.layout_manager:
+                        layout = self.layout_manager.get_current_layout()
+                    if layout and hasattr(layout, "request_reload"):
+                        layout.request_reload(reason="year_filter", year=year)
+                    elif layout and hasattr(layout, "_load_photos"):
+                        layout._load_photos(filter_year=year)
+                except Exception:
+                    pass
+                return
 
             layout = None
             try:
@@ -3343,7 +3357,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"[MainWindow] _handle_search_sidebar_branch_request failed: {branch} → {e}")
 
-    # ── end Phase 9 ──────────────────────────────────────────────────
+    # ── end Phase 10 ─────────────────────────────────────────────────
 
     def _on_ux1_search_requested(self, payload: dict):
         """

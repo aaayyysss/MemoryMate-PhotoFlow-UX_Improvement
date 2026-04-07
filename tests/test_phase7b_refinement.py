@@ -131,12 +131,28 @@ def _make_mock_layout(**overrides):
     layout.google_shell_sidebar.set_project_available = MagicMock()
     layout.google_shell_sidebar.set_legacy_emphasis = MagicMock()
 
+    layout.google_shell_sidebar.set_shell_state_text = MagicMock()
+
     # Bind real helper methods
     layout._set_shell_active_branch = functools.partial(
         GooglePhotosLayout._set_shell_active_branch, layout
     )
     layout._clear_shell_active_branch = functools.partial(
         GooglePhotosLayout._clear_shell_active_branch, layout
+    )
+    layout._is_legacy_section_retired = functools.partial(
+        GooglePhotosLayout._is_legacy_section_retired, layout
+    )
+    layout._set_shell_state_text = functools.partial(
+        GooglePhotosLayout._set_shell_state_text, layout
+    )
+    layout._set_view_mode = functools.partial(
+        GooglePhotosLayout._set_view_mode, layout
+    )
+    layout._current_view_mode = "all"
+    layout._retired_legacy_sections = overrides.get(
+        "_retired_legacy_sections",
+        {"find", "devices", "videos", "locations", "duplicates"}
     )
 
     # Accordion sidebar mock
@@ -366,7 +382,7 @@ class TestMainWindowPhase7BRouter:
     def test_router_has_phase_7b_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "7B" in doc or "7b" in doc or "8" in doc or "9" in doc
+        assert "7B" in doc or "7b" in doc or "8" in doc or "9" in doc or "10" in doc
 
     def test_router_still_delegates_people(self):
         mw = MagicMock()

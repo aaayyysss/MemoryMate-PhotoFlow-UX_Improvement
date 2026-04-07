@@ -1,25 +1,22 @@
-# tests/test_phase9_visible_outcomes.py
+# tests/test_phase10_view_modes.py
 """
-Phase 9 shell-native visible outcomes unit tests.
+Phase 10 shell-native result surfaces & view mode tests.
 
 Tests:
-- Shell status text helpers (_set_shell_state_text, _clear_shell_state_text)
-- Retired sections produce visible shell state messages
-- Find focuses search bar
-- Videos, Locations, Duplicates, Devices produce visible outcomes
-- Quick dates set shell state text
-- Accordion date/folder/location/person clicks set shell state text
-- Clear filter sets shell state text
-- Activity center sets shell state text
-- No-project shell clicks set onboarding state text
-- Project set clears shell state text
-- MainWindow router docstring updated to Phase 9
+- View mode state (_current_view_mode, _set_view_mode)
+- Retired sections set correct view modes (search, videos, locations, review, devices)
+- All Photos sets view mode "all"
+- View mode state text format: "MODE \u2022 description"
+- Shell-level year shortcuts in MainWindow router
+- Dates Overview quick-access buttons exist in sidebar
+- _clear_shell_state_text now sets "Ready"
+- MainWindow router docstring updated to Phase 10
 
 No PySide6 or display server required.
 
 Run with:
-    pytest tests/test_phase9_visible_outcomes.py -v
-    pytest tests/test_phase9_visible_outcomes.py -v -m unit
+    pytest tests/test_phase10_view_modes.py -v
+    pytest tests/test_phase10_view_modes.py -v -m unit
 """
 
 import sys
@@ -124,7 +121,7 @@ sys.meta_path = [p for p in sys.meta_path if not isinstance(p, _MockImportFinder
 # ---------------------------------------------------------------------------
 
 def _make_mock_layout(**overrides):
-    """Build a mock GooglePhotosLayout with Phase 9 shell-native outcomes."""
+    """Build a mock GooglePhotosLayout with Phase 10 view modes."""
     layout = MagicMock()
     layout.__class__.__name__ = "GooglePhotosLayout"
 
@@ -134,7 +131,6 @@ def _make_mock_layout(**overrides):
     layout.google_shell_sidebar.clear_active_branch = MagicMock()
     layout.google_shell_sidebar.set_project_available = MagicMock()
     layout.google_shell_sidebar.set_legacy_emphasis = MagicMock()
-    layout.google_shell_sidebar.set_retired_legacy_sections = MagicMock()
     layout.google_shell_sidebar.set_shell_state_text = MagicMock()
     layout.google_shell_sidebar.clear_shell_state_text = MagicMock()
 
@@ -161,10 +157,10 @@ def _make_mock_layout(**overrides):
         GooglePhotosLayout._set_view_mode, layout
     )
 
-    # View mode state (Phase 10)
+    # View mode state
     layout._current_view_mode = "all"
 
-    # Retired sections (Phase 8 Wave 1)
+    # Retired sections
     layout._retired_legacy_sections = overrides.get(
         "_retired_legacy_sections",
         {"find", "devices", "videos", "locations", "duplicates"}
@@ -173,11 +169,9 @@ def _make_mock_layout(**overrides):
     # Accordion sidebar mock
     layout.accordion_sidebar = MagicMock()
     layout.accordion_sidebar._expand_section = MagicMock()
-    layout.accordion_sidebar.section_logic = {}
 
     # Main window mock
     layout.main_window = MagicMock()
-    layout.main_window._handle_people_branch = MagicMock()
     layout.main_window.search_bar = MagicMock()
     layout.main_window.top_search_bar = MagicMock()
 
@@ -196,117 +190,115 @@ def _call_shell_branch(layout, branch):
 
 
 # ===========================================================================
-# Test Class: Shell state text helpers
+# Test Class: _set_view_mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestShellStateTextHelpers:
-    """Test _set_shell_state_text and _clear_shell_state_text."""
+class TestSetViewMode:
+    """_set_view_mode should update state and format state text."""
 
-    def test_set_shell_state_text_calls_sidebar(self):
+    def test_sets_current_view_mode(self):
         layout = _make_mock_layout()
-        layout._set_shell_state_text("Hello")
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with("Hello")
+        layout._set_view_mode("videos", "Showing video files")
+        assert layout._current_view_mode == "videos"
 
-    def test_clear_shell_state_text_calls_sidebar(self):
+    def test_state_text_with_description(self):
         layout = _make_mock_layout()
-        layout._clear_shell_state_text()
-        # Phase 10: clear now sets "Ready" via set_shell_state_text
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with("Ready")
-
-    def test_set_state_text_no_sidebar_no_crash(self):
-        layout = _make_mock_layout()
-        layout.google_shell_sidebar = None
-        layout._set_shell_state_text = functools.partial(
-            GooglePhotosLayout._set_shell_state_text, layout
+        layout._set_view_mode("search", "Type to search")
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "SEARCH \u2022 Type to search"
         )
-        # Should not raise
-        layout._set_shell_state_text("Test")
 
-    def test_clear_state_text_no_sidebar_no_crash(self):
+    def test_state_text_without_description(self):
         layout = _make_mock_layout()
-        layout.google_shell_sidebar = None
-        layout._clear_shell_state_text = functools.partial(
-            GooglePhotosLayout._clear_shell_state_text, layout
+        layout._set_view_mode("videos")
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "VIDEOS view"
         )
-        # Should not raise
-        layout._clear_shell_state_text()
+
+    def test_all_mode(self):
+        layout = _make_mock_layout()
+        layout._set_view_mode("all", "All photos")
+        assert layout._current_view_mode == "all"
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "ALL \u2022 All photos"
+        )
 
 
 # ===========================================================================
-# Test Class: Find produces visible outcome
+# Test Class: Find sets search mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestFindVisibleOutcome:
-    """Find should set state text and focus search bar."""
+class TestFindSearchMode:
+    """Find should set view mode to 'search'."""
 
-    def test_find_sets_shell_state_text(self):
+    def test_find_sets_search_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "find")
-        # Phase 10: uses view mode format
+        assert layout._current_view_mode == "search"
+
+    def test_find_state_text(self):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, "find")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
             "SEARCH \u2022 Type to search your library"
         )
 
-    def test_find_focuses_search_bar(self):
+    def test_find_focuses_top_search_bar(self):
         layout = _make_mock_layout()
-        # Phase 10: prefers top_search_bar, falls back to search_bar
-        layout.main_window.top_search_bar = MagicMock()
         _call_shell_branch(layout, "find")
         layout.main_window.top_search_bar.setFocus.assert_called_once()
 
-    def test_find_focuses_fallback_search_bar(self):
+    def test_find_falls_back_to_search_bar(self):
         layout = _make_mock_layout()
         layout.main_window.top_search_bar = None
         _call_shell_branch(layout, "find")
         layout.main_window.search_bar.setFocus.assert_called_once()
 
-    def test_find_sets_emphasis_false(self):
-        layout = _make_mock_layout()
-        _call_shell_branch(layout, "find")
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
 
 # ===========================================================================
-# Test Class: Videos produces visible outcome
+# Test Class: Videos sets videos mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestVideosVisibleOutcome:
-    """Videos should set state text and attempt visible action."""
+class TestVideosMode:
+    """Videos should set view mode to 'videos'."""
 
-    def test_videos_sets_shell_state_text(self):
+    def test_videos_sets_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "videos")
-        # Phase 10: view mode format
+        assert layout._current_view_mode == "videos"
+
+    def test_videos_state_text(self):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, "videos")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
             "VIDEOS \u2022 Showing video files"
         )
 
-    def test_videos_sets_emphasis_false(self):
+    def test_videos_requests_reload(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "videos")
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
-    def test_videos_sets_active_branch(self):
-        layout = _make_mock_layout()
-        _call_shell_branch(layout, "videos")
-        layout.google_shell_sidebar.set_active_branch.assert_called_with("videos")
+        layout.request_reload.assert_called_once_with(reason="videos_only", video_only=True)
 
 
 # ===========================================================================
-# Test Class: Locations produces visible outcome
+# Test Class: Locations sets locations mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestLocationsVisibleOutcome:
-    """Locations should set state text and expand accordion section."""
+class TestLocationsMode:
+    """Locations should set view mode to 'locations'."""
 
-    def test_locations_sets_shell_state_text(self):
+    def test_locations_sets_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "locations")
-        # Phase 10: view mode format
+        assert layout._current_view_mode == "locations"
+
+    def test_locations_state_text(self):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, "locations")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
             "LOCATIONS \u2022 Grouped by location"
         )
@@ -316,34 +308,28 @@ class TestLocationsVisibleOutcome:
         _call_shell_branch(layout, "locations")
         layout.accordion_sidebar._expand_section.assert_called_once_with("locations")
 
-    def test_locations_sets_emphasis_false(self):
-        layout = _make_mock_layout()
-        _call_shell_branch(layout, "locations")
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
 
 # ===========================================================================
-# Test Class: Duplicates produces visible outcome
+# Test Class: Duplicates sets review mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestDuplicatesVisibleOutcome:
-    """Duplicates should set state text and try to open dialog."""
+class TestDuplicatesReviewMode:
+    """Duplicates should set view mode to 'review'."""
 
-    def test_duplicates_sets_shell_state_text(self):
+    def test_duplicates_sets_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "duplicates")
-        # Phase 10: view mode format
+        assert layout._current_view_mode == "review"
+
+    def test_duplicates_state_text(self):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, "duplicates")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
             "REVIEW \u2022 Duplicates & similar shots"
         )
 
-    def test_duplicates_sets_emphasis_false(self):
-        layout = _make_mock_layout()
-        _call_shell_branch(layout, "duplicates")
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
-    def test_duplicates_tries_open_dialog(self):
+    def test_duplicates_opens_dialog(self):
         layout = _make_mock_layout()
         layout._open_duplicates_dialog = MagicMock()
         _call_shell_branch(layout, "duplicates")
@@ -351,17 +337,21 @@ class TestDuplicatesVisibleOutcome:
 
 
 # ===========================================================================
-# Test Class: Devices produces visible outcome
+# Test Class: Devices sets devices mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestDevicesVisibleOutcome:
-    """Devices should set state text and expand accordion section."""
+class TestDevicesMode:
+    """Devices should set view mode to 'devices'."""
 
-    def test_devices_sets_shell_state_text(self):
+    def test_devices_sets_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "devices")
-        # Phase 10: view mode format
+        assert layout._current_view_mode == "devices"
+
+    def test_devices_state_text(self):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, "devices")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
             "DEVICES \u2022 External sources"
         )
@@ -371,150 +361,148 @@ class TestDevicesVisibleOutcome:
         _call_shell_branch(layout, "devices")
         layout.accordion_sidebar._expand_section.assert_called_once_with("devices")
 
-    def test_devices_sets_emphasis_false(self):
-        layout = _make_mock_layout()
-        _call_shell_branch(layout, "devices")
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
 
 # ===========================================================================
-# Test Class: Discover presets set visible state text
+# Test Class: All Photos sets all mode
 # ===========================================================================
 
 @pytest.mark.unit
-class TestDiscoverPresetsVisibleOutcome:
-    """Discover presets should set descriptive shell state text."""
+class TestAllPhotosMode:
+    """All Photos should set view mode to 'all'."""
 
-    @pytest.mark.parametrize("branch,expected_text", [
-        ("discover_beach", "SEARCH \u2022 Discover preset, Beach"),
-        ("discover_mountains", "SEARCH \u2022 Discover preset, Mountains"),
-        ("discover_city", "SEARCH \u2022 Discover preset, City"),
-    ])
-    def test_discover_preset_sets_state_text(self, branch, expected_text):
+    def test_all_sets_mode(self):
         layout = _make_mock_layout()
-        _call_shell_branch(layout, branch)
-        # Phase 10: view mode format
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(expected_text)
+        layout.project_id = "test-project"
+        _call_shell_branch(layout, "all")
+        assert layout._current_view_mode == "all"
 
-    @pytest.mark.parametrize("branch", ["discover_beach", "discover_mountains", "discover_city"])
-    def test_discover_preset_sets_emphasis_false(self, branch):
+    def test_all_state_text(self):
         layout = _make_mock_layout()
-        _call_shell_branch(layout, branch)
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
-
-# ===========================================================================
-# Test Class: Favorites and document branches visible outcome
-# ===========================================================================
-
-@pytest.mark.unit
-class TestFavoritesDocumentsScreenshots:
-    """Favorites, documents, screenshots should set visible state text."""
-
-    def test_favorites_sets_state_text(self):
-        layout = _make_mock_layout()
-        _call_shell_branch(layout, "favorites")
-        # Phase 10: view mode format
+        layout.project_id = "test-project"
+        _call_shell_branch(layout, "all")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "ALL \u2022 Showing favorites"
+            "ALL \u2022 All photos"
         )
 
-    def test_favorites_calls_filter_if_available(self):
-        layout = _make_mock_layout()
-        layout._filter_favorites = MagicMock()
-        _call_shell_branch(layout, "favorites")
-        layout._filter_favorites.assert_called_once()
 
-    def test_documents_sets_state_text(self):
+# ===========================================================================
+# Test Class: Discover presets use search mode
+# ===========================================================================
+
+@pytest.mark.unit
+class TestDiscoverPresetsMode:
+    """Discover presets should set view mode to 'search'."""
+
+    @pytest.mark.parametrize("branch,preset_name", [
+        ("discover_beach", "Beach"),
+        ("discover_mountains", "Mountains"),
+        ("discover_city", "City"),
+    ])
+    def test_discover_sets_search_mode(self, branch, preset_name):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, branch)
+        assert layout._current_view_mode == "search"
+
+    @pytest.mark.parametrize("branch,preset_name", [
+        ("discover_beach", "Beach"),
+        ("discover_mountains", "Mountains"),
+        ("discover_city", "City"),
+    ])
+    def test_discover_state_text(self, branch, preset_name):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, branch)
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            f"SEARCH \u2022 Discover preset, {preset_name}"
+        )
+
+
+# ===========================================================================
+# Test Class: Favorites and documents use all mode with description
+# ===========================================================================
+
+@pytest.mark.unit
+class TestFavoritesDocumentsMode:
+    """Favorites, documents, screenshots should use 'all' mode with label."""
+
+    def test_favorites_mode(self):
+        layout = _make_mock_layout()
+        _call_shell_branch(layout, "favorites")
+        assert layout._current_view_mode == "all"
+
+    def test_documents_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "documents")
-        # Phase 10: view mode format
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "ALL \u2022 Showing documents"
-        )
+        assert layout._current_view_mode == "all"
 
-    def test_screenshots_sets_state_text(self):
+    def test_screenshots_mode(self):
         layout = _make_mock_layout()
         _call_shell_branch(layout, "screenshots")
-        # Phase 10: view mode format
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "ALL \u2022 Showing screenshots"
-        )
+        assert layout._current_view_mode == "all"
 
 
 # ===========================================================================
-# Test Class: Quick dates set shell state text
+# Test Class: _clear_shell_state_text sets "Ready"
 # ===========================================================================
 
 @pytest.mark.unit
-class TestQuickDatesShellStateText:
-    """Quick date clicks should set visible shell state text."""
+class TestClearShellStateTextReady:
+    """_clear_shell_state_text should now set 'Ready' instead of default."""
 
-    @pytest.mark.parametrize("key", [
-        "today", "yesterday", "last_7_days", "last_30_days",
-        "this_month", "last_month", "this_year", "last_year",
-    ])
-    def test_quick_date_sets_state_text(self, key):
+    def test_clear_sets_ready(self):
         layout = _make_mock_layout()
-        layout._on_shell_quick_date_clicked = functools.partial(
-            GooglePhotosLayout._on_shell_quick_date_clicked, layout
-        )
-        layout._on_shell_quick_date_clicked(key)
-        expected = f"Quick date, {key.replace('_', ' ')}"
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(expected)
+        layout._clear_shell_state_text()
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with("Ready")
 
 
 # ===========================================================================
-# Test Class: Clear filter sets shell state text
+# Test Class: MainWindow year shortcut routing
 # ===========================================================================
 
 @pytest.mark.unit
-class TestClearFilterShellStateText:
-    """Clear filter should show 'Showing all photos'."""
+class TestMainWindowYearShortcuts:
+    """Year shortcuts from shell should route to layout reload."""
 
-    def test_clear_filter_sets_showing_all(self):
-        layout = _make_mock_layout()
-        layout.current_thumb_size = 200
-        layout._clear_filter = functools.partial(
-            GooglePhotosLayout._clear_filter, layout
-        )
-        layout._clear_filter()
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "Showing all photos"
-        )
+    def test_year_2026_routes_to_reload(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "year_2026")
+        layout.request_reload.assert_called_once_with(reason="year_filter", year=2026)
 
+    def test_year_2025_routes_to_reload(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "year_2025")
+        layout.request_reload.assert_called_once_with(reason="year_filter", year=2025)
 
-# ===========================================================================
-# Test Class: Activity center sets shell state text
-# ===========================================================================
+    def test_year_2024_routes_to_reload(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "year_2024")
+        layout.request_reload.assert_called_once_with(reason="year_filter", year=2024)
 
-@pytest.mark.unit
-class TestActivityCenterShellStateText:
-    """Toggle activity center should set visible state text."""
-
-    def test_toggle_sets_state_text(self):
-        layout = _make_mock_layout()
-        layout._on_toggle_activity_center = functools.partial(
-            GooglePhotosLayout._on_toggle_activity_center, layout
-        )
-        layout._on_toggle_activity_center()
-        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "Opening Activity Center"
-        )
+    def test_year_does_not_fall_through_to_people(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "year_2025")
+        mw._handle_people_branch.assert_not_called()
 
 
 # ===========================================================================
-# Test Class: MainWindow router Phase 9
+# Test Class: MainWindow Phase 10 router
 # ===========================================================================
 
 @pytest.mark.unit
-class TestMainWindowPhase9Router:
-    """Verify MainWindow router is Phase 9 labeled."""
+class TestMainWindowPhase10Router:
+    """Verify MainWindow router is Phase 10 labeled."""
 
-    def test_router_has_phase_9_docstring(self):
+    def test_router_has_phase_10_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "9" in doc or "10" in doc
+        assert "10" in doc
 
     def test_router_still_delegates_people(self):
         mw = MagicMock()

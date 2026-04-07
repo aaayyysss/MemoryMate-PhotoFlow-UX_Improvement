@@ -145,6 +145,14 @@ def _make_mock_layout(**overrides):
     layout._refresh_legacy_visibility_state = functools.partial(
         GooglePhotosLayout._refresh_legacy_visibility_state, layout
     )
+    layout._set_shell_state_text = functools.partial(
+        GooglePhotosLayout._set_shell_state_text, layout
+    )
+    layout._set_view_mode = functools.partial(
+        GooglePhotosLayout._set_view_mode, layout
+    )
+    layout._current_view_mode = "all"
+    layout.google_shell_sidebar.set_shell_state_text = MagicMock()
 
     # Retired sections (Phase 8 Wave 1)
     layout._retired_legacy_sections = overrides.get(
@@ -342,7 +350,7 @@ class TestMainWindowPhase8Router:
     def test_router_has_phase_8_docstring(self):
         assert _mw_search_branch_router is not None
         doc = _mw_search_branch_router.__doc__ or ""
-        assert "Phase 8" in doc or "phase 8" in doc or "Phase 9" in doc or "phase 9" in doc
+        assert "Phase 8" in doc or "phase 8" in doc or "Phase 9" in doc or "phase 9" in doc or "Phase 10" in doc or "10" in doc
 
     def test_router_still_delegates_people(self):
         mw = MagicMock()

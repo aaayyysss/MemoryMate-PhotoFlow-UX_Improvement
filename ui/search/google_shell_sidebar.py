@@ -140,6 +140,11 @@ class GoogleShellSidebar(QWidget):
         self.browse.add_widget(self._nav("All Photos", "all"))
         self.browse.add_widget(self._nav("Dates", "dates"))
 
+        self.browse.add_widget(self._subhead("Dates Overview"))
+        self.browse.add_widget(self._nav("2026", "year_2026"))
+        self.browse.add_widget(self._nav("2025", "year_2025"))
+        self.browse.add_widget(self._nav("2024", "year_2024"))
+
         self.browse.add_widget(self._subhead("Sources"))
         self.browse.add_widget(self._nav("Folders", "folders"))
         self.browse.add_widget(self._nav("Devices", "devices"))
@@ -201,12 +206,11 @@ class GoogleShellSidebar(QWidget):
         lbl.setWordWrap(True)
         return lbl
 
-    def _status(self, text: str) -> QLabel:
+    def _status(self, text: str):
         lbl = QLabel(text)
         lbl.setObjectName("ShellStatus")
         lbl.setWordWrap(True)
         self._shell_status_label = lbl
-        self._shell_state_text = text
         return lbl
 
     def _subhead(self, text: str) -> QLabel:
