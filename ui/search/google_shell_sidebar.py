@@ -140,10 +140,18 @@ class GoogleShellSidebar(QWidget):
         self.browse.add_widget(self._nav("All Photos", "all"))
         self.browse.add_widget(self._nav("Dates", "dates"))
 
-        self.browse.add_widget(self._subhead("Dates Overview"))
-        self.browse.add_widget(self._nav("2026", "year_2026"))
-        self.browse.add_widget(self._nav("2025", "year_2025"))
-        self.browse.add_widget(self._nav("2024", "year_2024"))
+        # Dynamic Dates tree — populated by layout after project load
+        self._dates_subhead = self._subhead("Dates Overview")
+        self.browse.add_widget(self._dates_subhead)
+        self._dates_container = QWidget()
+        self._dates_layout = QVBoxLayout(self._dates_container)
+        self._dates_layout.setContentsMargins(0, 0, 0, 0)
+        self._dates_layout.setSpacing(0)
+        # Default placeholder years
+        self._dates_layout.addWidget(self._nav("2026", "year_2026"))
+        self._dates_layout.addWidget(self._nav("2025", "year_2025"))
+        self._dates_layout.addWidget(self._nav("2024", "year_2024"))
+        self.browse.add_widget(self._dates_container)
 
         self.browse.add_widget(self._subhead("Sources"))
         self.browse.add_widget(self._nav("Folders", "folders"))
@@ -151,10 +159,8 @@ class GoogleShellSidebar(QWidget):
 
         self.browse.add_widget(self._subhead("Collections"))
         self.browse.add_widget(self._nav("Favorites", "favorites"))
-        self.browse.add_widget(self._nav("Videos", "videos"))
         self.browse.add_widget(self._nav("Documents", "documents"))
         self.browse.add_widget(self._nav("Screenshots", "screenshots"))
-        self.browse.add_widget(self._nav("Duplicates", "duplicates"))
 
         self.browse.add_widget(self._subhead("Places"))
         self.browse.add_widget(self._nav("Locations", "locations"))
@@ -168,6 +174,25 @@ class GoogleShellSidebar(QWidget):
         self.browse.add_widget(self._nav("Last month", "last_month"))
         self.browse.add_widget(self._nav("This year", "this_year"))
         self.browse.add_widget(self._nav("Last year", "last_year"))
+
+        # ── Videos ───────────────────────────────────────────────
+        self.videos_section = _ShellSection("Videos", expanded=False)
+        self.videos_section.add_widget(self._hint("Filter by type, duration, quality"))
+        self.videos_section.add_widget(self._nav("All Videos", "videos_all"))
+        self.videos_section.add_widget(self._subhead("Duration"))
+        self.videos_section.add_widget(self._nav("Short (< 30s)", "videos_short"))
+        self.videos_section.add_widget(self._nav("Medium (30s - 5m)", "videos_medium"))
+        self.videos_section.add_widget(self._nav("Long (> 5m)", "videos_long"))
+        self.videos_section.add_widget(self._subhead("Quality"))
+        self.videos_section.add_widget(self._nav("HD (720p+)", "videos_hd"))
+        self.videos_section.add_widget(self._nav("Full HD (1080p+)", "videos_fhd"))
+        self.videos_section.add_widget(self._nav("4K (2160p+)", "videos_4k"))
+
+        # ── Review ───────────────────────────────────────────────
+        self.review_section = _ShellSection("Review", expanded=False)
+        self.review_section.add_widget(self._hint("Cleanup, dedup, and quality review"))
+        self.review_section.add_widget(self._nav("Duplicates", "duplicates"))
+        self.review_section.add_widget(self._nav("Similar Shots", "similar_shots"))
 
         # ── Filters ───────────────────────────────────────────────
         self.filters = _ShellSection("Filters", expanded=False)
@@ -186,6 +211,8 @@ class GoogleShellSidebar(QWidget):
             self.discover,
             self.people,
             self.browse,
+            self.videos_section,
+            self.review_section,
             self.filters,
             self.activity,
         ):
@@ -269,6 +296,31 @@ class GoogleShellSidebar(QWidget):
 
     def clear_shell_state_text(self):
         self.set_shell_state_text("No active shell result")
+
+    def set_date_years(self, years_with_counts):
+        """Rebuild Dates Overview from actual project data.
+
+        Args:
+            years_with_counts: list of (year, count) tuples, newest first.
+                e.g. [(2025, 340), (2024, 128), (2023, 55)]
+        """
+        if not hasattr(self, "_dates_layout") or self._dates_layout is None:
+            return
+        # Clear existing year buttons
+        while self._dates_layout.count():
+            item = self._dates_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                # Remove from branch_buttons tracking
+                for key, btn in list(self._branch_buttons.items()):
+                    if btn is widget:
+                        del self._branch_buttons[key]
+                        break
+                widget.deleteLater()
+        # Add new year buttons from project data
+        for year, count in (years_with_counts or []):
+            label = f"{year} ({count})" if count else str(year)
+            self._dates_layout.addWidget(self._nav(label, f"year_{year}"))
 
     def set_legacy_emphasis(self, emphasized: bool):
         self.setProperty("legacySoft", not emphasized)

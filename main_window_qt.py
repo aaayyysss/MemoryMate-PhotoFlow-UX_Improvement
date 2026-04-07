@@ -3309,9 +3309,9 @@ class MainWindow(QMainWindow):
 
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
-        Phase 10:
-        Shell now controls visible modes (not only routing).
-        Legacy accordion remains as fallback and detailed hierarchy.
+        Phase 10C:
+        Shell controls visible modes with dynamic dates, video classifications,
+        and review section. Legacy accordion remains as fallback.
         """
         try:
             # People branches stay delegated through the dedicated people router
