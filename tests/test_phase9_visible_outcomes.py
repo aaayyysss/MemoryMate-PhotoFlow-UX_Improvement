@@ -281,7 +281,7 @@ class TestVideosVisibleOutcome:
         _call_shell_branch(layout, "videos")
         # Phase 10: view mode format
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "VIDEOS \u2022 Showing video files"
+            "VIDEOS \u2022 All videos"
         )
 
     def test_videos_sets_emphasis_false(self):
@@ -335,7 +335,7 @@ class TestDuplicatesVisibleOutcome:
         _call_shell_branch(layout, "duplicates")
         # Phase 10: view mode format
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "REVIEW \u2022 Duplicates & similar shots"
+            "REVIEW \u2022 Duplicates"
         )
 
     def test_duplicates_sets_emphasis_false(self):

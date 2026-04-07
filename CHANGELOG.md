@@ -2,49 +2,64 @@
 
 All notable changes to the MemoryMate PhotoFlow search pipeline are documented here.
 
-## [Unreleased] - 2026-04-06
+## [Unreleased] - 2026-04-07
 
-### Phase 10C — Dynamic Dates Tree, Video Classifications, Review Section
+### Phase 10C Fix Pack — QTreeWidget Dynamic Trees, Renamed Video Branches, Simplified Router
+
+Replaces static shell containers with QTreeWidget-based dynamic trees for Dates,
+Folders, and Locations. Renames video branches to structured convention. Adds
+folder and location tree sync helpers. Simplifies MainWindow router.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- **QTreeWidget imports**: Added `QTreeWidget`, `QTreeWidgetItem`
+- **Dynamic Dates tree**: `QTreeWidget` with `set_date_tree(years_payload)` — year/month hierarchy
+  - Replaces static `_dates_container` with proper tree widget
+  - Emits `year_YYYY` and `month_YYYY-MM` branches on click
+- **Dynamic Folder tree**: `QTreeWidget` with `set_folder_tree(folder_payload)` — recursive folder hierarchy
+  - Emits `folder_id:N` branches on click
+- **Dynamic Location tree**: `QTreeWidget` with `set_location_tree(location_payload)` — flat location list
+  - Emits `location_name:NAME` branches on click
+- **Videos section renamed**: `videos_all` → `videos`, `videos_short` → `videos_duration_short`,
+  `videos_medium` → `videos_duration_medium`, `videos_long` → `videos_duration_long`,
+  `videos_hd` → `videos_resolution_hd`, `videos_fhd` → `videos_resolution_fhd`,
+  `videos_4k` → `videos_resolution_4k`
+- **Review section**: Duplicates and Similar Shots tracked via `_review_buttons`
+- **ShellTree CSS**: Styled tree items with hover/selection states
+- Tree click handlers: `_on_date_tree_item_clicked`, `_on_folder_tree_item_clicked`, `_on_location_tree_item_clicked`
+
+#### Google Layout (`layouts/google_layout.py`)
+- **`_sync_shell_date_tree()`** now reads from `accordion_sidebar.section_logic["dates"].years_data`
+- **`_sync_shell_folder_tree()`** (new) reads from `accordion_sidebar.section_logic["folders"]._folder_tree_data`
+- **`_sync_shell_location_tree()`** (new) reads from `accordion_sidebar.section_logic["locations"].location_clusters`
+- All three syncs wired in `_build_left_panel_with_shell()` and `set_project()`
+- Video routing updated for renamed branches: `videos_duration_*`, `videos_resolution_*`
+- Duplicates routing simplified: mode "review", description "Duplicates"
+- Similar Shots now calls `main_window._on_find_similar_photos()` instead of `_open_duplicates_dialog()`
+- New routing: `location_name:*`, `folder_id:*`, `month_*` branches
+- Date/folder/location tree syncs after accordion clicks
+
+#### MainWindow (`main_window_qt.py`)
+- Simplified router: removed `year_` special case, everything routes through `layout._on_passive_shell_branch_clicked(branch)`
+
+#### Dynamic Shell Tests (`tests/test_phase10c_dynamic_shell.py`) — REWRITTEN
+- 56 tests covering all Phase 10C fix features
+- **TestVideoClassificationBranches** (20 tests): renamed branches, filter specs, mode, state text
+- **TestDuplicatesRouting** (3 tests): review mode, dialog, state text
+- **TestSimilarShotsRouting** (3 tests): review mode, find_similar call, state text
+- **TestDynamicDateRouting** (6 tests): year/month routing, mode, state text
+- **TestDynamicFolderRouting** (2 tests): folder_id routing, invalid ID handling
+- **TestDynamicLocationRouting** (4 tests): location_name routing, mode, state text, not-found guard
+- **TestSyncShellDateTree** (4 tests): section_logic read, payload structure, no-sidebar guard, empty logic
+- **TestSyncShellFolderTree** (3 tests): set_folder_tree call, no-sidebar guard, empty logic
+- **TestSyncShellLocationTree** (3 tests): set_location_tree call, no-sidebar guard, empty logic
+- **TestMainWindowPhase10CRouter** (8 tests): docstring, people, year/video/similar/folder/location/month routing
+- **Total test count: 394 (all passing)**
+
+### Phase 10C — Dynamic Dates Tree, Video Classifications, Review Section (first pass)
 
 Shell sidebar now has structured subsections for Videos and Review, a dynamic
 Dates tree populated from project data, and video classification filters that
 use the real `_on_accordion_video_clicked` filter pipeline.
-
-#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
-- **Dynamic Dates tree**: `_dates_container` with `set_date_years(years_with_counts)` method
-  - Populated from project's `get_date_hierarchy()` on project load
-  - Shows year + photo count (e.g. "2025 (340)")
-  - Falls back to recent 5 years when no DB available
-- **Videos section** (new `_ShellSection`): All Videos, Short/Medium/Long duration, HD/FHD/4K quality
-  - Branch names: `videos_all`, `videos_short`, `videos_medium`, `videos_long`, `videos_hd`, `videos_fhd`, `videos_4k`
-- **Review section** (new `_ShellSection`): Duplicates + Similar Shots
-  - `duplicates` branch (moved from Collections)
-  - `similar_shots` branch (new)
-- Collections simplified: Favorites, Documents, Screenshots (Videos and Duplicates moved out)
-
-#### Google Layout (`layouts/google_layout.py`)
-- Added `_sync_shell_date_tree()` — reads date hierarchy from DB and pushes to sidebar
-- Wired into `set_project()` — date tree syncs on every project change
-- Video classification routing: maps `videos_*` branches to `_on_accordion_video_clicked` filter specs
-  - `videos_short` → `duration:short` (< 30s)
-  - `videos_medium` → `duration:medium` (30s - 5m)
-  - `videos_long` → `duration:long` (> 5m)
-  - `videos_hd` → `resolution:hd` (720p+)
-  - `videos_fhd` → `resolution:fhd` (1080p+)
-  - `videos_4k` → `resolution:4k` (2160p+)
-- Similar Shots routing: `similar_shots` → review mode + opens duplicates dialog
-
-#### MainWindow (`main_window_qt.py`)
-- Router docstring updated to Phase 10C
-- Video and similar_shots branches route through to layout automatically
-
-#### Dynamic Shell Tests (`tests/test_phase10c_dynamic_shell.py`) — NEW
-- 44 tests covering all Phase 10C features, no PySide6/Qt required
-- **TestVideoClassificationBranches** (29 tests): 7 branches × filter spec + mode + emphasis + active branch, fallback
-- **TestSimilarShotsRouting** (5 tests): review mode, active branch, emphasis, dialog, state text
-- **TestSyncShellDateTree** (5 tests): DB sync, no-project guard, no-sidebar guard, fallback, reference_db
-- **TestMainWindowPhase10CRouter** (5 tests): docstring, people, year shortcuts, video routing, similar routing
-- **Total test count: 382 (all passing)**
 
 ---
 

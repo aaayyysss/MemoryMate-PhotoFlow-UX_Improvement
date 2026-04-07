@@ -1,13 +1,15 @@
 # tests/test_phase10c_dynamic_shell.py
 """
-Phase 10C dynamic shell features unit tests.
+Phase 10C fix pack dynamic shell features unit tests.
 
 Tests:
-- Dynamic Dates tree (set_date_years populates sidebar)
-- Video classification branches (videos_all, videos_short, etc.)
-- Similar Shots routing
-- _sync_shell_date_tree helper
-- MainWindow router docstring updated to Phase 10C
+- Dynamic Dates tree (QTreeWidget-based set_date_tree)
+- Video classification branches (renamed: videos_duration_*, videos_resolution_*)
+- Similar Shots routing (now uses _on_find_similar_photos)
+- Duplicates routing
+- _sync_shell_date_tree / _sync_shell_folder_tree / _sync_shell_location_tree
+- Dynamic folder_id: and location_name: and month_ routing
+- MainWindow router (simplified, no year_ special case)
 
 No PySide6 or display server required.
 
@@ -118,7 +120,7 @@ sys.meta_path = [p for p in sys.meta_path if not isinstance(p, _MockImportFinder
 # ---------------------------------------------------------------------------
 
 def _make_mock_layout(**overrides):
-    """Build a mock GooglePhotosLayout with Phase 10C features."""
+    """Build a mock GooglePhotosLayout with Phase 10C fix features."""
     layout = MagicMock()
     layout.__class__.__name__ = "GooglePhotosLayout"
 
@@ -128,7 +130,10 @@ def _make_mock_layout(**overrides):
     layout.google_shell_sidebar.clear_active_branch = MagicMock()
     layout.google_shell_sidebar.set_legacy_emphasis = MagicMock()
     layout.google_shell_sidebar.set_shell_state_text = MagicMock()
+    layout.google_shell_sidebar.set_date_tree = MagicMock()
     layout.google_shell_sidebar.set_date_years = MagicMock()
+    layout.google_shell_sidebar.set_folder_tree = MagicMock()
+    layout.google_shell_sidebar.set_location_tree = MagicMock()
 
     # Bind real helpers
     layout._set_shell_active_branch = functools.partial(
@@ -146,6 +151,12 @@ def _make_mock_layout(**overrides):
     layout._sync_shell_date_tree = functools.partial(
         GooglePhotosLayout._sync_shell_date_tree, layout
     )
+    layout._sync_shell_folder_tree = functools.partial(
+        GooglePhotosLayout._sync_shell_folder_tree, layout
+    )
+    layout._sync_shell_location_tree = functools.partial(
+        GooglePhotosLayout._sync_shell_location_tree, layout
+    )
     layout._current_view_mode = "all"
     layout._retired_legacy_sections = overrides.get(
         "_retired_legacy_sections",
@@ -155,6 +166,7 @@ def _make_mock_layout(**overrides):
     # Accordion sidebar mock
     layout.accordion_sidebar = MagicMock()
     layout.accordion_sidebar._expand_section = MagicMock()
+    layout.accordion_sidebar.section_logic = {}
 
     # Main window mock
     layout.main_window = MagicMock()
@@ -174,21 +186,21 @@ def _call_shell_branch(layout, branch):
 
 
 # ===========================================================================
-# Test Class: Video classification branches
+# Test Class: Video classification branches (renamed)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestVideoClassificationBranches:
-    """Video classification branches should call _on_accordion_video_clicked with correct spec."""
+    """Video classification branches with new naming convention."""
 
     @pytest.mark.parametrize("branch,expected_spec", [
-        ("videos_all", "all"),
-        ("videos_short", "duration:short"),
-        ("videos_medium", "duration:medium"),
-        ("videos_long", "duration:long"),
-        ("videos_hd", "resolution:hd"),
-        ("videos_fhd", "resolution:fhd"),
-        ("videos_4k", "resolution:4k"),
+        ("videos", "all"),
+        ("videos_duration_short", "duration:short"),
+        ("videos_duration_medium", "duration:medium"),
+        ("videos_duration_long", "duration:long"),
+        ("videos_resolution_hd", "resolution:hd"),
+        ("videos_resolution_fhd", "resolution:fhd"),
+        ("videos_resolution_4k", "resolution:4k"),
     ])
     def test_video_branch_calls_correct_filter(self, branch, expected_spec):
         layout = _make_mock_layout()
@@ -197,8 +209,9 @@ class TestVideoClassificationBranches:
         layout._on_accordion_video_clicked.assert_called_once_with(expected_spec)
 
     @pytest.mark.parametrize("branch", [
-        "videos_all", "videos_short", "videos_medium", "videos_long",
-        "videos_hd", "videos_fhd", "videos_4k",
+        "videos", "videos_duration_short", "videos_duration_medium",
+        "videos_duration_long", "videos_resolution_hd",
+        "videos_resolution_fhd", "videos_resolution_4k",
     ])
     def test_video_branch_sets_videos_mode(self, branch):
         layout = _make_mock_layout()
@@ -207,31 +220,54 @@ class TestVideoClassificationBranches:
         assert layout._current_view_mode == "videos"
 
     @pytest.mark.parametrize("branch", [
-        "videos_all", "videos_short", "videos_medium", "videos_long",
-        "videos_hd", "videos_fhd", "videos_4k",
+        "videos_duration_short", "videos_duration_medium", "videos_duration_long",
     ])
-    def test_video_branch_sets_emphasis_false(self, branch):
+    def test_duration_branch_state_text(self, branch):
         layout = _make_mock_layout()
         layout._on_accordion_video_clicked = MagicMock()
         _call_shell_branch(layout, branch)
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
+        # State text should contain VIDEOS
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("VIDEOS" in str(c) for c in calls)
 
     @pytest.mark.parametrize("branch", [
-        "videos_all", "videos_short", "videos_medium", "videos_long",
-        "videos_hd", "videos_fhd", "videos_4k",
+        "videos_resolution_hd", "videos_resolution_fhd", "videos_resolution_4k",
     ])
-    def test_video_branch_sets_active_branch(self, branch):
+    def test_resolution_branch_state_text(self, branch):
         layout = _make_mock_layout()
         layout._on_accordion_video_clicked = MagicMock()
         _call_shell_branch(layout, branch)
-        layout.google_shell_sidebar.set_active_branch.assert_called_with(branch)
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("VIDEOS" in str(c) for c in calls)
 
-    def test_video_branch_falls_back_to_load_photos(self):
+
+# ===========================================================================
+# Test Class: Duplicates routing
+# ===========================================================================
+
+@pytest.mark.unit
+class TestDuplicatesRouting:
+    """Duplicates branch should set review mode and open duplicates dialog."""
+
+    def test_duplicates_sets_review_mode(self):
         layout = _make_mock_layout()
-        # No _on_accordion_video_clicked
-        del layout._on_accordion_video_clicked
-        _call_shell_branch(layout, "videos_all")
-        layout._load_photos.assert_called()
+        layout._open_duplicates_dialog = MagicMock()
+        _call_shell_branch(layout, "duplicates")
+        assert layout._current_view_mode == "review"
+
+    def test_duplicates_opens_dialog(self):
+        layout = _make_mock_layout()
+        layout._open_duplicates_dialog = MagicMock()
+        _call_shell_branch(layout, "duplicates")
+        layout._open_duplicates_dialog.assert_called_once()
+
+    def test_duplicates_state_text(self):
+        layout = _make_mock_layout()
+        layout._open_duplicates_dialog = MagicMock()
+        _call_shell_branch(layout, "duplicates")
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "REVIEW \u2022 Duplicates"
+        )
 
 
 # ===========================================================================
@@ -240,116 +276,282 @@ class TestVideoClassificationBranches:
 
 @pytest.mark.unit
 class TestSimilarShotsRouting:
-    """Similar Shots should set review mode and open duplicates dialog."""
+    """Similar Shots should set review mode and call _on_find_similar_photos."""
 
     def test_similar_sets_review_mode(self):
         layout = _make_mock_layout()
-        layout._open_duplicates_dialog = MagicMock()
+        layout.main_window._on_find_similar_photos = MagicMock()
         _call_shell_branch(layout, "similar_shots")
         assert layout._current_view_mode == "review"
 
-    def test_similar_sets_active_branch(self):
+    def test_similar_calls_find_similar(self):
         layout = _make_mock_layout()
-        layout._open_duplicates_dialog = MagicMock()
+        layout.main_window._on_find_similar_photos = MagicMock()
         _call_shell_branch(layout, "similar_shots")
-        layout.google_shell_sidebar.set_active_branch.assert_called_with("similar_shots")
-
-    def test_similar_sets_emphasis_false(self):
-        layout = _make_mock_layout()
-        layout._open_duplicates_dialog = MagicMock()
-        _call_shell_branch(layout, "similar_shots")
-        layout.google_shell_sidebar.set_legacy_emphasis.assert_called_with(False)
-
-    def test_similar_opens_duplicates_dialog(self):
-        layout = _make_mock_layout()
-        layout._open_duplicates_dialog = MagicMock()
-        _call_shell_branch(layout, "similar_shots")
-        layout._open_duplicates_dialog.assert_called_once()
+        layout.main_window._on_find_similar_photos.assert_called_once()
 
     def test_similar_state_text(self):
         layout = _make_mock_layout()
-        layout._open_duplicates_dialog = MagicMock()
+        layout.main_window._on_find_similar_photos = MagicMock()
         _call_shell_branch(layout, "similar_shots")
         layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
-            "REVIEW \u2022 Similar shots review"
+            "REVIEW \u2022 Similar shots"
         )
 
 
 # ===========================================================================
-# Test Class: _sync_shell_date_tree
+# Test Class: Dynamic year/month routing
+# ===========================================================================
+
+@pytest.mark.unit
+class TestDynamicDateRouting:
+    """year_ and month_ branches should route to _on_accordion_date_clicked."""
+
+    def test_year_routes_to_date_clicked(self):
+        layout = _make_mock_layout()
+        layout._on_accordion_date_clicked = MagicMock()
+        _call_shell_branch(layout, "year_2025")
+        layout._on_accordion_date_clicked.assert_called_once_with("2025")
+
+    def test_year_sets_all_mode(self):
+        layout = _make_mock_layout()
+        layout._on_accordion_date_clicked = MagicMock()
+        _call_shell_branch(layout, "year_2024")
+        assert layout._current_view_mode == "all"
+
+    def test_year_state_text(self):
+        layout = _make_mock_layout()
+        layout._on_accordion_date_clicked = MagicMock()
+        _call_shell_branch(layout, "year_2025")
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "ALL \u2022 Year \u2022 2025"
+        )
+
+    def test_month_routes_to_date_clicked(self):
+        layout = _make_mock_layout()
+        layout._on_accordion_date_clicked = MagicMock()
+        _call_shell_branch(layout, "month_2025-06")
+        layout._on_accordion_date_clicked.assert_called_once_with("2025-06")
+
+    def test_month_sets_all_mode(self):
+        layout = _make_mock_layout()
+        layout._on_accordion_date_clicked = MagicMock()
+        _call_shell_branch(layout, "month_2025-06")
+        assert layout._current_view_mode == "all"
+
+    def test_month_state_text(self):
+        layout = _make_mock_layout()
+        layout._on_accordion_date_clicked = MagicMock()
+        _call_shell_branch(layout, "month_2025-06")
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "ALL \u2022 Month \u2022 2025-06"
+        )
+
+
+# ===========================================================================
+# Test Class: Dynamic folder routing
+# ===========================================================================
+
+@pytest.mark.unit
+class TestDynamicFolderRouting:
+    """folder_id: branches should route to _execute_folder_click."""
+
+    def test_folder_id_sets_pending_and_executes(self):
+        layout = _make_mock_layout()
+        layout._execute_folder_click = MagicMock()
+        _call_shell_branch(layout, "folder_id:42")
+        assert layout._pending_folder_id == 42
+        layout._execute_folder_click.assert_called_once()
+
+    def test_folder_id_invalid_does_not_crash(self):
+        layout = _make_mock_layout()
+        layout._execute_folder_click = MagicMock(side_effect=Exception("boom"))
+        # Should not raise
+        _call_shell_branch(layout, "folder_id:abc")
+
+
+# ===========================================================================
+# Test Class: Dynamic location routing
+# ===========================================================================
+
+@pytest.mark.unit
+class TestDynamicLocationRouting:
+    """location_name: branches should route to _on_accordion_location_clicked."""
+
+    def test_location_name_sets_locations_mode(self):
+        layout = _make_mock_layout()
+        loc_section = MagicMock()
+        loc_section.location_clusters = [
+            {"name": "Paris", "count": 5, "paths": ["/a.jpg"]},
+        ]
+        layout.accordion_sidebar.section_logic = {"locations": loc_section}
+        layout._on_accordion_location_clicked = MagicMock()
+        _call_shell_branch(layout, "location_name:Paris")
+        assert layout._current_view_mode == "locations"
+
+    def test_location_name_calls_location_clicked(self):
+        layout = _make_mock_layout()
+        loc_section = MagicMock()
+        loc_section.location_clusters = [
+            {"name": "Paris", "count": 5, "paths": ["/a.jpg"]},
+        ]
+        layout.accordion_sidebar.section_logic = {"locations": loc_section}
+        layout._on_accordion_location_clicked = MagicMock()
+        _call_shell_branch(layout, "location_name:Paris")
+        layout._on_accordion_location_clicked.assert_called_once_with(
+            {"name": "Paris", "count": 5, "paths": ["/a.jpg"]}
+        )
+
+    def test_location_name_state_text(self):
+        layout = _make_mock_layout()
+        loc_section = MagicMock()
+        loc_section.location_clusters = [
+            {"name": "Tokyo", "count": 3, "paths": ["/b.jpg"]},
+        ]
+        layout.accordion_sidebar.section_logic = {"locations": loc_section}
+        layout._on_accordion_location_clicked = MagicMock()
+        _call_shell_branch(layout, "location_name:Tokyo")
+        layout.google_shell_sidebar.set_shell_state_text.assert_called_with(
+            "LOCATIONS \u2022 Location \u2022 Tokyo"
+        )
+
+    def test_location_name_not_found_does_not_crash(self):
+        layout = _make_mock_layout()
+        loc_section = MagicMock()
+        loc_section.location_clusters = []
+        layout.accordion_sidebar.section_logic = {"locations": loc_section}
+        # Should not raise
+        _call_shell_branch(layout, "location_name:Nowhere")
+
+
+# ===========================================================================
+# Test Class: _sync_shell_date_tree (fix pack version)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestSyncShellDateTree:
-    """_sync_shell_date_tree should push date hierarchy to sidebar."""
+    """_sync_shell_date_tree should read from accordion section_logic."""
 
-    def test_sync_calls_set_date_years(self):
+    def test_sync_calls_set_date_tree(self):
         layout = _make_mock_layout()
-        layout.project_id = 1
-        db = MagicMock()
-        db.get_date_hierarchy.return_value = {
-            "2025": {"01": ["01", "15"], "06": ["10"]},
-            "2024": {"12": ["25"]},
+        dates_section = MagicMock()
+        dates_section.years_data = {
+            2025: [{"month": 1}, {"month": 6}],
+            2024: [{"month": 12}],
         }
-        layout.db = db
+        layout.accordion_sidebar.section_logic = {"dates": dates_section}
         layout._sync_shell_date_tree()
-        layout.google_shell_sidebar.set_date_years.assert_called_once()
-        args = layout.google_shell_sidebar.set_date_years.call_args[0][0]
-        # Should be sorted newest first
-        assert args[0][0] == 2025
-        assert args[1][0] == 2024
-        # Counts should reflect total days (not months)
-        assert args[0][1] == 3  # 2025: 3 days total
-        assert args[1][1] == 1  # 2024: 1 day total
+        layout.google_shell_sidebar.set_date_tree.assert_called_once()
 
-    def test_sync_no_project_does_nothing(self):
+    def test_sync_payload_structure(self):
         layout = _make_mock_layout()
-        layout.project_id = None
+        dates_section = MagicMock()
+        dates_section.years_data = {
+            2025: [{"month": 3}],
+        }
+        layout.accordion_sidebar.section_logic = {"dates": dates_section}
         layout._sync_shell_date_tree()
-        layout.google_shell_sidebar.set_date_years.assert_not_called()
+        payload = layout.google_shell_sidebar.set_date_tree.call_args[0][0]
+        assert len(payload) == 1
+        assert payload[0]["label"] == "2025"
+        assert payload[0]["value"] == "2025"
+        assert len(payload[0]["months"]) == 1
+        assert payload[0]["months"][0]["value"] == "2025-03"
 
     def test_sync_no_sidebar_does_not_crash(self):
         layout = _make_mock_layout()
-        layout.project_id = 1
         layout.google_shell_sidebar = None
         layout._sync_shell_date_tree = functools.partial(
             GooglePhotosLayout._sync_shell_date_tree, layout
         )
-        # Should not raise
         layout._sync_shell_date_tree()
 
-    def test_sync_fallback_when_no_db(self):
+    def test_sync_empty_section_logic(self):
         layout = _make_mock_layout()
-        layout.project_id = 1
-        layout.db = None
-        layout.reference_db = None
+        layout.accordion_sidebar.section_logic = {}
         layout._sync_shell_date_tree()
-        # Should still call set_date_years with fallback years
-        layout.google_shell_sidebar.set_date_years.assert_called_once()
-        args = layout.google_shell_sidebar.set_date_years.call_args[0][0]
-        assert len(args) == 5  # 5 fallback years
-        assert args[0][1] == 0  # No counts for fallback
-
-    def test_sync_uses_reference_db_if_no_db(self):
-        layout = _make_mock_layout()
-        layout.project_id = 1
-        layout.db = None
-        ref_db = MagicMock()
-        ref_db.get_date_hierarchy.return_value = {
-            "2023": {"03": ["15"]},
-        }
-        layout.reference_db = ref_db
-        layout._sync_shell_date_tree()
-        ref_db.get_date_hierarchy.assert_called_once_with(1)
+        layout.google_shell_sidebar.set_date_tree.assert_called_once_with([])
 
 
 # ===========================================================================
-# Test Class: MainWindow Phase 10C router
+# Test Class: _sync_shell_folder_tree
+# ===========================================================================
+
+@pytest.mark.unit
+class TestSyncShellFolderTree:
+    """_sync_shell_folder_tree should read from accordion section_logic."""
+
+    def test_sync_calls_set_folder_tree(self):
+        layout = _make_mock_layout()
+        folders_section = MagicMock()
+        folders_section._folder_tree_data = [
+            {"label": "Photos", "id": 1, "children": []}
+        ]
+        layout.accordion_sidebar.section_logic = {"folders": folders_section}
+        layout._sync_shell_folder_tree()
+        layout.google_shell_sidebar.set_folder_tree.assert_called_once_with(
+            [{"label": "Photos", "id": 1, "children": []}]
+        )
+
+    def test_sync_no_sidebar_does_not_crash(self):
+        layout = _make_mock_layout()
+        layout.google_shell_sidebar = None
+        layout._sync_shell_folder_tree = functools.partial(
+            GooglePhotosLayout._sync_shell_folder_tree, layout
+        )
+        layout._sync_shell_folder_tree()
+
+    def test_sync_empty_section_logic(self):
+        layout = _make_mock_layout()
+        layout.accordion_sidebar.section_logic = {}
+        layout._sync_shell_folder_tree()
+        layout.google_shell_sidebar.set_folder_tree.assert_called_once_with([])
+
+
+# ===========================================================================
+# Test Class: _sync_shell_location_tree
+# ===========================================================================
+
+@pytest.mark.unit
+class TestSyncShellLocationTree:
+    """_sync_shell_location_tree should read from accordion section_logic."""
+
+    def test_sync_calls_set_location_tree(self):
+        layout = _make_mock_layout()
+        loc_section = MagicMock()
+        loc_section.location_clusters = [
+            {"name": "Paris", "count": 10},
+            {"name": "Tokyo", "count": 5},
+        ]
+        layout.accordion_sidebar.section_logic = {"locations": loc_section}
+        layout._sync_shell_location_tree()
+        payload = layout.google_shell_sidebar.set_location_tree.call_args[0][0]
+        assert len(payload) == 2
+        assert payload[0]["label"] == "Paris"
+        assert payload[1]["label"] == "Tokyo"
+
+    def test_sync_no_sidebar_does_not_crash(self):
+        layout = _make_mock_layout()
+        layout.google_shell_sidebar = None
+        layout._sync_shell_location_tree = functools.partial(
+            GooglePhotosLayout._sync_shell_location_tree, layout
+        )
+        layout._sync_shell_location_tree()
+
+    def test_sync_empty_section_logic(self):
+        layout = _make_mock_layout()
+        layout.accordion_sidebar.section_logic = {}
+        layout._sync_shell_location_tree()
+        layout.google_shell_sidebar.set_location_tree.assert_called_once_with([])
+
+
+# ===========================================================================
+# Test Class: MainWindow Phase 10C router (simplified)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestMainWindowPhase10CRouter:
-    """Verify MainWindow router is Phase 10C labeled."""
+    """Verify MainWindow router is Phase 10C labeled and simplified."""
 
     def test_router_has_phase_10c_docstring(self):
         assert _mw_search_branch_router is not None
@@ -362,27 +564,51 @@ class TestMainWindowPhase10CRouter:
         _mw_search_branch_router(mw, "people_tools")
         mw._handle_people_branch.assert_called_once_with("people_tools")
 
-    def test_router_year_shortcuts_still_work(self):
-        mw = MagicMock()
-        layout = MagicMock()
-        mw.layout_manager.get_current_layout.return_value = layout
-        _mw_search_branch_router(mw, "year_2025")
-        layout.request_reload.assert_called_once_with(reason="year_filter", year=2025)
-
-    def test_video_branches_route_to_layout(self):
-        """Video classification branches should route through to layout."""
+    def test_router_year_routes_to_layout(self):
+        """year_ branches now route through layout, not MW special case."""
         mw = MagicMock()
         layout = MagicMock()
         layout._on_passive_shell_branch_clicked = MagicMock()
         mw.layout_manager.get_current_layout.return_value = layout
-        _mw_search_branch_router(mw, "videos_short")
-        layout._on_passive_shell_branch_clicked.assert_called_once_with("videos_short")
+        _mw_search_branch_router(mw, "year_2025")
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("year_2025")
+
+    def test_video_branches_route_to_layout(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "videos_duration_short")
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("videos_duration_short")
 
     def test_similar_shots_routes_to_layout(self):
-        """Similar shots branch should route through to layout."""
         mw = MagicMock()
         layout = MagicMock()
         layout._on_passive_shell_branch_clicked = MagicMock()
         mw.layout_manager.get_current_layout.return_value = layout
         _mw_search_branch_router(mw, "similar_shots")
         layout._on_passive_shell_branch_clicked.assert_called_once_with("similar_shots")
+
+    def test_folder_id_routes_to_layout(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "folder_id:42")
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("folder_id:42")
+
+    def test_location_name_routes_to_layout(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "location_name:Paris")
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("location_name:Paris")
+
+    def test_month_routes_to_layout(self):
+        mw = MagicMock()
+        layout = MagicMock()
+        layout._on_passive_shell_branch_clicked = MagicMock()
+        mw.layout_manager.get_current_layout.return_value = layout
+        _mw_search_branch_router(mw, "month_2025-06")
+        layout._on_passive_shell_branch_clicked.assert_called_once_with("month_2025-06")

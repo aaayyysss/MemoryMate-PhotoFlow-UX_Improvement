@@ -3310,30 +3310,13 @@ class MainWindow(QMainWindow):
     def _handle_search_sidebar_branch_request(self, branch: str):
         """
         Phase 10C:
-        Shell controls visible modes with dynamic dates, video classifications,
-        and review section. Legacy accordion remains as fallback.
+        Shell dynamic tree routing for dates, folders, videos, review, and locations.
         """
         try:
-            # People branches stay delegated through the dedicated people router
             if branch.startswith("people_"):
                 if hasattr(self, "_handle_people_branch"):
                     self._handle_people_branch(branch)
                     return
-
-            # Shell-level year shortcuts → direct date filter
-            if branch.startswith("year_"):
-                try:
-                    year = int(branch.split("_")[1])
-                    layout = None
-                    if hasattr(self, "layout_manager") and self.layout_manager:
-                        layout = self.layout_manager.get_current_layout()
-                    if layout and hasattr(layout, "request_reload"):
-                        layout.request_reload(reason="year_filter", year=year)
-                    elif layout and hasattr(layout, "_load_photos"):
-                        layout._load_photos(filter_year=year)
-                except Exception:
-                    pass
-                return
 
             layout = None
             try:
@@ -3342,12 +3325,10 @@ class MainWindow(QMainWindow):
             except Exception:
                 layout = None
 
-            # If active layout is Google, let Google layout decide shell-first behavior
             if layout and hasattr(layout, "_on_passive_shell_branch_clicked"):
                 layout._on_passive_shell_branch_clicked(branch)
                 return
 
-            # Legacy fallback for non-Google paths remains alive
             if hasattr(self, "sidebar"):
                 try:
                     self.sidebar.selectBranch.emit(branch)
