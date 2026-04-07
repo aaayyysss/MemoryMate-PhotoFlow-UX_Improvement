@@ -4,6 +4,50 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-06
 
+### Phase 10C — Dynamic Dates Tree, Video Classifications, Review Section
+
+Shell sidebar now has structured subsections for Videos and Review, a dynamic
+Dates tree populated from project data, and video classification filters that
+use the real `_on_accordion_video_clicked` filter pipeline.
+
+#### Shell Sidebar (`ui/search/google_shell_sidebar.py`)
+- **Dynamic Dates tree**: `_dates_container` with `set_date_years(years_with_counts)` method
+  - Populated from project's `get_date_hierarchy()` on project load
+  - Shows year + photo count (e.g. "2025 (340)")
+  - Falls back to recent 5 years when no DB available
+- **Videos section** (new `_ShellSection`): All Videos, Short/Medium/Long duration, HD/FHD/4K quality
+  - Branch names: `videos_all`, `videos_short`, `videos_medium`, `videos_long`, `videos_hd`, `videos_fhd`, `videos_4k`
+- **Review section** (new `_ShellSection`): Duplicates + Similar Shots
+  - `duplicates` branch (moved from Collections)
+  - `similar_shots` branch (new)
+- Collections simplified: Favorites, Documents, Screenshots (Videos and Duplicates moved out)
+
+#### Google Layout (`layouts/google_layout.py`)
+- Added `_sync_shell_date_tree()` — reads date hierarchy from DB and pushes to sidebar
+- Wired into `set_project()` — date tree syncs on every project change
+- Video classification routing: maps `videos_*` branches to `_on_accordion_video_clicked` filter specs
+  - `videos_short` → `duration:short` (< 30s)
+  - `videos_medium` → `duration:medium` (30s - 5m)
+  - `videos_long` → `duration:long` (> 5m)
+  - `videos_hd` → `resolution:hd` (720p+)
+  - `videos_fhd` → `resolution:fhd` (1080p+)
+  - `videos_4k` → `resolution:4k` (2160p+)
+- Similar Shots routing: `similar_shots` → review mode + opens duplicates dialog
+
+#### MainWindow (`main_window_qt.py`)
+- Router docstring updated to Phase 10C
+- Video and similar_shots branches route through to layout automatically
+
+#### Dynamic Shell Tests (`tests/test_phase10c_dynamic_shell.py`) — NEW
+- 44 tests covering all Phase 10C features, no PySide6/Qt required
+- **TestVideoClassificationBranches** (29 tests): 7 branches × filter spec + mode + emphasis + active branch, fallback
+- **TestSimilarShotsRouting** (5 tests): review mode, active branch, emphasis, dialog, state text
+- **TestSyncShellDateTree** (5 tests): DB sync, no-project guard, no-sidebar guard, fallback, reference_db
+- **TestMainWindowPhase10CRouter** (5 tests): docstring, people, year shortcuts, video routing, similar routing
+- **Total test count: 382 (all passing)**
+
+---
+
 ### Phase 10B — Shell-Native Outcome Corrections
 
 Corrects Phase 10 outcomes so retired sections use real filter paths instead

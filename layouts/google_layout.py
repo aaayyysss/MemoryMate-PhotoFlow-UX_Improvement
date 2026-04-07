@@ -1339,6 +1339,42 @@ class GooglePhotosLayout(BaseLayout):
         except Exception:
             pass
 
+    def _sync_shell_date_tree(self):
+        """Phase 10C: Push the project's actual date hierarchy to the shell sidebar."""
+        try:
+            if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
+                return
+            if not hasattr(self.google_shell_sidebar, "set_date_years"):
+                return
+            if not getattr(self, "project_id", None):
+                return
+
+            # Try to get years with counts from the database
+            years_with_counts = []
+            db = getattr(self, "db", None) or getattr(self, "reference_db", None)
+            if db and hasattr(db, "get_date_hierarchy"):
+                hierarchy = db.get_date_hierarchy(self.project_id)
+                if hierarchy:
+                    for year_str in sorted(hierarchy.keys(), reverse=True):
+                        try:
+                            year = int(year_str)
+                            month_count = sum(
+                                len(days) for days in hierarchy[year_str].values()
+                            )
+                            years_with_counts.append((year, month_count))
+                        except (ValueError, TypeError):
+                            pass
+
+            if not years_with_counts:
+                # Fallback: just show recent years without counts
+                import datetime
+                current_year = datetime.datetime.now().year
+                years_with_counts = [(y, 0) for y in range(current_year, current_year - 5, -1)]
+
+            self.google_shell_sidebar.set_date_years(years_with_counts)
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] _sync_shell_date_tree failed: {e}")
+
     def _set_view_mode(self, mode: str, description: str = ""):
         self._current_view_mode = mode
 
@@ -1514,6 +1550,48 @@ class GooglePhotosLayout(BaseLayout):
                 # Then execute the actual direct grid action
                 if hasattr(self, "_on_shell_quick_date_clicked"):
                     self._on_shell_quick_date_clicked(branch)
+                return
+
+            # ── Phase 10C: Video classifications ──────────────────────────────────────
+            _video_branch_map = {
+                "videos_all": "all",
+                "videos_short": "duration:short",
+                "videos_medium": "duration:medium",
+                "videos_long": "duration:long",
+                "videos_hd": "resolution:hd",
+                "videos_fhd": "resolution:fhd",
+                "videos_4k": "resolution:4k",
+            }
+            if branch in _video_branch_map:
+                filter_spec = _video_branch_map[branch]
+                self._set_shell_active_branch(branch)
+                if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                desc = branch.replace("videos_", "").replace("_", " ").title()
+                self._set_view_mode("videos", desc)
+                try:
+                    if hasattr(self, "_on_accordion_video_clicked"):
+                        self._on_accordion_video_clicked(filter_spec)
+                    else:
+                        self._load_photos()
+                except Exception:
+                    try:
+                        self._load_photos()
+                    except Exception:
+                        pass
+                return
+
+            # ── Phase 10C: Similar Shots ──────────────────────────────────────────────
+            if branch == "similar_shots":
+                self._set_shell_active_branch("similar_shots")
+                if hasattr(self, "google_shell_sidebar") and self.google_shell_sidebar:
+                    self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_view_mode("review", "Similar shots review")
+                try:
+                    if hasattr(self, "_open_duplicates_dialog"):
+                        self._open_duplicates_dialog()
+                except Exception:
+                    pass
                 return
 
             # ── Legacy-detailed sections: accordion fallback retained ─────────────────
@@ -10850,6 +10928,7 @@ Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
             if project_id:
                 self._clear_shell_state_text()
             self._refresh_legacy_visibility_state()
+            self._sync_shell_date_tree()
 
             # Update accordion sidebar with new project
             if hasattr(self, 'accordion_sidebar') and self.accordion_sidebar is not None:
