@@ -1192,6 +1192,12 @@ class GooglePhotosLayout(BaseLayout):
         # FIX: Connect section expansion signal to hide search suggestions popup
         sidebar.sectionExpanding.connect(self._on_accordion_section_expanding)
 
+        # Phase 10C fix: Re-sync shell trees after accordion sections finish loading
+        if hasattr(sidebar, "_datesLoaded"):
+            sidebar._datesLoaded.connect(lambda _: self._sync_shell_date_tree())
+        if hasattr(sidebar, "_foldersLoaded"):
+            sidebar._foldersLoaded.connect(lambda _: self._sync_shell_folder_tree())
+
         # Store reference for refreshing
         self.accordion_sidebar = sidebar
 
@@ -1347,27 +1353,53 @@ class GooglePhotosLayout(BaseLayout):
         try:
             if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
                 return
+            if not getattr(self, "project_id", None):
+                return
 
             years_payload = []
-            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
-                section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
-                dates_section = section_logic.get("dates")
+            db = None
+            try:
+                from reference_db import ReferenceDB
+                db = ReferenceDB()
 
-                if dates_section and hasattr(dates_section, "years_data"):
-                    for year, months in (dates_section.years_data or {}).items():
-                        month_items = []
-                        for month in months or []:
-                            month_val = month.get("month")
-                            if month_val is not None:
-                                month_items.append({
-                                    "label": str(month_val),
-                                    "value": f"{year:04d}-{int(month_val):02d}",
-                                })
-                        years_payload.append({
-                            "label": str(year),
-                            "value": str(year),
-                            "months": month_items,
+                hier = {}
+                year_counts = {}
+                if hasattr(db, "get_date_hierarchy"):
+                    hier = db.get_date_hierarchy(self.project_id) or {}
+                if hasattr(db, "list_years_with_counts"):
+                    yc_list = db.list_years_with_counts(self.project_id) or []
+                    year_counts = {str(y): c for y, c in yc_list}
+
+                for year_str in sorted(hier.keys(), reverse=True):
+                    try:
+                        year = int(year_str)
+                    except (ValueError, TypeError):
+                        continue
+                    months_dict = hier[year_str] or {}
+                    month_items = []
+                    for month_str in sorted(months_dict.keys()):
+                        try:
+                            month_int = int(month_str)
+                        except (ValueError, TypeError):
+                            continue
+                        day_count = len(months_dict[month_str] or [])
+                        month_items.append({
+                            "label": f"{month_int:02d} ({day_count} days)",
+                            "value": f"{year:04d}-{month_int:02d}",
                         })
+                    count = year_counts.get(str(year), 0)
+                    label = f"{year} ({count})" if count else str(year)
+                    years_payload.append({
+                        "label": label,
+                        "value": str(year),
+                        "months": month_items,
+                    })
+            finally:
+                if db:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
 
             self.google_shell_sidebar.set_date_tree(years_payload)
         except Exception as e:
@@ -1378,14 +1410,39 @@ class GooglePhotosLayout(BaseLayout):
         try:
             if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
                 return
+            if not getattr(self, "project_id", None):
+                return
 
             payload = []
-            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
-                section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
-                folders_section = section_logic.get("folders")
+            db = None
+            try:
+                from reference_db import ReferenceDB
+                db = ReferenceDB()
 
-                if folders_section and hasattr(folders_section, "_folder_tree_data"):
-                    payload = folders_section._folder_tree_data or []
+                def build_tree(parent_id):
+                    items = []
+                    try:
+                        rows = db.get_child_folders(parent_id, project_id=self.project_id) or []
+                    except Exception:
+                        return items
+                    for row in rows:
+                        fid = row.get("id") or row.get("folder_id")
+                        name = row.get("name", "Unknown")
+                        children = build_tree(fid)
+                        items.append({
+                            "label": name,
+                            "id": fid,
+                            "children": children,
+                        })
+                    return items
+
+                payload = build_tree(None)
+            finally:
+                if db:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
 
             self.google_shell_sidebar.set_folder_tree(payload)
         except Exception as e:
@@ -1396,18 +1453,31 @@ class GooglePhotosLayout(BaseLayout):
         try:
             if not hasattr(self, "google_shell_sidebar") or not self.google_shell_sidebar:
                 return
+            if not getattr(self, "project_id", None):
+                return
 
             payload = []
-            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar is not None:
-                section_logic = getattr(self.accordion_sidebar, "section_logic", {}) or {}
-                locations_section = section_logic.get("locations")
+            db = None
+            try:
+                from reference_db import ReferenceDB
+                db = ReferenceDB()
 
-                if locations_section and hasattr(locations_section, "location_clusters"):
-                    for item in locations_section.location_clusters or []:
+                if hasattr(db, "get_location_clusters"):
+                    clusters = db.get_location_clusters(self.project_id) or []
+                    for item in clusters:
+                        name = str(item.get("name", "Unknown Location"))
+                        count = item.get("count", 0)
+                        label = f"{name} ({count})" if count else name
                         payload.append({
-                            "label": str(item.get("name", "Unknown Location")),
-                            "value": str(item.get("name", "Unknown Location")),
+                            "label": label,
+                            "value": name,
                         })
+            finally:
+                if db:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
 
             self.google_shell_sidebar.set_location_tree(payload)
         except Exception as e:
@@ -1477,9 +1547,26 @@ class GooglePhotosLayout(BaseLayout):
                 "devices": "devices",
                 "favorites": "favorites",
                 "videos": "videos",
+                "videos_duration_short": "videos",
+                "videos_duration_medium": "videos",
+                "videos_duration_long": "videos",
+                "videos_resolution_sd": "videos",
+                "videos_resolution_hd": "videos",
+                "videos_resolution_fhd": "videos",
+                "videos_resolution_4k": "videos",
+                "videos_codec_h264": "videos",
+                "videos_codec_hevc": "videos",
+                "videos_codec_vp9": "videos",
+                "videos_codec_av1": "videos",
+                "videos_codec_mpeg4": "videos",
+                "videos_size_small": "videos",
+                "videos_size_medium": "videos",
+                "videos_size_large": "videos",
+                "videos_size_xlarge": "videos",
                 "documents": "documents",
                 "screenshots": "screenshots",
                 "duplicates": "duplicates",
+                "similar_shots": "duplicates",
                 "locations": "locations",
                 "discover_beach": "discover_beach",
                 "discover_mountains": "discover_mountains",
@@ -1611,6 +1698,11 @@ class GooglePhotosLayout(BaseLayout):
                 self._on_accordion_video_clicked("duration:long")
                 return
 
+            if branch == "videos_resolution_sd":
+                self._set_view_mode("videos", "SD videos (< 720p)")
+                self._on_accordion_video_clicked("resolution:sd")
+                return
+
             if branch == "videos_resolution_hd":
                 self._set_view_mode("videos", "HD videos")
                 self._on_accordion_video_clicked("resolution:hd")
@@ -1624,6 +1716,51 @@ class GooglePhotosLayout(BaseLayout):
             if branch == "videos_resolution_4k":
                 self._set_view_mode("videos", "4K videos")
                 self._on_accordion_video_clicked("resolution:4k")
+                return
+
+            if branch == "videos_codec_h264":
+                self._set_view_mode("videos", "H.264 / AVC videos")
+                self._on_accordion_video_clicked("codec:h264")
+                return
+
+            if branch == "videos_codec_hevc":
+                self._set_view_mode("videos", "H.265 / HEVC videos")
+                self._on_accordion_video_clicked("codec:hevc")
+                return
+
+            if branch == "videos_codec_vp9":
+                self._set_view_mode("videos", "VP9 videos")
+                self._on_accordion_video_clicked("codec:vp9")
+                return
+
+            if branch == "videos_codec_av1":
+                self._set_view_mode("videos", "AV1 videos")
+                self._on_accordion_video_clicked("codec:av1")
+                return
+
+            if branch == "videos_codec_mpeg4":
+                self._set_view_mode("videos", "MPEG-4 videos")
+                self._on_accordion_video_clicked("codec:mpeg4")
+                return
+
+            if branch == "videos_size_small":
+                self._set_view_mode("videos", "Small videos (< 100 MB)")
+                self._on_accordion_video_clicked("size:small")
+                return
+
+            if branch == "videos_size_medium":
+                self._set_view_mode("videos", "Medium videos (100 MB - 1 GB)")
+                self._on_accordion_video_clicked("size:medium")
+                return
+
+            if branch == "videos_size_large":
+                self._set_view_mode("videos", "Large videos (1 - 5 GB)")
+                self._on_accordion_video_clicked("size:large")
+                return
+
+            if branch == "videos_size_xlarge":
+                self._set_view_mode("videos", "Extra large videos (> 5 GB)")
+                self._on_accordion_video_clicked("size:xlarge")
                 return
 
             # ── Phase 10C fix: Review ────────────────────────────────────────────────

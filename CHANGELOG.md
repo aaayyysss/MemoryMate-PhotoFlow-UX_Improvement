@@ -2,7 +2,69 @@
 
 All notable changes to the MemoryMate PhotoFlow search pipeline are documented here.
 
-## [Unreleased] - 2026-04-07
+## [Unreleased] - 2026-04-11
+
+### Phase 10C Fix Pack v2 — Runtime Bug Fixes (DB-Backed Trees, Full Video Classification, Similar Shots Crash)
+
+Follow-up fix pack addressing five runtime issues discovered during post-fix-pack
+verification: trees not rendering in shell (root cause: helpers queried non-existent
+`section_logic` attribute on accordion sidebar), missing video classifications
+versus legacy parity, and a crash in the Similar Shots dialog when the
+`photo_embedding` table doesn't exist yet.
+
+#### Sync Helpers Rewritten (`layouts/google_layout.py`)
+- **`_sync_shell_date_tree`**, **`_sync_shell_folder_tree`**,
+  **`_sync_shell_location_tree`** now read directly from `ReferenceDB` instead
+  of the non-existent `accordion_sidebar.section_logic` dict
+- Uses `db.get_date_hierarchy`, `db.list_years_with_counts`, `db.get_child_folders`,
+  `db.get_location_clusters`
+- Graceful early-return on missing sidebar / missing project_id; all DB failures
+  caught and logged without crashing the UI thread
+- Folder tree is built recursively via `build_tree(parent_id)` walking the full
+  hierarchy from root
+- **Wired to accordion internal signals**: layout now re-syncs shell trees after
+  accordion section loads complete, via `_datesLoaded` and `_foldersLoaded`
+  signals from the accordion sidebar — ensures trees appear as soon as the
+  underlying section logic finishes loading its data
+
+#### Full Video Classification Parity (`ui/search/google_shell_sidebar.py`)
+- Added SD resolution branch (`videos_resolution_sd`) — "SD (< 720p)"
+- Added 5 codec branches: `videos_codec_h264` (H.264 / AVC),
+  `videos_codec_hevc` (H.265 / HEVC), `videos_codec_vp9` (VP9),
+  `videos_codec_av1` (AV1), `videos_codec_mpeg4` (MPEG-4)
+- Added 4 file size branches: `videos_size_small` (< 100 MB),
+  `videos_size_medium` (100 MB - 1 GB), `videos_size_large` (1 - 5 GB),
+  `videos_size_xlarge` (> 5 GB)
+- Shell videos section now matches legacy classification options (1 + 3 + 4 + 5 + 4 = 17 total)
+
+#### Video Branch Routing (`layouts/google_layout.py`)
+- Added router handlers for all 10 new video branches, each calling
+  `_on_accordion_video_clicked` with the correct filter spec
+  (`resolution:sd`, `codec:h264`..`codec:mpeg4`, `size:small`..`size:xlarge`)
+- Extended `shell_active_map` so shell active-branch highlighting works for every
+  new video subsection and for `similar_shots → duplicates`
+
+#### Similar Shots Stats Crash Fix (`ui/similar_photo_dialog.py`)
+- `_load_existing_stats()` now handles the `photo_embedding` table not yet
+  existing — the table is created on first duplicate detection run, not project
+  creation
+- Specific `sqlite3.OperationalError` catch with a "no such table" check shows a
+  user-friendly status: `"Embeddings: not yet generated (run duplicate detection first)"`
+- Prevents the dialog from crashing when the user clicks Similar Shots before
+  any embeddings have been generated
+
+#### Dynamic Shell Tests Updated (`tests/test_phase10c_dynamic_shell.py`)
+- Rewrote `TestSyncShellDateTree`, `TestSyncShellFolderTree`,
+  `TestSyncShellLocationTree` to mock `ReferenceDB` instead of
+  `section_logic` — reflects the new DB-backed implementation
+- Added `test_sync_no_project_id_does_not_crash` for each sync helper
+- Added `test_sync_nested_folders` exercising the recursive folder builder
+- Extended `TestVideoClassificationBranches` to cover all 10 new branches —
+  parametrized on `(branch, expected_spec)` tuples for SD, 5 codecs, 4 sizes
+- Added `test_codec_branch_state_text` and `test_size_branch_state_text`
+  parametrized classes
+- **Total phase10c test count: 90 (up from 60)**
+- **Total phase test count: 428 (all passing)**
 
 ### Phase 10C Fix Pack — QTreeWidget Dynamic Trees, Renamed Video Branches, Simplified Router
 
