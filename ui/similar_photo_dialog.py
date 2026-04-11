@@ -520,6 +520,7 @@ class SimilarPhotoDetectionDialog(QDialog):
 
     def _load_existing_stats(self):
         """Load statistics about existing embeddings."""
+        import sqlite3
         try:
             db_conn = DatabaseConnection()
             photo_repo = PhotoRepository(db_conn)
@@ -531,15 +532,26 @@ class SimilarPhotoDetectionDialog(QDialog):
 
             # Query photo_embedding table directly for accurate count
             # (embeddings are stored here by DuplicateDetectionWorker)
-            with db_conn.get_connection() as conn:
-                cursor = conn.execute("""
-                    SELECT COUNT(DISTINCT pe.photo_id) as cnt
-                    FROM photo_embedding pe
-                    JOIN photo_metadata p ON pe.photo_id = p.id
-                    WHERE p.project_id = ? AND pe.embedding_type = 'visual_semantic'
-                """, (self.project_id,))
-                row = cursor.fetchone()
-                photos_with_embeddings = row['cnt'] if row else 0
+            photos_with_embeddings = 0
+            try:
+                with db_conn.get_connection() as conn:
+                    cursor = conn.execute("""
+                        SELECT COUNT(DISTINCT pe.photo_id) as cnt
+                        FROM photo_embedding pe
+                        JOIN photo_metadata p ON pe.photo_id = p.id
+                        WHERE p.project_id = ? AND pe.embedding_type = 'visual_semantic'
+                    """, (self.project_id,))
+                    row = cursor.fetchone()
+                    photos_with_embeddings = row['cnt'] if row else 0
+            except sqlite3.OperationalError as table_err:
+                if "no such table" in str(table_err):
+                    logger.info("[SimilarPhotoDialog] photo_embedding table not yet created — embeddings not available")
+                    self.stats_label.setText(
+                        f"Total Photos: {total_photos} | "
+                        f"Embeddings: not yet generated (run duplicate detection first)"
+                    )
+                    return
+                raise
 
             coverage = int((photos_with_embeddings / max(total_photos, 1)) * 100)
 

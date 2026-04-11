@@ -198,9 +198,19 @@ class TestVideoClassificationBranches:
         ("videos_duration_short", "duration:short"),
         ("videos_duration_medium", "duration:medium"),
         ("videos_duration_long", "duration:long"),
+        ("videos_resolution_sd", "resolution:sd"),
         ("videos_resolution_hd", "resolution:hd"),
         ("videos_resolution_fhd", "resolution:fhd"),
         ("videos_resolution_4k", "resolution:4k"),
+        ("videos_codec_h264", "codec:h264"),
+        ("videos_codec_hevc", "codec:hevc"),
+        ("videos_codec_vp9", "codec:vp9"),
+        ("videos_codec_av1", "codec:av1"),
+        ("videos_codec_mpeg4", "codec:mpeg4"),
+        ("videos_size_small", "size:small"),
+        ("videos_size_medium", "size:medium"),
+        ("videos_size_large", "size:large"),
+        ("videos_size_xlarge", "size:xlarge"),
     ])
     def test_video_branch_calls_correct_filter(self, branch, expected_spec):
         layout = _make_mock_layout()
@@ -210,8 +220,13 @@ class TestVideoClassificationBranches:
 
     @pytest.mark.parametrize("branch", [
         "videos", "videos_duration_short", "videos_duration_medium",
-        "videos_duration_long", "videos_resolution_hd",
+        "videos_duration_long",
+        "videos_resolution_sd", "videos_resolution_hd",
         "videos_resolution_fhd", "videos_resolution_4k",
+        "videos_codec_h264", "videos_codec_hevc", "videos_codec_vp9",
+        "videos_codec_av1", "videos_codec_mpeg4",
+        "videos_size_small", "videos_size_medium",
+        "videos_size_large", "videos_size_xlarge",
     ])
     def test_video_branch_sets_videos_mode(self, branch):
         layout = _make_mock_layout()
@@ -231,9 +246,32 @@ class TestVideoClassificationBranches:
         assert any("VIDEOS" in str(c) for c in calls)
 
     @pytest.mark.parametrize("branch", [
-        "videos_resolution_hd", "videos_resolution_fhd", "videos_resolution_4k",
+        "videos_resolution_sd", "videos_resolution_hd",
+        "videos_resolution_fhd", "videos_resolution_4k",
     ])
     def test_resolution_branch_state_text(self, branch):
+        layout = _make_mock_layout()
+        layout._on_accordion_video_clicked = MagicMock()
+        _call_shell_branch(layout, branch)
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("VIDEOS" in str(c) for c in calls)
+
+    @pytest.mark.parametrize("branch", [
+        "videos_codec_h264", "videos_codec_hevc", "videos_codec_vp9",
+        "videos_codec_av1", "videos_codec_mpeg4",
+    ])
+    def test_codec_branch_state_text(self, branch):
+        layout = _make_mock_layout()
+        layout._on_accordion_video_clicked = MagicMock()
+        _call_shell_branch(layout, branch)
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("VIDEOS" in str(c) for c in calls)
+
+    @pytest.mark.parametrize("branch", [
+        "videos_size_small", "videos_size_medium",
+        "videos_size_large", "videos_size_xlarge",
+    ])
+    def test_size_branch_state_text(self, branch):
         layout = _make_mock_layout()
         layout._on_accordion_video_clicked = MagicMock()
         _call_shell_branch(layout, branch)
@@ -425,35 +463,55 @@ class TestDynamicLocationRouting:
 
 
 # ===========================================================================
-# Test Class: _sync_shell_date_tree (fix pack version)
+# Helpers for DB-backed sync tests (fix pack v2)
+# ===========================================================================
+
+def _patch_reference_db(**db_attrs):
+    """Return a patch context for reference_db.ReferenceDB with given method returns."""
+    import reference_db
+    db_instance = MagicMock()
+    for k, v in db_attrs.items():
+        setattr(db_instance, k, MagicMock(return_value=v))
+    db_instance.close = MagicMock()
+    return patch.object(reference_db, "ReferenceDB", return_value=db_instance), db_instance
+
+
+# ===========================================================================
+# Test Class: _sync_shell_date_tree (DB-backed, fix pack v2)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestSyncShellDateTree:
-    """_sync_shell_date_tree should read from accordion section_logic."""
+    """_sync_shell_date_tree should read from ReferenceDB and push to shell."""
 
     def test_sync_calls_set_date_tree(self):
         layout = _make_mock_layout()
-        dates_section = MagicMock()
-        dates_section.years_data = {
-            2025: [{"month": 1}, {"month": 6}],
-            2024: [{"month": 12}],
-        }
-        layout.accordion_sidebar.section_logic = {"dates": dates_section}
-        layout._sync_shell_date_tree()
+        layout.project_id = 1
+        p, _ = _patch_reference_db(
+            get_date_hierarchy={
+                "2025": {"01": ["01", "02"], "06": ["15"]},
+                "2024": {"12": ["25"]},
+            },
+            list_years_with_counts=[(2025, 30), (2024, 10)],
+        )
+        with p:
+            layout._sync_shell_date_tree()
         layout.google_shell_sidebar.set_date_tree.assert_called_once()
+        payload = layout.google_shell_sidebar.set_date_tree.call_args[0][0]
+        assert len(payload) == 2
 
     def test_sync_payload_structure(self):
         layout = _make_mock_layout()
-        dates_section = MagicMock()
-        dates_section.years_data = {
-            2025: [{"month": 3}],
-        }
-        layout.accordion_sidebar.section_logic = {"dates": dates_section}
-        layout._sync_shell_date_tree()
+        layout.project_id = 1
+        p, _ = _patch_reference_db(
+            get_date_hierarchy={"2025": {"03": ["12"]}},
+            list_years_with_counts=[(2025, 5)],
+        )
+        with p:
+            layout._sync_shell_date_tree()
         payload = layout.google_shell_sidebar.set_date_tree.call_args[0][0]
         assert len(payload) == 1
-        assert payload[0]["label"] == "2025"
+        assert "2025" in payload[0]["label"]
         assert payload[0]["value"] == "2025"
         assert len(payload[0]["months"]) == 1
         assert payload[0]["months"][0]["value"] == "2025-03"
@@ -461,87 +519,156 @@ class TestSyncShellDateTree:
     def test_sync_no_sidebar_does_not_crash(self):
         layout = _make_mock_layout()
         layout.google_shell_sidebar = None
+        layout.project_id = 1
         layout._sync_shell_date_tree = functools.partial(
             GooglePhotosLayout._sync_shell_date_tree, layout
         )
         layout._sync_shell_date_tree()
 
-    def test_sync_empty_section_logic(self):
+    def test_sync_no_project_id_does_not_crash(self):
         layout = _make_mock_layout()
-        layout.accordion_sidebar.section_logic = {}
+        layout.project_id = None
         layout._sync_shell_date_tree()
+        # Should early-return without calling set_date_tree
+        layout.google_shell_sidebar.set_date_tree.assert_not_called()
+
+    def test_sync_empty_db(self):
+        layout = _make_mock_layout()
+        layout.project_id = 1
+        p, _ = _patch_reference_db(
+            get_date_hierarchy={},
+            list_years_with_counts=[],
+        )
+        with p:
+            layout._sync_shell_date_tree()
         layout.google_shell_sidebar.set_date_tree.assert_called_once_with([])
 
 
 # ===========================================================================
-# Test Class: _sync_shell_folder_tree
+# Test Class: _sync_shell_folder_tree (DB-backed, fix pack v2)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestSyncShellFolderTree:
-    """_sync_shell_folder_tree should read from accordion section_logic."""
+    """_sync_shell_folder_tree should read from ReferenceDB recursively."""
 
     def test_sync_calls_set_folder_tree(self):
         layout = _make_mock_layout()
-        folders_section = MagicMock()
-        folders_section._folder_tree_data = [
-            {"label": "Photos", "id": 1, "children": []}
-        ]
-        layout.accordion_sidebar.section_logic = {"folders": folders_section}
-        layout._sync_shell_folder_tree()
-        layout.google_shell_sidebar.set_folder_tree.assert_called_once_with(
-            [{"label": "Photos", "id": 1, "children": []}]
-        )
+        layout.project_id = 1
+        import reference_db
+        db_instance = MagicMock()
+
+        def _get_child_folders(parent_id, project_id=None):
+            if parent_id is None:
+                return [{"id": 1, "name": "Photos"}]
+            return []
+
+        db_instance.get_child_folders = MagicMock(side_effect=_get_child_folders)
+        db_instance.close = MagicMock()
+        with patch.object(reference_db, "ReferenceDB", return_value=db_instance):
+            layout._sync_shell_folder_tree()
+        layout.google_shell_sidebar.set_folder_tree.assert_called_once()
+        payload = layout.google_shell_sidebar.set_folder_tree.call_args[0][0]
+        assert len(payload) == 1
+        assert payload[0]["label"] == "Photos"
+        assert payload[0]["id"] == 1
+        assert payload[0]["children"] == []
+
+    def test_sync_nested_folders(self):
+        layout = _make_mock_layout()
+        layout.project_id = 1
+        import reference_db
+        db_instance = MagicMock()
+
+        def _get_child_folders(parent_id, project_id=None):
+            if parent_id is None:
+                return [{"id": 1, "name": "Root"}]
+            if parent_id == 1:
+                return [{"id": 2, "name": "Child"}]
+            return []
+
+        db_instance.get_child_folders = MagicMock(side_effect=_get_child_folders)
+        db_instance.close = MagicMock()
+        with patch.object(reference_db, "ReferenceDB", return_value=db_instance):
+            layout._sync_shell_folder_tree()
+        payload = layout.google_shell_sidebar.set_folder_tree.call_args[0][0]
+        assert len(payload) == 1
+        assert len(payload[0]["children"]) == 1
+        assert payload[0]["children"][0]["label"] == "Child"
 
     def test_sync_no_sidebar_does_not_crash(self):
         layout = _make_mock_layout()
         layout.google_shell_sidebar = None
+        layout.project_id = 1
         layout._sync_shell_folder_tree = functools.partial(
             GooglePhotosLayout._sync_shell_folder_tree, layout
         )
         layout._sync_shell_folder_tree()
 
-    def test_sync_empty_section_logic(self):
+    def test_sync_no_project_id_does_not_crash(self):
         layout = _make_mock_layout()
-        layout.accordion_sidebar.section_logic = {}
+        layout.project_id = None
         layout._sync_shell_folder_tree()
+        layout.google_shell_sidebar.set_folder_tree.assert_not_called()
+
+    def test_sync_empty_db(self):
+        layout = _make_mock_layout()
+        layout.project_id = 1
+        import reference_db
+        db_instance = MagicMock()
+        db_instance.get_child_folders = MagicMock(return_value=[])
+        db_instance.close = MagicMock()
+        with patch.object(reference_db, "ReferenceDB", return_value=db_instance):
+            layout._sync_shell_folder_tree()
         layout.google_shell_sidebar.set_folder_tree.assert_called_once_with([])
 
 
 # ===========================================================================
-# Test Class: _sync_shell_location_tree
+# Test Class: _sync_shell_location_tree (DB-backed, fix pack v2)
 # ===========================================================================
 
 @pytest.mark.unit
 class TestSyncShellLocationTree:
-    """_sync_shell_location_tree should read from accordion section_logic."""
+    """_sync_shell_location_tree should read from ReferenceDB."""
 
     def test_sync_calls_set_location_tree(self):
         layout = _make_mock_layout()
-        loc_section = MagicMock()
-        loc_section.location_clusters = [
-            {"name": "Paris", "count": 10},
-            {"name": "Tokyo", "count": 5},
-        ]
-        layout.accordion_sidebar.section_logic = {"locations": loc_section}
-        layout._sync_shell_location_tree()
+        layout.project_id = 1
+        p, _ = _patch_reference_db(
+            get_location_clusters=[
+                {"name": "Paris", "count": 10},
+                {"name": "Tokyo", "count": 5},
+            ]
+        )
+        with p:
+            layout._sync_shell_location_tree()
         payload = layout.google_shell_sidebar.set_location_tree.call_args[0][0]
         assert len(payload) == 2
-        assert payload[0]["label"] == "Paris"
-        assert payload[1]["label"] == "Tokyo"
+        assert "Paris" in payload[0]["label"]
+        assert "Tokyo" in payload[1]["label"]
+        assert payload[0]["value"] == "Paris"
 
     def test_sync_no_sidebar_does_not_crash(self):
         layout = _make_mock_layout()
         layout.google_shell_sidebar = None
+        layout.project_id = 1
         layout._sync_shell_location_tree = functools.partial(
             GooglePhotosLayout._sync_shell_location_tree, layout
         )
         layout._sync_shell_location_tree()
 
-    def test_sync_empty_section_logic(self):
+    def test_sync_no_project_id_does_not_crash(self):
         layout = _make_mock_layout()
-        layout.accordion_sidebar.section_logic = {}
+        layout.project_id = None
         layout._sync_shell_location_tree()
+        layout.google_shell_sidebar.set_location_tree.assert_not_called()
+
+    def test_sync_empty_db(self):
+        layout = _make_mock_layout()
+        layout.project_id = 1
+        p, _ = _patch_reference_db(get_location_clusters=[])
+        with p:
+            layout._sync_shell_location_tree()
         layout.google_shell_sidebar.set_location_tree.assert_called_once_with([])
 
 
