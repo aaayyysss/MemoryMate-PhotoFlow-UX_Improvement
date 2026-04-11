@@ -1192,11 +1192,34 @@ class GooglePhotosLayout(BaseLayout):
         # FIX: Connect section expansion signal to hide search suggestions popup
         sidebar.sectionExpanding.connect(self._on_accordion_section_expanding)
 
-        # Phase 10C fix: Re-sync shell trees after accordion sections finish loading
-        if hasattr(sidebar, "_datesLoaded"):
-            sidebar._datesLoaded.connect(lambda _: self._sync_shell_date_tree())
-        if hasattr(sidebar, "_foldersLoaded"):
-            sidebar._foldersLoaded.connect(lambda _: self._sync_shell_folder_tree())
+        # Phase 10C fix v3: Re-sync shell trees after accordion sections finish
+        # loading. Connect directly to each section logic's `signals.loaded`
+        # signal so we always refresh shell trees when the accordion finishes
+        # an async load (dates, folders, locations).
+        try:
+            section_logic = getattr(sidebar, "section_logic", None) or {}
+            dates_section = section_logic.get("dates")
+            if dates_section is not None:
+                sigs = getattr(dates_section, "signals", None)
+                loaded_sig = getattr(sigs, "loaded", None)
+                if loaded_sig is not None:
+                    loaded_sig.connect(lambda *args: self._sync_shell_date_tree())
+
+            folders_section = section_logic.get("folders")
+            if folders_section is not None:
+                sigs = getattr(folders_section, "signals", None)
+                loaded_sig = getattr(sigs, "loaded", None)
+                if loaded_sig is not None:
+                    loaded_sig.connect(lambda *args: self._sync_shell_folder_tree())
+
+            locations_section = section_logic.get("locations")
+            if locations_section is not None:
+                sigs = getattr(locations_section, "signals", None)
+                loaded_sig = getattr(sigs, "loaded", None)
+                if loaded_sig is not None:
+                    loaded_sig.connect(lambda *args: self._sync_shell_location_tree())
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] Shell tree signal wiring failed: {e}")
 
         # Store reference for refreshing
         self.accordion_sidebar = sidebar
@@ -1232,6 +1255,10 @@ class GooglePhotosLayout(BaseLayout):
             self._on_disabled_shell_branch_requested)
         self.google_shell_sidebar.openActivityCenterRequested.connect(
             self._on_passive_activity_requested)
+        # Phase 10C fix pack v3: shell-native search input
+        if hasattr(self.google_shell_sidebar, "searchQuerySubmitted"):
+            self.google_shell_sidebar.searchQuerySubmitted.connect(
+                self._on_shell_search_submitted)
         self.google_shell_sidebar.set_project_available(bool(getattr(self, "project_id", None)))
         self.google_shell_sidebar.set_legacy_emphasis(False)
         self._retired_legacy_sections = {"find", "devices", "videos", "locations", "duplicates"}
@@ -1575,6 +1602,11 @@ class GooglePhotosLayout(BaseLayout):
                 "people_merge_review": "people_merge_review",
                 "people_unnamed": "people_unnamed",
                 "people_show_all": "people_show_all",
+                # Phase 10C fix pack v3: Filters section branches
+                "filter_photos_only": "filter_photos_only",
+                "filter_favorites": "filter_favorites",
+                "filter_documents": "filter_documents",
+                "filter_screenshots": "filter_screenshots",
             }
             self._set_shell_active_branch(shell_active_map.get(branch))
 
@@ -1807,7 +1839,76 @@ class GooglePhotosLayout(BaseLayout):
                 folder_id = branch.split(":", 1)[1]
                 try:
                     self._pending_folder_id = int(folder_id)
+                    self._set_view_mode("all", f"Folder \u2022 {folder_id}")
+                    self._set_shell_active_branch(branch)
                     self._execute_folder_click()
+                except Exception:
+                    pass
+                return
+
+            # ── Phase 10C fix pack v3: Discover presets trigger smart find ───────────
+            if branch in {"discover_beach", "discover_mountains", "discover_city"}:
+                self._set_shell_active_branch(branch)
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                preset = branch.replace("discover_", "")
+                self._set_view_mode("search", f"Discover preset, {preset.title()}")
+                try:
+                    find_logic = None
+                    if hasattr(self.accordion_sidebar, "section_logic"):
+                        find_logic = self.accordion_sidebar.section_logic.get("find")
+                    if find_logic is not None:
+                        widget = getattr(find_logic, "_content_widget", None) or \
+                                 getattr(find_logic, "content_widget", None)
+                        field = getattr(widget, "_search_field", None) if widget else None
+                        if field is not None and hasattr(field, "setText"):
+                            field.setText(preset)
+                            if hasattr(widget, "_execute_text_search"):
+                                widget._execute_text_search()
+                    if hasattr(self.google_shell_sidebar, "set_search_query"):
+                        self.google_shell_sidebar.set_search_query(preset)
+                    if hasattr(self.accordion_sidebar, "_expand_section"):
+                        self.accordion_sidebar._expand_section("find")
+                except Exception as e:
+                    print(f"[{self.__class__.__name__}] Discover preset dispatch failed: {e}")
+                return
+
+            # ── Phase 10C fix pack v3: Filters section branches ─────────────────────
+            if branch == "filter_photos_only":
+                self._set_shell_active_branch(branch)
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_view_mode("all", "Photos only")
+                try:
+                    if hasattr(self, "_pending_media_filter"):
+                        self._pending_media_filter = "photos"
+                    self._load_photos()
+                except Exception:
+                    pass
+                return
+
+            if branch == "filter_favorites":
+                self._set_shell_active_branch(branch)
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_view_mode("all", "Favorites")
+                if hasattr(self, "_filter_favorites"):
+                    self._filter_favorites()
+                return
+
+            if branch == "filter_documents":
+                self._set_shell_active_branch(branch)
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_view_mode("all", "Documents")
+                try:
+                    self._load_photos()
+                except Exception:
+                    pass
+                return
+
+            if branch == "filter_screenshots":
+                self._set_shell_active_branch(branch)
+                self.google_shell_sidebar.set_legacy_emphasis(False)
+                self._set_view_mode("all", "Screenshots")
+                try:
+                    self._load_photos()
                 except Exception:
                     pass
                 return
@@ -1952,6 +2053,40 @@ class GooglePhotosLayout(BaseLayout):
 
         except Exception as e:
             print(f"[{self.__class__.__name__}] Passive shell click failed: {branch} → {e}")
+
+    def _on_shell_search_submitted(self, query: str):
+        """Phase 10C fix pack v3: route shell-input queries to the accordion find section.
+
+        Mirrors the legacy flow: the accordion's find section owns smart find
+        execution, so we seed its text field and trigger its search. The shell
+        provides a cleaner, always-visible input surface.
+        """
+        try:
+            query = (query or "").strip()
+            if not query:
+                return
+            self._set_shell_active_branch("find")
+            self.google_shell_sidebar.set_legacy_emphasis(False)
+            self._set_view_mode("search", f"Search \u2022 {query}")
+
+            find_logic = None
+            if hasattr(self, "accordion_sidebar") and self.accordion_sidebar:
+                if hasattr(self.accordion_sidebar, "section_logic"):
+                    find_logic = self.accordion_sidebar.section_logic.get("find")
+
+            if find_logic is not None:
+                widget = getattr(find_logic, "_content_widget", None) or \
+                         getattr(find_logic, "content_widget", None)
+                field = getattr(widget, "_search_field", None) if widget else None
+                if field is not None and hasattr(field, "setText"):
+                    field.setText(query)
+                    if hasattr(widget, "_execute_text_search"):
+                        widget._execute_text_search()
+
+            if hasattr(self.accordion_sidebar, "_expand_section"):
+                self.accordion_sidebar._expand_section("find")
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] Shell search submit failed: {e}")
 
     def _on_passive_activity_requested(self):
         """Phase 2B: open Activity Center via MainWindow toggle."""

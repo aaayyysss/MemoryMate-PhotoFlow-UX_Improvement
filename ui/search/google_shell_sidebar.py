@@ -5,7 +5,8 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy, QTreeWidget, QTreeWidgetItem
+    QFrame, QScrollArea, QSizePolicy, QTreeWidget, QTreeWidgetItem,
+    QLineEdit
 )
 
 
@@ -59,6 +60,8 @@ class GoogleShellSidebar(QWidget):
     selectBranch = Signal(str)
     openActivityCenterRequested = Signal()
     disabledBranchRequested = Signal(str)
+    # Phase 10C fix pack v3: shell-native search input
+    searchQuerySubmitted = Signal(str)  # emitted when user types and submits a query
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -99,6 +102,10 @@ class GoogleShellSidebar(QWidget):
             "people_merge_review",
             "people_unnamed",
             "people_show_all",
+            "filter_photos_only",
+            "filter_favorites",
+            "filter_documents",
+            "filter_screenshots",
         }
         self.setObjectName("GoogleShellSidebar")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -119,9 +126,16 @@ class GoogleShellSidebar(QWidget):
 
         # ── Search Hub ────────────────────────────────────────────
         self.search_hub = _ShellSection("Search Hub", expanded=True)
-        self.search_hub.add_widget(self._hint("Search, recent searches, scopes"))
+        self.search_hub.add_widget(self._hint("Type a query or open full search"))
         self.search_hub.add_widget(self._status("No active shell result"))
-        self.search_hub.add_widget(self._nav("Open Search", "find"))
+        # Inline search field (legacy parity with Find section's text input)
+        self._search_input = QLineEdit()
+        self._search_input.setObjectName("ShellSearchInput")
+        self._search_input.setPlaceholderText("Search your library...")
+        self._search_input.setClearButtonEnabled(True)
+        self._search_input.returnPressed.connect(self._on_search_submitted)
+        self.search_hub.add_widget(self._search_input)
+        self.search_hub.add_widget(self._nav("Open Full Search", "find"))
 
         # ── Discover ──────────────────────────────────────────────
         self.discover = _ShellSection("Discover", expanded=True)
@@ -259,8 +273,20 @@ class GoogleShellSidebar(QWidget):
         self.review.add_widget(self._review_buttons["review_similar"])
 
         # ── Filters ───────────────────────────────────────────────
+        # Phase 10C fix pack v3: fill previously empty Filters section with
+        # concrete media-type and collection shortcuts (legacy parity).
         self.filters = _ShellSection("Filters", expanded=False)
-        self.filters.add_widget(self._hint("People, dates, types, favorites"))
+        self.filters.add_widget(self._hint("Media type, collections, favorites"))
+
+        self.filters.add_widget(self._subhead("Media Type"))
+        self.filters.add_widget(self._nav("All Media", "all"))
+        self.filters.add_widget(self._nav("Photos Only", "filter_photos_only"))
+        self.filters.add_widget(self._nav("Videos Only", "videos"))
+
+        self.filters.add_widget(self._subhead("Collections"))
+        self.filters.add_widget(self._nav("Favorites", "filter_favorites"))
+        self.filters.add_widget(self._nav("Documents", "filter_documents"))
+        self.filters.add_widget(self._nav("Screenshots", "filter_screenshots"))
 
         # ── Activity ──────────────────────────────────────────────
         self.activity = _ShellSection("Activity", expanded=False)
@@ -323,6 +349,27 @@ class GoogleShellSidebar(QWidget):
             self.disabledBranchRequested.emit(branch)
             return
         self.selectBranch.emit(branch)
+
+    def _on_search_submitted(self):
+        """Emit searchQuerySubmitted when the inline search field is submitted."""
+        try:
+            if not self._project_available:
+                self.disabledBranchRequested.emit("find")
+                return
+            text = (self._search_input.text() or "").strip()
+            if not text:
+                return
+            self.searchQuerySubmitted.emit(text)
+        except Exception:
+            pass
+
+    def set_search_query(self, text: str):
+        """Programmatically set the inline search field's text (e.g. from presets)."""
+        try:
+            if hasattr(self, "_search_input") and self._search_input is not None:
+                self._search_input.setText(text or "")
+        except Exception:
+            pass
 
     def set_active_branch(self, branch: str | None):
         self._active_branch = branch

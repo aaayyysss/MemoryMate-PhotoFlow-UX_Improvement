@@ -4,6 +4,108 @@ All notable changes to the MemoryMate PhotoFlow search pipeline are documented h
 
 ## [Unreleased] - 2026-04-11
 
+### Phase 10C Fix Pack v3 — Shell/Legacy Parity Audit (Dead Signal Rewire, Filters Population, Discover Search, Inline Search Input)
+
+Follow-up fix pack addressing shell sidebar UX gaps versus `google_layout_legacy.py`
+parity expectations. User-reported issue: "the behaviour and handling of the shell
+in the google_layout sidebar different sections are faraway from acceptable".
+Audit of the legacy sidebar (9 sections) vs shell (8 sections) revealed six P0
+gaps where shell branches were dead ends or no-ops. `google_layout_legacy.py`
+remains untouched — all fixes applied to the shell path only.
+
+#### Dead Signal Rewire (`layouts/google_layout.py`)
+- **Replaced non-existent `_datesLoaded` / `_foldersLoaded` `hasattr` guards**
+  with proper `section_logic["dates"|"folders"|"locations"].signals.loaded`
+  subscriptions — the previous guards always returned False because the
+  accordion sidebar root never exposed these signals, so shell trees never
+  auto-refreshed after initial accordion load
+- Each section's `loaded` signal now drives a lambda that calls
+  `_sync_shell_date_tree` / `_sync_shell_folder_tree` / `_sync_shell_location_tree`
+- All three subscriptions wrapped in a single try/except to survive mocked
+  accordion sidebars during headless test runs
+
+#### folder_id Branch View-Mode Wiring (`layouts/google_layout.py`)
+- `folder_id:<N>` branches now call `_set_view_mode("all", "Folder • <N>")` and
+  `_set_shell_active_branch(branch)` before `_execute_folder_click()` — matches
+  legacy behavior where clicking a folder sets the state-text pill and
+  highlights the active branch in the shell
+- Previously folder_id branches only set `_pending_folder_id` and dispatched
+  reload, leaving shell state stale
+
+#### Filters Section Populated (`ui/search/google_shell_sidebar.py`)
+- Legacy "Filters" section was an empty stub. Now structured with two subheads
+  matching iPhone / Google Photos library filter UX:
+  - **Media Type**: "All Media" (`all`), "Photos Only" (`filter_photos_only`),
+    "Videos Only" (`videos`)
+  - **Collections**: "Favorites" (`filter_favorites`),
+    "Documents" (`filter_documents`), "Screenshots" (`filter_screenshots`)
+- Added 4 new filter branches to `_project_required_branches` set so they gate
+  on project availability
+- Added matching router handlers in `_on_passive_shell_branch_clicked` — each
+  sets shell-primary emphasis, active branch, view mode, and state text
+  (placed before the `section_only_map` fallback to avoid being swallowed by
+  retired-section handling)
+- Added all 4 branches to `shell_active_map` for self-highlight on click
+
+#### Discover Presets Drive Real Search (`layouts/google_layout.py`)
+- `discover_beach` / `discover_mountains` / `discover_city` were previously
+  no-op highlight-only shell buttons. They now:
+  1. Set shell active branch + shell-primary emphasis
+  2. Flip view mode to `search` with state-text `"Discover preset, <Name>"`
+  3. Reach into `accordion_sidebar.section_logic["find"]._content_widget`,
+     locate `_search_field`, seed the preset text, and call
+     `_execute_text_search()`
+  4. Mirror the query into the shell's new inline search input via
+     `set_search_query`
+  5. Expand the accordion `find` section so the user sees the result grid
+     context (visible outcome — satisfies Phase 9 contract)
+- Handler placed before `section_only_map` so it doesn't get caught by the
+  retired-section branch
+
+#### Inline Search Input (`ui/search/google_shell_sidebar.py`)
+- Added `QLineEdit` import and new `searchQuerySubmitted = Signal(str)` signal
+- Replaced the static Search Hub content with an inline `QLineEdit`
+  (objectName `ShellSearchInput`) featuring:
+  - Placeholder "Search your library..."
+  - Clear button enabled
+  - `returnPressed` → `_on_search_submitted` private slot
+- `_on_search_submitted` emits `disabledBranchRequested("find")` when no
+  project is loaded; otherwise strips the text and emits
+  `searchQuerySubmitted(text)`
+- Added `set_search_query(text)` public setter so layout code can mirror
+  queries (used by Discover preset handler)
+
+#### searchQuerySubmitted Wire-Up (`layouts/google_layout.py`)
+- `_build_left_panel_with_shell` now connects
+  `google_shell_sidebar.searchQuerySubmitted` to new
+  `_on_shell_search_submitted` method
+- `_on_shell_search_submitted` routes inline queries through the accordion
+  find section's `_search_field` + `_execute_text_search`, flips view mode
+  to `search` with state-text `"Search • <query>"`, sets active branch to
+  `find`, and expands the find accordion section as visible outcome
+
+#### Test Coverage (`tests/test_phase10c_dynamic_shell.py`)
+- Added 4 new test classes / 24 tests:
+  - `TestFiltersSectionBranches` (7): all 4 filter branches set view mode,
+    state text, and active branch correctly
+  - `TestDiscoverPresetsExpandFind` (4): each discover preset expands find,
+    seeds accordion `_search_field`, and mirrors text in shell input
+  - `TestShellSearchSubmit` (6): empty/whitespace ignored, non-empty sets
+    search mode, seeds find section, sets active branch, state text format
+  - `TestFolderIdSetsViewMode` (3): folder_id sets "all" mode, state text,
+    active branch
+
+#### Test Updates for Visible-Outcome Contract
+- `tests/test_phase6b_routing.py`: moved `discover_*` branches from
+  `RETIRED_SKIP_ACCORDION` to `RETIRED_EXPAND_ACCORDION` (find section)
+- `tests/test_phase8_legacy_retirement.py`: same reclassification, plus
+  introduced `RETIRED_EXPAND_TARGET` dict so parametrized assertion can
+  look up each branch's expected accordion target (all discover_* → `find`)
+
+#### Totals
+- **Total shell-phase test count: 452 (up from 428)**
+- **`layouts/google_layout_legacy.py`: 0 modifications (standing order upheld)**
+
 ### Phase 10C Fix Pack v2 — Runtime Bug Fixes (DB-Backed Trees, Full Video Classification, Similar Shots Crash)
 
 Follow-up fix pack addressing five runtime issues discovered during post-fix-pack

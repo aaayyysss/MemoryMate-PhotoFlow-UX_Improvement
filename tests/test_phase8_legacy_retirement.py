@@ -231,14 +231,19 @@ class TestRetiredSectionsSkipAccordion:
     """Retired-section branches should NOT expand accordion."""
 
     # Phase 9: branches that skip accordion entirely
+    # Phase 10C fix pack v3: Discover presets now expand find as visible outcome.
     RETIRED_SKIP_ACCORDION = [
-        "find", "discover_beach", "discover_mountains", "discover_city",
+        "find",
         "favorites", "documents", "screenshots",
         "videos", "duplicates",
     ]
 
     # Phase 9: branches that expand accordion as visible outcome
-    RETIRED_EXPAND_ACCORDION = ["devices", "locations"]
+    # Phase 10C fix pack v3: Discover presets expand find
+    RETIRED_EXPAND_ACCORDION = [
+        "devices", "locations",
+        "discover_beach", "discover_mountains", "discover_city",
+    ]
 
     ALL_RETIRED_BRANCHES = RETIRED_SKIP_ACCORDION + RETIRED_EXPAND_ACCORDION
 
@@ -249,12 +254,23 @@ class TestRetiredSectionsSkipAccordion:
         _call_shell_branch(layout, branch)
         layout.accordion_sidebar._expand_section.assert_not_called()
 
+    # Mapping branch → accordion section that should be expanded
+    RETIRED_EXPAND_TARGET = {
+        "devices": "devices",
+        "locations": "locations",
+        # Phase 10C fix pack v3: Discover presets expand find
+        "discover_beach": "find",
+        "discover_mountains": "find",
+        "discover_city": "find",
+    }
+
     @pytest.mark.parametrize("branch", RETIRED_EXPAND_ACCORDION)
     def test_retired_branch_expands_accordion_as_visible_outcome(self, branch):
-        """Phase 9: devices/locations expand accordion as their visible outcome."""
+        """Phase 9 + fix pack v3: devices/locations/discover expand accordion."""
         layout = _make_mock_layout()
         _call_shell_branch(layout, branch)
-        layout.accordion_sidebar._expand_section.assert_called_once_with(branch)
+        expected_section = self.RETIRED_EXPAND_TARGET[branch]
+        layout.accordion_sidebar._expand_section.assert_called_once_with(expected_section)
 
     @pytest.mark.parametrize("branch", ALL_RETIRED_BRANCHES)
     def test_retired_branch_sets_active_branch(self, branch):
