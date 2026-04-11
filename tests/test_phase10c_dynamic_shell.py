@@ -739,3 +739,210 @@ class TestMainWindowPhase10CRouter:
         mw.layout_manager.get_current_layout.return_value = layout
         _mw_search_branch_router(mw, "month_2025-06")
         layout._on_passive_shell_branch_clicked.assert_called_once_with("month_2025-06")
+
+
+# ===========================================================================
+# Test Class: Fix pack v3 — Filters section branches
+# ===========================================================================
+
+@pytest.mark.unit
+class TestFiltersSectionBranches:
+    """Fix pack v3 introduces concrete Filters section branches."""
+
+    def test_filter_photos_only_sets_all_mode(self):
+        layout = _make_mock_layout()
+        layout._load_photos = MagicMock()
+        _call_shell_branch(layout, "filter_photos_only")
+        assert layout._current_view_mode == "all"
+
+    def test_filter_photos_only_state_text(self):
+        layout = _make_mock_layout()
+        layout._load_photos = MagicMock()
+        _call_shell_branch(layout, "filter_photos_only")
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("Photos only" in str(c) for c in calls)
+
+    def test_filter_photos_only_triggers_reload(self):
+        layout = _make_mock_layout()
+        layout._load_photos = MagicMock()
+        _call_shell_branch(layout, "filter_photos_only")
+        layout._load_photos.assert_called_once()
+
+    def test_filter_favorites_calls_filter_favorites(self):
+        layout = _make_mock_layout()
+        layout._filter_favorites = MagicMock()
+        _call_shell_branch(layout, "filter_favorites")
+        layout._filter_favorites.assert_called_once()
+
+    def test_filter_favorites_state_text(self):
+        layout = _make_mock_layout()
+        layout._filter_favorites = MagicMock()
+        _call_shell_branch(layout, "filter_favorites")
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("Favorites" in str(c) for c in calls)
+
+    @pytest.mark.parametrize("branch,description", [
+        ("filter_documents", "Documents"),
+        ("filter_screenshots", "Screenshots"),
+    ])
+    def test_filter_document_screenshot_reloads(self, branch, description):
+        layout = _make_mock_layout()
+        layout._load_photos = MagicMock()
+        _call_shell_branch(layout, branch)
+        layout._load_photos.assert_called_once()
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any(description in str(c) for c in calls)
+
+    @pytest.mark.parametrize("branch", [
+        "filter_photos_only", "filter_favorites",
+        "filter_documents", "filter_screenshots",
+    ])
+    def test_filter_branch_sets_shell_active(self, branch):
+        layout = _make_mock_layout()
+        layout._load_photos = MagicMock()
+        layout._filter_favorites = MagicMock()
+        _call_shell_branch(layout, branch)
+        calls = layout.google_shell_sidebar.set_active_branch.call_args_list
+        assert any(branch in str(c) for c in calls)
+
+
+# ===========================================================================
+# Test Class: Fix pack v3 — Discover presets trigger find expansion
+# ===========================================================================
+
+@pytest.mark.unit
+class TestDiscoverPresetsExpandFind:
+    """Fix pack v3: Discover presets now expand the find accordion section."""
+
+    @pytest.mark.parametrize("branch,query", [
+        ("discover_beach", "beach"),
+        ("discover_mountains", "mountains"),
+        ("discover_city", "city"),
+    ])
+    def test_discover_expands_find_section(self, branch, query):
+        layout = _make_mock_layout()
+        # Seed accordion find section with mock widget + search field
+        find_logic = MagicMock()
+        field = MagicMock()
+        field.setText = MagicMock()
+        widget = MagicMock()
+        widget._search_field = field
+        widget._execute_text_search = MagicMock()
+        find_logic._content_widget = widget
+        layout.accordion_sidebar.section_logic = {"find": find_logic}
+
+        _call_shell_branch(layout, branch)
+
+        layout.accordion_sidebar._expand_section.assert_called_with("find")
+        field.setText.assert_called_once_with(query)
+        widget._execute_text_search.assert_called_once()
+
+    def test_discover_mirrors_query_in_shell_input(self):
+        layout = _make_mock_layout()
+        layout.google_shell_sidebar.set_search_query = MagicMock()
+        layout.accordion_sidebar.section_logic = {}
+        _call_shell_branch(layout, "discover_beach")
+        layout.google_shell_sidebar.set_search_query.assert_called_once_with("beach")
+
+
+# ===========================================================================
+# Test Class: Fix pack v3 — Shell search submit handler
+# ===========================================================================
+
+@pytest.mark.unit
+class TestShellSearchSubmit:
+    """Fix pack v3: _on_shell_search_submitted routes inline search queries."""
+
+    def test_empty_query_does_not_act(self):
+        layout = _make_mock_layout()
+        layout._on_shell_search_submitted = functools.partial(
+            GooglePhotosLayout._on_shell_search_submitted, layout
+        )
+        layout._on_shell_search_submitted("")
+        layout.accordion_sidebar._expand_section.assert_not_called()
+
+    def test_whitespace_only_query_is_ignored(self):
+        layout = _make_mock_layout()
+        layout._on_shell_search_submitted = functools.partial(
+            GooglePhotosLayout._on_shell_search_submitted, layout
+        )
+        layout._on_shell_search_submitted("   ")
+        layout.accordion_sidebar._expand_section.assert_not_called()
+
+    def test_query_sets_search_mode(self):
+        layout = _make_mock_layout()
+        layout._on_shell_search_submitted = functools.partial(
+            GooglePhotosLayout._on_shell_search_submitted, layout
+        )
+        layout.accordion_sidebar.section_logic = {}
+        layout._on_shell_search_submitted("sunset")
+        assert layout._current_view_mode == "search"
+
+    def test_query_seeds_find_section_field(self):
+        layout = _make_mock_layout()
+        layout._on_shell_search_submitted = functools.partial(
+            GooglePhotosLayout._on_shell_search_submitted, layout
+        )
+        find_logic = MagicMock()
+        field = MagicMock()
+        field.setText = MagicMock()
+        widget = MagicMock()
+        widget._search_field = field
+        widget._execute_text_search = MagicMock()
+        find_logic._content_widget = widget
+        layout.accordion_sidebar.section_logic = {"find": find_logic}
+
+        layout._on_shell_search_submitted("vacation")
+
+        field.setText.assert_called_once_with("vacation")
+        widget._execute_text_search.assert_called_once()
+        layout.accordion_sidebar._expand_section.assert_called_with("find")
+
+    def test_query_sets_find_active_branch(self):
+        layout = _make_mock_layout()
+        layout._on_shell_search_submitted = functools.partial(
+            GooglePhotosLayout._on_shell_search_submitted, layout
+        )
+        layout.accordion_sidebar.section_logic = {}
+        layout._on_shell_search_submitted("test")
+        calls = layout.google_shell_sidebar.set_active_branch.call_args_list
+        assert any("find" in str(c) for c in calls)
+
+    def test_query_state_text(self):
+        layout = _make_mock_layout()
+        layout._on_shell_search_submitted = functools.partial(
+            GooglePhotosLayout._on_shell_search_submitted, layout
+        )
+        layout.accordion_sidebar.section_logic = {}
+        layout._on_shell_search_submitted("dogs")
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("dogs" in str(c) for c in calls)
+
+
+# ===========================================================================
+# Test Class: Fix pack v3 — folder_id branch sets view mode
+# ===========================================================================
+
+@pytest.mark.unit
+class TestFolderIdSetsViewMode:
+    """Fix pack v3: folder_id branches now set view mode for consistency."""
+
+    def test_folder_id_sets_all_mode(self):
+        layout = _make_mock_layout()
+        layout._execute_folder_click = MagicMock()
+        _call_shell_branch(layout, "folder_id:42")
+        assert layout._current_view_mode == "all"
+
+    def test_folder_id_sets_state_text(self):
+        layout = _make_mock_layout()
+        layout._execute_folder_click = MagicMock()
+        _call_shell_branch(layout, "folder_id:42")
+        calls = layout.google_shell_sidebar.set_shell_state_text.call_args_list
+        assert any("42" in str(c) and "Folder" in str(c) for c in calls)
+
+    def test_folder_id_sets_active_branch(self):
+        layout = _make_mock_layout()
+        layout._execute_folder_click = MagicMock()
+        _call_shell_branch(layout, "folder_id:42")
+        calls = layout.google_shell_sidebar.set_active_branch.call_args_list
+        assert any("folder_id:42" in str(c) for c in calls)

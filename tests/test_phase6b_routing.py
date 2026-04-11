@@ -520,16 +520,21 @@ class TestLegacySectionRouting:
     }
 
     # Phase 9: retired branches that skip accordion entirely
+    # Phase 10C fix pack v3: Discover presets now expand the find section as
+    # a visible outcome (they seed a smart-find query and execute it).
     RETIRED_SKIP_ACCORDION = [
         "videos", "duplicates",
         "favorites", "documents", "screenshots", "find",
-        "discover_beach", "discover_mountains", "discover_city",
     ]
 
     # Phase 9: retired branches that still expand accordion as visible outcome
     RETIRED_EXPAND_ACCORDION = [
         ("devices", "devices"),
         ("locations", "locations"),
+        # Phase 10C fix pack v3: Discover presets expand find to show results
+        ("discover_beach", "find"),
+        ("discover_mountains", "find"),
+        ("discover_city", "find"),
     ]
 
     @pytest.mark.parametrize("branch,expected_section", list(LIVE_SECTION_MAP.items()))
