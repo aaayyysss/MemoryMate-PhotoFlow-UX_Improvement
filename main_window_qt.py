@@ -351,6 +351,21 @@ class MainWindow(QMainWindow):
         self.layout_manager = LayoutManager(self)
         print("[MainWindow] Layout manager initialized")
 
+        # Phase 1A MainWindow decomposition: startup lifecycle extracted to
+        # WorkspaceStartupCoordinator. MainWindow retains thin wrapper methods
+        # (_after_first_paint, _deferred_initialization, etc.) that delegate
+        # here so external references and showEvent scheduling stay intact.
+        from services.workspace_startup_coordinator import WorkspaceStartupCoordinator
+        self._workspace_startup_coordinator = WorkspaceStartupCoordinator(self)
+
+        # Phase 1B MainWindow decomposition: project bootstrap / switching /
+        # session state restoration extracted to ProjectSwitchService.
+        # MainWindow retains thin wrapper methods that delegate here so
+        # existing references (menu actions, layout manager, breadcrumb,
+        # ScanController post-scan hooks) keep working untouched.
+        from services.project_switch_service import ProjectSwitchService
+        self._project_switch_service = ProjectSwitchService(self)
+
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         QApplication.instance().setAttribute(Qt.AA_SynthesizeMouseForUnhandledTouchEvents, True)
         QApplication.instance().setAttribute(Qt.AA_SynthesizeTouchForUnhandledMouseEvents, True)
@@ -1379,297 +1394,35 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self._after_first_paint)
 
     def _after_first_paint(self):
-        """Runs right after the first paint — schedules heavy background work."""
-        if getattr(self, "_deferred_init_started", False):
-            return
-        self._deferred_init_started = True
-        import time as _time
-        t0 = _time.perf_counter()
-        print(f"[Startup] _after_first_paint fired at {t0:.3f}s")
+        """Runs right after the first paint — schedules heavy background work.
 
-        # ----------------------------------------------------------
-        # Guardrail 1 (startup scheduling gate): Throttle background
-        # workers so initial layout + thumbnails aren't starved.
-        # ----------------------------------------------------------
-
-        # 1a. Throttle JobManager's private thread pool.
-        try:
-            from services.job_manager import get_job_manager
-            jm = get_job_manager()
-            if hasattr(jm, "enable_startup_throttle"):
-                jm.enable_startup_throttle(max_threads=1)
-                QTimer.singleShot(5000, jm.disable_startup_throttle)
-        except Exception:
-            pass  # Throttle is best-effort, never block startup for it.
-
-        # 1b. Throttle global QThreadPool (used by GoogleLayout's
-        #     PhotoPageWorker / GroupingWorker for initial photo load).
-        try:
-            pool = QThreadPool.globalInstance()
-            self._startup_global_pool_prev = pool.maxThreadCount()
-            pool.setMaxThreadCount(max(2, self._startup_global_pool_prev // 2))
-
-            def _restore_global_pool():
-                prev = getattr(self, '_startup_global_pool_prev', None)
-                if prev is not None:
-                    QThreadPool.globalInstance().setMaxThreadCount(prev)
-                    print(f"[Startup] Global QThreadPool restored to {prev} threads")
-
-            QTimer.singleShot(5000, _restore_global_pool)
-        except Exception:
-            pass
-
-        # ----------------------------------------------------------
-        # Guardrail 2 (first-render fence): Notify the active layout
-        # that first paint is done so it can start its initial load.
-        # A short 50 ms delay lets the event loop flush pending
-        # paint events before the load kicks in.
-        # ----------------------------------------------------------
-        try:
-            layout = self.layout_manager.get_current_layout() if hasattr(self, 'layout_manager') else None
-            if layout and hasattr(layout, '_on_startup_ready'):
-                if self.active_project_id is not None:
-                    QTimer.singleShot(50, layout._on_startup_ready)
-                    print(f"[Startup] Scheduled _on_startup_ready for {type(layout).__name__}")
-                else:
-                    logger.info("[Startup] Suppressing initial project-bound layout load because no active project exists")
-        except Exception:
-            pass
-
-        # Start deferred init after a short delay to let initial render settle.
-        QTimer.singleShot(250, self._deferred_initialization)
+        Phase 1A: delegates to WorkspaceStartupCoordinator.
+        """
+        self._workspace_startup_coordinator.after_first_paint()
 
     def _bootstrap_active_project(self) -> Optional[int]:
-        """
-        Canonical project bootstrap policy:
-        1. if there is a last-used project and it still exists, auto-select it.
-        2. else if exactly one project exists, auto-select it.
-        3. else enter an explicit onboarding state (project_id=None).
-        """
-        from session_state_manager import get_session_state
-        from repository.project_repository import ProjectRepository
-        from repository.base_repository import DatabaseConnection
-
-        session_state = get_session_state()
-        last_pid = session_state.get_project_id()
-
-        # Step 1: Check last-used project
-        if last_pid is not None:
-            try:
-                proj = ProjectRepository(DatabaseConnection()).get_by_id(last_pid)
-                if proj:
-                    logger.info(f"[Bootstrap] Policy: Restoring last-used project_id={last_pid}")
-                    return last_pid
-                else:
-                    logger.info(f"[Bootstrap] Policy: Last-used project_id={last_pid} no longer exists")
-                    session_state.set_project(None)
-            except Exception as e:
-                logger.info(f"[Bootstrap] Policy: Session check failed: {e}")
-
-        # Step 2: Auto-select if single project exists
-        try:
-            from app_services import list_projects
-            projects = list_projects()
-            if len(projects) == 1:
-                pid = projects[0]["id"]
-                logger.info(f"[Bootstrap] Policy: Auto-selecting single existing project_id={pid}")
-                session_state.set_project(pid)
-                return pid
-            elif len(projects) > 1:
-                logger.info(f"[Bootstrap] Policy: {len(projects)} projects exist, user selection required")
-            else:
-                logger.info("[Bootstrap] Policy: No projects found, entering onboarding")
-        except Exception as e:
-            logger.info(f"[Bootstrap] Policy: Project list check failed: {e}")
-
-        return None
+        """Canonical project bootstrap (Phase 1B: delegates to ProjectSwitchService)."""
+        return self._project_switch_service.bootstrap_active_project()
 
     def _deferred_initialization(self):
-        """
-        CRITICAL FIX: Perform heavy initialization operations after window is shown.
-
-        v9.3.0 FIX: Moved heavy DB operations (backfill, index optimization) to
-        background jobs. Only minimal DB handle creation happens in GUI thread.
-
-        This follows Material Design principle: App should be responsive immediately,
-        heavy work happens visibly in the background via Activity Center.
-        """
-        if self._closing:
-            return
-
-        # Gap 1 fix: Check if we have an active project. If not, we are in onboarding.
-        active_pid = getattr(self.grid, 'project_id', None) if hasattr(self, 'grid') else None
-        if active_pid is None:
-            print("[MainWindow] No active project (onboarding) — suppressing auto-load and heavy maintenance")
-            self._update_status_bar()
-            return
-
-        print(f"[MainWindow] Starting deferred initialization for project_id={active_pid}...")
-
-        try:
-            # Step 1: Fast - create minimal DB handle (no heavy operations)
-            self._init_minimal_db_handle()
-            print("[MainWindow] ✅ Database handle initialized (fast)")
-
-            # Step 2: Restore session state
-            QTimer.singleShot(300, self._restore_session_state)
-            print("[MainWindow] ✅ Session state restoration scheduled")
-
-            # Step 3: Update status bar
-            self._update_status_bar()
-            print("[MainWindow] ✅ Status bar updated")
-
-            # Step 4: Enqueue heavy DB maintenance as background job (delayed 2s)
-            # This runs visibly in Activity Center, doesn't block UI.
-            # The 2s delay lets initial thumbnails and grouping finish first.
-            QTimer.singleShot(2000, self._enqueue_startup_maintenance_job)
-            print("[MainWindow] Database maintenance job scheduled (2s delay)")
-
-            # Step 5: CLIP model warmup (3s delay — after initial photo load)
-            # Uses ModelWarmupWorker (QRunnable) on QThreadPool. Searches also
-            # run in background threads, so even if warmup hasn't finished the
-            # UI stays responsive (no main-thread freeze).
-            QTimer.singleShot(3000, self._warmup_clip_in_background)
-            print("[MainWindow] CLIP background warmup scheduled (3s delay)")
-
-            # Step 6: Deferred thumbnail cache purge (delayed 5s)
-            QTimer.singleShot(5000, self._deferred_cache_purge)
-            print("[MainWindow] Cache purge scheduled (5s delay)")
-
-            print("[MainWindow] ✅ Deferred initialization completed successfully")
-
-        except Exception as e:
-            print(f"[MainWindow] ⚠️ Deferred initialization error: {e}")
-            import traceback
-            traceback.print_exc()
+        """Heavy post-first-paint init (Phase 1A: delegates to coordinator)."""
+        self._workspace_startup_coordinator.deferred_initialization()
 
     def _init_minimal_db_handle(self):
-        """
-        Fast DB initialization - only creates handle, no heavy operations.
-
-        Heavy operations (backfill, index optimization) are moved to
-        _enqueue_startup_maintenance_job() which runs in background.
-        """
-        from reference_db import ReferenceDB
-        self.db = ReferenceDB()
-
-        # Gap 1 fix: Do not reload sidebar if project_id is None
-        active_pid = getattr(self.grid, 'project_id', None) if hasattr(self, 'grid') else None
-        if active_pid is None:
-            return
-
-        # Reload sidebar date tree (fast operation, uses cached data)
-        try:
-            if hasattr(self, 'sidebar') and hasattr(self.sidebar, 'reload_date_tree'):
-                self.sidebar.reload_date_tree()
-                print("[Sidebar] Date tree reloaded.")
-        except Exception as e:
-            print(f"[Sidebar] Failed to reload date tree: {e}")
+        """Fast DB handle init (Phase 1A: delegates to coordinator)."""
+        self._workspace_startup_coordinator.init_minimal_db_handle()
 
     def _enqueue_startup_maintenance_job(self):
-        """
-        Enqueue heavy DB maintenance as a tracked background job.
-
-        Uses the global JobManager singleton so the job always appears in the
-        Activity Center.  The worker thread gets its own ReferenceDB connection
-        (per-thread pool) and never touches Qt widgets.
-        """
-        if self._closing:
-            return
-        import threading
-        try:
-            from services.job_manager import get_job_manager
-            jm = get_job_manager()
-
-            job_id = jm.register_tracked_job(
-                job_type="maintenance",
-                description="Database maintenance (backfill & index)",
-            )
-            print(f"[MainWindow] Maintenance job registered: job_id={job_id}")
-
-            def _maintenance():
-                try:
-                    from reference_db import ReferenceDB
-                    db = ReferenceDB()
-                    db.single_pass_backfill_created_fields()
-                    db.optimize_indexes()
-                    jm.complete_tracked_job(job_id, success=True)
-                    print("[MainWindow] Background maintenance completed")
-                except Exception as e:
-                    jm.complete_tracked_job(job_id, success=False, error=str(e))
-                    print(f"[MainWindow] Background maintenance failed: {e}")
-
-            thread = threading.Thread(target=_maintenance, name="startup_maintenance", daemon=True)
-            thread.start()
-
-        except Exception as e:
-            print(f"[MainWindow] Failed to enqueue maintenance job: {e}")
-            # Non-fatal — app can continue without optimization
+        """Startup maintenance job dispatch (Phase 1A: delegates to coordinator)."""
+        self._workspace_startup_coordinator.enqueue_startup_maintenance_job()
 
     def _warmup_clip_in_background(self):
-        """
-        Warm up CLIP model via ModelWarmupWorker (QRunnable on QThreadPool).
-
-        Runs 3 seconds after startup. Searches also run in background
-        threads (via _SmartFindWorker), so even if warmup hasn't
-        finished when the user clicks a preset, the UI stays
-        responsive.
-        """
-        if self._closing:
-            return
-        try:
-            from settings_manager_qt import SettingsManager
-            settings = SettingsManager()
-
-            # Only warmup if semantic embeddings are enabled
-            if not settings.get("enable_semantic_embeddings", True):
-                print("[MainWindow] CLIP warmup skipped (semantic embeddings disabled)")
-                return
-
-            # Resolve current project ID for canonical model selection
-            project_id = getattr(self.grid, 'project_id', None) if hasattr(self, 'grid') else None
-
-            from workers.model_warmup_worker import launch_model_warmup
-            self._clip_warmup_worker = launch_model_warmup(
-                project_id=project_id,
-                on_finished=lambda mid, variant: print(
-                    f"[MainWindow] ✅ CLIP model warmed up in background: {variant}"
-                ),
-                on_error=lambda err: print(
-                    f"[MainWindow] ⚠️ CLIP background warmup failed (non-fatal): {err}"
-                ),
-            )
-            print("[MainWindow] CLIP background warmup started (ModelWarmupWorker)")
-
-        except Exception as e:
-            print(f"[MainWindow] ⚠️ Could not start CLIP warmup: {e}")
+        """CLIP model warmup (Phase 1A: delegates to coordinator)."""
+        self._workspace_startup_coordinator.warmup_clip_in_background()
 
     def _deferred_cache_purge(self):
-        """FIX #6: Run thumbnail cache purge in a background thread after startup."""
-        if self._closing:
-            return
-        try:
-            from settings_manager_qt import SettingsManager
-            settings = SettingsManager()
-            if not settings.get("cache_auto_cleanup", True):
-                print("[MainWindow] Cache auto-cleanup disabled, skipping purge")
-                return
-
-            import threading
-
-            def _purge():
-                try:
-                    from thumb_cache_db import get_cache
-                    cache = get_cache()
-                    cache.purge_stale(max_age_days=30)
-                    print("[MainWindow] Deferred cache purge completed")
-                except Exception as e:
-                    print(f"[MainWindow] Cache purge error (non-fatal): {e}")
-
-            thread = threading.Thread(target=_purge, name="cache_purge", daemon=True)
-            thread.start()
-        except Exception as e:
-            print(f"[MainWindow] Could not start cache purge: {e}")
+        """Thumbnail cache purge (Phase 1A: delegates to coordinator)."""
+        self._workspace_startup_coordinator.deferred_cache_purge()
 
     def ensureOnScreen(self):
         """
@@ -3064,69 +2817,8 @@ class MainWindow(QMainWindow):
         self.project_controller.on_project_changed(idx)
 
     def _on_project_changed_by_id(self, project_id: int):
-        """
-        Switch to a project by ID.
-
-        Delegates to the **active layout** via BaseLayout.set_project() so
-        that GooglePhotosLayout refreshes its AccordionSidebar while
-        CurrentLayout refreshes SidebarQt + grid.  MainWindow no longer
-        pokes hidden/dead widgets directly.
-        """
-        print(f"\n[MainWindow] ========== _on_project_changed_by_id({project_id}) STARTED ==========")
-        try:
-            if hasattr(self, "search_controller"):
-                self.search_controller.set_active_project(project_id)
-
-            # Already on this project?
-            current_project_id = getattr(self.grid, 'project_id', None) if hasattr(self, 'grid') else None
-            if current_project_id == project_id:
-                print(f"[MainWindow] Already on project {project_id}, skipping switch")
-                return
-
-            # 1. Persist to session state
-            from session_state_manager import get_session_state
-            get_session_state().set_project(project_id)
-
-            # 2. Delegate to the active layout (the layout owns its sidebar)
-            layout = None
-            if hasattr(self, 'layout_manager') and self.layout_manager:
-                layout = self.layout_manager.get_current_layout()
-
-            self.active_project_id = project_id
-
-            if layout is not None:
-                layout.set_project(project_id)
-                print(f"[MainWindow] Delegated to {type(layout).__name__}.set_project({project_id})")
-            else:
-                # Fallback: no layout manager yet (very early startup)
-                if hasattr(self, "grid") and self.grid:
-                    self.grid.project_id = project_id
-                if hasattr(self, "sidebar") and self.sidebar:
-                    self.sidebar.set_project(project_id)
-
-            # 3. Reset grid branch to "all" for CurrentLayout's grid
-            #    (Google layout handles its own reload inside set_project)
-            layout_id = ""
-            if hasattr(self, 'layout_manager') and self.layout_manager:
-                layout_id = self.layout_manager.get_current_layout_id() or ""
-            if layout_id not in ("google", "google_legacy"):
-                if hasattr(self, "grid") and self.grid:
-                    self.grid.set_branch("all")
-
-            # CLIP upgrade check (Phase: Better Model Awareness)
-            QTimer.singleShot(1500, self._maybe_prompt_clip_upgrade)
-
-            # Breadcrumb auto-updates via gridReloaded signal
-
-            # Phase 5: refresh People shell after project switch
-            if hasattr(self, "_refresh_people_quick_section"):
-                self._refresh_people_quick_section()
-
-            print(f"[MainWindow] ========== _on_project_changed_by_id({project_id}) COMPLETED ==========\n")
-        except Exception as e:
-            print(f"[MainWindow] ERROR switching project: {e}")
-            import traceback
-            traceback.print_exc()
+        """Switch to a project by ID (Phase 1B: delegates to ProjectSwitchService)."""
+        self._project_switch_service.on_project_changed_by_id(project_id)
 
     # ── Phase 5: People shell helpers ─────────────────────────────
 
@@ -3415,195 +3107,20 @@ class MainWindow(QMainWindow):
             print(f"[UX-1 Bridge] Error: {e}")
 
     def _refresh_project_list(self):
-        """
-        Phase 2: Refresh the project list (called after creating a new project).
-        Updates the cached project list for breadcrumb navigation.
-        """
-        try:
-            from app_services import list_projects
-            self._projects = list_projects()
-            print(f"[MainWindow] Refreshed project list: {len(self._projects)} projects")
-        except Exception as e:
-            print(f"[MainWindow] Error refreshing project list: {e}")
+        """Project list cache refresh (Phase 1B: delegates to ProjectSwitchService)."""
+        self._project_switch_service.refresh_project_list()
 
     def _restore_session_state(self):
-        """
-        PHASE 2 & 3: Restore last browsing state (section expansion + selection).
-        Called after UI is fully loaded via QTimer.singleShot.
-        """
-        # One-shot guard: this may be scheduled from multiple init paths
-        if getattr(self, '_session_restored', False):
-            return
-        self._session_restored = True
-
-        try:
-            from session_state_manager import get_session_state
-            session_state = get_session_state()
-
-            # PHASE 2: Restore last expanded section
-            last_section = session_state.get_section()
-            if not last_section:
-                print(f"[MainWindow] PHASE 2: No previous section to restore")
-                return
-
-            # Find the AccordionSidebar (could be in different locations depending on layout)
-            accordion_sidebar = None
-
-            # Case 1: GooglePhotosLayout - sidebar IS the AccordionSidebar
-            if hasattr(self, 'layout_manager') and hasattr(self.layout_manager, 'current_layout'):
-                current_layout = self.layout_manager.current_layout
-                if hasattr(current_layout, 'sidebar') and hasattr(current_layout.sidebar, '_expand_section'):
-                    accordion_sidebar = current_layout.sidebar
-                    print(f"[MainWindow] PHASE 2: Found AccordionSidebar in GooglePhotosLayout")
-
-            # Case 2: Old SidebarQt - sidebar.accordion
-            if not accordion_sidebar and hasattr(self, 'sidebar'):
-                if hasattr(self.sidebar, 'accordion') and hasattr(self.sidebar.accordion, '_expand_section'):
-                    accordion_sidebar = self.sidebar.accordion
-                    print(f"[MainWindow] PHASE 2: Found AccordionSidebar in sidebar.accordion")
-
-            # Case 3: Current Layout with SidebarQt (tree-based, not accordion-based)
-            if not accordion_sidebar and hasattr(self, 'sidebar') and hasattr(self.sidebar, 'tree'):
-                print(f"[MainWindow] PHASE 2: Using Current Layout (SidebarQt) - will restore via tree selection")
-                # For SidebarQt, we restore by triggering the selection programmatically
-                QTimer.singleShot(300, lambda: self._restore_selection_sidebarqt(session_state))
-                return
-
-            if accordion_sidebar:
-                print(f"[MainWindow] PHASE 2: Restoring section={last_section} from session state")
-                accordion_sidebar._expand_section(last_section)
-
-                # PHASE 3: Restore selection after section loads (defer 300ms for section to load)
-                QTimer.singleShot(300, lambda: self._restore_selection(session_state, accordion_sidebar))
-            else:
-                print(f"[MainWindow] PHASE 2: Could not find any sidebar to restore")
-
-        except Exception as e:
-            print(f"[MainWindow] PHASE 2: Failed to restore session state: {e}")
-            import traceback
-            traceback.print_exc()
+        """Session state restore (Phase 1B: delegates to ProjectSwitchService)."""
+        self._project_switch_service.restore_session_state()
 
     def _restore_selection(self, session_state, accordion_sidebar):
-        """
-        PHASE 3: Restore last selection (folder/date/person/video).
-        Called after section is expanded and loaded.
-        """
-        try:
-            sel_type, sel_id, sel_name = session_state.get_selection()
-
-            if not sel_type or sel_id is None:
-                print(f"[MainWindow] PHASE 3: No selection to restore")
-                return
-
-            print(f"[MainWindow] PHASE 3: Restoring {sel_type} selection: {sel_name} (ID={sel_id})")
-
-            # Use the passed accordion_sidebar to access section_logic
-            if not hasattr(accordion_sidebar, 'section_logic'):
-                print(f"[MainWindow] PHASE 3: AccordionSidebar has no section_logic")
-                return
-
-            # Trigger selection based on type
-            if sel_type == "folder":
-                folders_section = accordion_sidebar.section_logic.get("folders")
-                if folders_section and hasattr(folders_section, 'folderSelected'):
-                    folders_section.folderSelected.emit(sel_id)
-                    print(f"[MainWindow] PHASE 3: Restored folder selection: {sel_name}")
-
-            elif sel_type == "date":
-                dates_section = accordion_sidebar.section_logic.get("dates")
-                if dates_section and hasattr(dates_section, 'dateSelected'):
-                    dates_section.dateSelected.emit(sel_id)
-                    print(f"[MainWindow] PHASE 3: Restored date selection: {sel_name}")
-
-            elif sel_type == "person":
-                people_section = accordion_sidebar.section_logic.get("people")
-                if people_section and hasattr(people_section, 'personSelected'):
-                    people_section.personSelected.emit(sel_id)
-                    print(f"[MainWindow] PHASE 3: Restored person selection: {sel_name}")
-
-            elif sel_type == "video":
-                # PHASE 3 FIX: Add video selection restoration
-                videos_section = accordion_sidebar.section_logic.get("videos")
-                if videos_section and hasattr(videos_section, 'videoFilterSelected'):
-                    videos_section.videoFilterSelected.emit(sel_id)
-                    print(f"[MainWindow] PHASE 3: Restored video selection: {sel_name}")
-
-        except Exception as e:
-            print(f"[MainWindow] PHASE 3: Failed to restore selection: {e}")
-            import traceback
-            traceback.print_exc()
+        """Accordion selection restore (Phase 1B: delegates to ProjectSwitchService)."""
+        self._project_switch_service.restore_selection(session_state, accordion_sidebar)
 
     def _restore_selection_sidebarqt(self, session_state):
-        """
-        PHASE 3: Restore last selection for SidebarQt (Current Layout).
-        Called after UI is fully loaded.
-        """
-        try:
-            sel_type, sel_id, sel_name = session_state.get_selection()
-
-            if not sel_type or sel_id is None:
-                print(f"[MainWindow] PHASE 3 (SidebarQt): No selection to restore")
-                return
-
-            print(f"[MainWindow] PHASE 3 (SidebarQt): Restoring {sel_type} selection: {sel_name} (ID={sel_id})")
-
-            # For SidebarQt, we need to programmatically trigger the _on_item_clicked with appropriate mode/value
-            if not hasattr(self, 'sidebar') or not hasattr(self.sidebar, '_on_item_clicked'):
-                print(f"[MainWindow] PHASE 3 (SidebarQt): Sidebar has no _on_item_clicked method")
-                return
-
-            # Map selection type to SidebarQt signals
-            if sel_type == "video":
-                # Parse video selection format
-                if sel_id == "all":
-                    # All videos - emit appropriate signal
-                    if hasattr(self.sidebar, 'selectVideos'):
-                        self.sidebar.selectVideos.emit("all")
-                    print(f"[MainWindow] PHASE 3 (SidebarQt): Restored all videos selection")
-                elif sel_id.startswith("year:"):
-                    # Year filter: "year:2024"
-                    year = sel_id.split(":", 1)[1]
-                    if hasattr(self.sidebar, 'selectVideos'):
-                        self.sidebar.selectVideos.emit(f"year:{year}")
-                    print(f"[MainWindow] PHASE 3 (SidebarQt): Restored video year selection: {year}")
-                elif sel_id.startswith("month:"):
-                    # Month filter: "month:2024-07"
-                    month = sel_id.split(":", 1)[1]
-                    if hasattr(self.sidebar, 'selectVideos'):
-                        self.sidebar.selectVideos.emit(f"month:{month}")
-                    print(f"[MainWindow] PHASE 3 (SidebarQt): Restored video month selection: {month}")
-                elif sel_id.startswith("day:"):
-                    # Day filter: "day:2024-07-15"
-                    day = sel_id.split(":", 1)[1]
-                    if hasattr(self.sidebar, 'selectVideos'):
-                        self.sidebar.selectVideos.emit(f"day:{day}")
-                    print(f"[MainWindow] PHASE 3 (SidebarQt): Restored video day selection: {day}")
-                else:
-                    print(f"[MainWindow] PHASE 3 (SidebarQt): Unknown video filter format: {sel_id}")
-                    return
-
-            elif sel_type == "folder":
-                # Folder selection - emit selectFolder signal
-                if hasattr(self.sidebar, 'selectFolder'):
-                    self.sidebar.selectFolder.emit(sel_id)
-                print(f"[MainWindow] PHASE 3 (SidebarQt): Restored folder selection: {sel_name} (ID={sel_id})")
-
-            elif sel_type == "date":
-                # Date selection - emit selectDate signal
-                if hasattr(self.sidebar, 'selectDate'):
-                    self.sidebar.selectDate.emit(sel_id)
-                print(f"[MainWindow] PHASE 3 (SidebarQt): Restored date selection: {sel_name} (ID={sel_id})")
-
-            elif sel_type == "person":
-                # Person selection - emit selectBranch signal for person branches
-                if hasattr(self.sidebar, 'selectBranch'):
-                    self.sidebar.selectBranch.emit(sel_id)
-                print(f"[MainWindow] PHASE 3 (SidebarQt): Restored person selection: {sel_name} (ID={sel_id})")
-
-        except Exception as e:
-            print(f"[MainWindow] PHASE 3 (SidebarQt): Failed to restore selection: {e}")
-            import traceback
-            traceback.print_exc()
+        """SidebarQt selection restore (Phase 1B: delegates to ProjectSwitchService)."""
+        self._project_switch_service.restore_selection_sidebarqt(session_state)
 
     def _on_folder_selected(self, folder_id: int):
         # DELEGATED to SidebarController (legacy stub kept for compatibility)
