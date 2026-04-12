@@ -2,7 +2,65 @@
 
 All notable changes to the MemoryMate PhotoFlow search pipeline are documented here.
 
-## [Unreleased] - 2026-04-11
+## [Unreleased] - 2026-04-12
+
+### Phase 11 — MainWindow Decomposition (Coordinator + Service Extraction, Part 1)
+
+Highest-leverage architectural refactor from the audit pack: decompose the 5063-line
+`main_window_qt.MainWindow` monolith into focused coordinators/services owned by
+MainWindow via thin delegation wrappers. Phase 1 (A+B) removes **483 lines** from
+`main_window_qt.py` (5063 → 4580) while preserving byte-for-byte behavior. No
+changes to `google_layout_legacy.py` (as per standing orders).
+
+#### Phase 1A — `services/workspace_startup_coordinator.py` (NEW, 305 lines)
+- Owns the post-first-paint / deferred-initialization lifecycle
+- Extracted methods (now thin `self._workspace_startup_coordinator.X()` wrappers
+  on MainWindow):
+  - `_after_first_paint` → `after_first_paint`
+  - `_deferred_initialization` → `deferred_initialization`
+  - `_init_minimal_db_handle` → `init_minimal_db_handle`
+  - `_enqueue_startup_maintenance_job` → `enqueue_startup_maintenance_job`
+  - `_warmup_clip_in_background` → `warmup_clip_in_background`
+  - `_deferred_cache_purge` → `deferred_cache_purge`
+- Preserves JobManager throttle + global QThreadPool throttle lifecycle
+  (`_startup_global_pool_prev`), CLIP warmup worker reference
+  (`_clip_warmup_worker`), and DB handle (`mw.db`) on the MainWindow instance
+- Constructed in MainWindow `__init__` after `LayoutManager(self)` as
+  `self._workspace_startup_coordinator = WorkspaceStartupCoordinator(self)`
+
+#### Phase 1B — `services/project_switch_service.py` (NEW, 358 lines)
+- Owns project bootstrap, switching, and session-state restoration
+- Extracted methods (now thin `self._project_switch_service.X()` wrappers on
+  MainWindow):
+  - `_bootstrap_active_project` → `bootstrap_active_project`
+  - `_on_project_changed_by_id` → `on_project_changed_by_id`
+  - `_refresh_project_list` → `refresh_project_list`
+  - `_restore_session_state` → `restore_session_state`
+  - `_restore_selection` → `restore_selection`
+  - `_restore_selection_sidebarqt` → `restore_selection_sidebarqt`
+- Preserves layout-delegated set_project flow, grid branch reset for
+  CurrentLayout-only, CLIP upgrade prompt at 1500ms, People shell refresh,
+  and AccordionSidebar / SidebarQt dual restore paths
+- Constructed in MainWindow `__init__` as
+  `self._project_switch_service = ProjectSwitchService(self)`
+
+#### Tests (NEW, 80 tests total, all green)
+- `tests/test_phase11a_workspace_startup_coordinator.py` — 35 tests across 8
+  classes (instantiation, after_first_paint, deferred_initialization,
+  init_minimal_db_handle, enqueue_startup_maintenance_job,
+  warmup_clip_in_background, deferred_cache_purge, MainWindow thin wrappers)
+- `tests/test_phase11b_project_switch_service.py` — 45 tests across 7 classes
+  (bootstrap_active_project, on_project_changed_by_id, refresh_project_list,
+  restore_session_state, restore_selection, restore_selection_sidebarqt,
+  MainWindow thin wrappers)
+- Both files use the `_MockImportFinder` headless pattern to run without
+  PySide6 / numpy / DB dependencies, with scoped `sys.modules["services"]`
+  namespace lifecycle to prevent cross-test pollution with
+  `test_photo_scan_service.py` and `test_thumbnail_service.py`
+- Thin-wrapper tests use AST-level body inspection (no MainWindow
+  instantiation) to assert each wrapper delegates and nothing else
+- Full shell-phase suite: **532 passed** (487 prior + 45 new from phase11b;
+  phase11a's 35 were already in the prior 487 count post-11A commit)
 
 ### Phase 10C Fix Pack v3 — Shell/Legacy Parity Audit (Dead Signal Rewire, Filters Population, Discover Search, Inline Search Input)
 
